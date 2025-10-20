@@ -9,7 +9,7 @@ Una aplicación web moderna construida con React, Vite y Tailwind CSS para gesti
 - **Búsqueda y Filtros:** Búsqueda en tiempo real y filtros por estado, cliente y tipo.
 - **Gestión CRUD:** Funcionalidad completa para Crear, Leer, Actualizar y Eliminar proyectos.
 - **Diseño Moderno:** Interfaz de usuario elegante y responsiva con Tailwind CSS.
-- **Despliegue Sencillo:** Configurado para un despliegue fácil en Netlify.
+- **Despliegue Sencillo:** Configurado para un despliegue estático (Vercel / Netlify).
 
 ## Instalación y Uso
 
@@ -32,12 +32,28 @@ Una aplicación web moderna construida con React, Vite y Tailwind CSS para gesti
 
 ## Despliegue
 
-El proyecto está listo para ser desplegado en Netlify. Simplemente conecta tu repositorio de Git a Netlify y usa la siguiente configuración:
+El proyecto puede desplegarse sin backend en plataformas estáticas. Recomendado: Vercel o Netlify.
 
--   **Comando de construcción:** `npm run build`
--   **Directorio de publicación:** `dist`
+### Variables de entorno
 
-El archivo `netlify.toml` incluido en el repositorio configura esto automáticamente.
+Crea `.env` con:
+
+```
+VITE_N8N_BASE_URL=https://tu-instancia-n8n.webhook/proyecto
+```
+
+### Vercel
+
+1. Conecta el repositorio en Vercel.
+2. Agrega `VITE_N8N_BASE_URL` en **Project Settings → Environment Variables**.
+3. Configura la build (vercel.json ya define):
+   - Build command: `npm run build`
+   - Output directory: `dist`
+4. Despliega y usa la URL HTTPS generada.
+
+### Netlify
+
+Usa el mismo comando `npm run build` y directorio `dist`. El archivo `netlify.toml` ya incluye estos valores.
 # cerezo
 
 ## 📌 Descripción General
@@ -57,56 +73,45 @@ Sustituir herramientas dispersas como Excel, WhatsApp y notas personales, unific
 - **Frontend:** React 18 + Vite
 - **Estilos:** Tailwind CSS
 - **Iconografía:** Lucide React
-- **Almacenamiento:** localStorage (MVP), pronto Supabase
-- **Despliegue:** Netlify
+- **Persistencia:** API REST n8n + Google Sheets
+- **Despliegue recomendado:** Vercel o Netlify
 
 ---
 
-## 🧠 Funcionalidades Actuales (MVP)
+## 🧠 Funcionalidades Clave
 
-- Vista en Tabla, Kanban y Galería
-- Crear, editar y eliminar proyectos
-- Filtros por cliente y estado
-- Comentarios y colaboradores
-- Adjuntar archivos (simulado)
-- Interfaz responsiva y liviana
-- Almacenamiento local persistente
-
----
-
-## 🛠️ Próximas Funcionalidades
-
-- Autenticación con roles (Supabase)
-- Sincronización entre usuarios
-- Timeline de cambios
-- Propiedades personalizadas
-- Archivos reales y notificaciones
-- Templates y automatizaciones
-
----
+- Vistas Tabla, Kanban, Galería, Calendario y Timeline.
+- CRUD completo contra API n8n (Google Sheets).
+- Polling cada 10 s para refrescar automáticamente.
+- Validaciones y confirmación antes de eliminar.
+- Toasts y alerts informando éxito o errores.
+- Búsqueda global con debounce integrada en la barra superior.
+- Diseño responsivo con Tailwind.
 
 ## 🧩 Flujo Esperado
 
 1. El usuario crea un nuevo proyecto indicando nombre, cliente, fechas, responsables, etc.
 2. El proyecto aparece instantáneamente en todas las vistas.
 3. Cualquier miembro del equipo puede comentar, actualizar estado o agregar info.
-4. Todo queda sincronizado en tiempo real (futuro con Supabase).
+4. La vista se actualiza cada 10 s gracias al polling contra la API n8n.
 
 ---
 
 ## 📁 Estructura del Proyecto
 
 ```
-cerezo-project-netlify/
+cerezo-app/
 ├── public/
 │   └── index.html
 ├── src/
 │   ├── components/
+│   ├── constants/
+│   ├── hooks/
 │   ├── views/
-│   ├── context/
-│   ├── data/
-│   └── App.jsx
+│   ├── config/
+│   └── main.jsx
 ├── netlify.toml
+├── vercel.json
 ├── package.json
 └── README.md
 ```
@@ -123,12 +128,7 @@ npm run build     # Construye versión para producción
 
 ---
 
-## 📦 Deploy en Netlify
+## 📦 Deploy
 
-El proyecto ya incluye el archivo `netlify.toml` con configuración base:
-
-```toml
-[build]
-  command = "npm run build"
-  publish = "dist"
-```# proyectos-cerezo
+- **Vercel:** usa `vercel.json`, agrega `VITE_N8N_BASE_URL` y despliega.  
+- **Netlify:** `netlify.toml` ya define `npm run build` y `dist`; añade la misma variable en Site settings.
