@@ -59,26 +59,19 @@ const ModalDetalles = () => {
     });
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (editedProject.id) {
-      const result = await updateProject(editedProject);
-      if (result?.success) {
-        closeModal();
-      }
+      updateProject(editedProject);
     } else {
-      const result = await addProject(editedProject);
-      if (result?.success) {
-        closeModal();
-      }
+      addProject(editedProject);
     }
+    closeModal();
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (editedProject.id && window.confirm('¿Estás seguro de que deseas eliminar este proyecto?')) {
-      const result = await deleteProject(editedProject.id);
-      if (result?.success) {
-        closeModal();
-      }
+      deleteProject(editedProject.id);
+      closeModal();
     }
   };
 

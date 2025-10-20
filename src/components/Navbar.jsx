@@ -1,26 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Search, Plus, Bell, User } from 'lucide-react';
 import useStore from '../hooks/useStore';
 
 const Navbar = () => {
   const openModal = useStore((state) => state.openModal);
-  const setSearchTerm = useStore((state) => state.setSearchTerm);
-  const storeSearchTerm = useStore((state) => state.searchTerm);
-  const [query, setQuery] = useState(storeSearchTerm);
-
-  useEffect(() => {
-    setQuery(storeSearchTerm);
-  }, [storeSearchTerm]);
-
-  useEffect(() => {
-    const handler = window.setTimeout(() => {
-      setSearchTerm(query);
-    }, 300);
-
-    return () => {
-      window.clearTimeout(handler);
-    };
-  }, [query, setSearchTerm]);
 
   const handleAddNew = () => {
     openModal({ properties: {} });
@@ -37,8 +20,6 @@ const Navbar = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" size={20} />
           <input
             type="text"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
             placeholder="Buscar... (Ctrl+K)"
             className="bg-background border border-border rounded-lg pl-10 pr-4 py-2 w-80 focus:outline-none focus:ring-2 focus:ring-accent"
           />
