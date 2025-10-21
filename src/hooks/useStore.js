@@ -17,7 +17,6 @@ const normalizeStatus = (status) => {
 
 const normalizeProject = (project) => {
   if (!project) return project;
-
   const startDate = project.startDate || project.start_date || project.fecha_inicio || null;
   const deadline = project.deadline || project.endDate || project.end_date || project.fecha_entrega || null;
   const properties = project.properties || {};
@@ -37,6 +36,45 @@ const normalizeProject = (project) => {
     client: project.client || project.cliente || '',
     resources,
     properties: { ...properties, resources },
+  };
+};
+
+const prepareProjectForSupabase = (project) => {
+  const normalizeDate = (value) => {
+    if (!value) return null;
+    const trimmed = value.toString().trim();
+    return trimmed.length === 0 ? null : trimmed;
+  };
+
+  const normalizeTeam = (team) => {
+    if (Array.isArray(team)) return team;
+    if (!team) return [];
+    if (typeof team === 'string') {
+      return team
+        .split(',')
+        .map((member) => member.trim())
+        .filter(Boolean);
+    }
+    return [];
+  };
+
+  const resources = Array.isArray(project.resources)
+    ? project.resources.filter(Boolean)
+    : Array.isArray(project.properties?.resources)
+      ? project.properties.resources.filter(Boolean)
+      : [];
+
+  return {
+    ...project,
+    startDate: normalizeDate(project.startDate),
+    deadline: normalizeDate(project.deadline),
+    notes: project.notes?.trim?.() ? project.notes.trim() : null,
+    team: normalizeTeam(project.team),
+    properties: {
+      ...(project.properties || {}),
+      resources,
+    },
+    resources,
   };
 };
 
@@ -148,7 +186,8 @@ const useStore = create((set) => ({
     }
 
     try {
-      const { data, error } = await supabaseClient.from('projects').insert([project]).select();
+      const payload = prepareProjectForSupabase(project);
+      const { data, error } = await supabaseClient.from('projects').insert([payload]).select();
 
       if (error) throw error;
 
@@ -195,9 +234,10 @@ const useStore = create((set) => ({
     }
 
     try {
+      const payload = prepareProjectForSupabase(project);
       const { data, error } = await supabaseClient
         .from('projects')
-        .update(project)
+        .update(payload)
         .eq('id', project.id)
         .select();
 
