@@ -16,9 +16,13 @@ const VistaGaleria = () => {
   );
 
   return (
-    <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 gap-6 p-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {filteredProjects.map((p) => (
-        <div key={p.id} className="bg-surface rounded-lg overflow-hidden border border-border hover:border-accent cursor-pointer transition-all duration-200" onClick={() => openModal(p)}>
+        <div
+          key={p.id}
+          className="ios-card rounded-2xl border border-border bg-surface/80 overflow-hidden cursor-pointer transition-all duration-200 hover:border-cyan-400/60"
+          onClick={() => openModal(p)}
+        >
           <div className="h-40 bg-background flex items-center justify-center text-secondary">
             <LayoutGrid size={48} />
           </div>

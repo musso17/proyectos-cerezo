@@ -222,7 +222,7 @@ const VistaTabla = () => {
                 return (
                   <tr
                     key={project.id || index}
-                    className="border-t border-white/5 transition hover:bg-white/5"
+                    className="border-t border-white/5 transition-all duration-200 ease-[var(--ease-ios-out)] hover:-translate-y-0.5 hover:bg-white/10"
                     onClick={() => openModal(project)}
                   >
                     <td className="px-6 py-5 text-sm font-semibold text-slate-100">

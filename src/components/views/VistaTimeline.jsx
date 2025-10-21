@@ -164,7 +164,7 @@ const VistaTimeline = () => {
             return (
               <div
                 key={member}
-                className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-surface/60 p-4 md:grid-cols-[200px_1fr] md:items-center">
+                className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-surface/60 p-4 transition-all duration-200 ease-[var(--ease-ios-out)] hover:border-cyan-400/50 hover:shadow-[0_18px_36px_rgba(8,47,73,0.35)] md:grid-cols-[200px_1fr] md:items-center">
                 <div>
                   <h3 className="text-primary font-semibold text-lg">{member}</h3>
                   <p className="text-secondary text-sm">

@@ -203,9 +203,9 @@ const VistaCalendario = () => {
           return (
             <div
               key={key}
-              className={`min-h-[110px] bg-surface/70 p-2 transition-colors ${
+              className={`min-h-[110px] bg-surface/70 p-2 transition-all duration-200 ease-[var(--ease-ios-out)] ${
                 isCurrentMonth ? 'text-primary' : 'text-secondary/60'
-              } ${isToday ? 'border border-accent/60 bg-accent/10' : 'border border-surface/40'}`}>
+              } ${isToday ? 'border border-accent/60 bg-accent/10 shadow-[0_15px_35px_rgba(56,189,248,0.25)]' : 'border border-surface/40 hover:border-cyan-400/40 hover:bg-surface/90 hover:shadow-[0_12px_30px_rgba(8,47,73,0.35)]'}`}>
               <div className="flex items-center justify-between text-xs">
                 <span className={`text-sm font-semibold ${isCurrentMonth ? 'text-primary' : ''}`}>
                   {format(day, 'd', { locale: es })}
@@ -236,7 +236,7 @@ const VistaCalendario = () => {
                       key={project.id}
                       type="button"
                       onClick={() => openModal(project)}
-                      className={`group rounded-md border px-2 py-1 text-left text-xs shadow-sm transition-all hover:shadow-md ${styles.pill}`}>
+                      className={`group rounded-md border px-2 py-1 text-left text-xs shadow-sm transition-all duration-200 ease-[var(--ease-ios-out)] hover:shadow-lg hover:-translate-y-0.5 ${styles.pill}`}>
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate font-semibold">{project.name}</span>
                         <span className="whitespace-nowrap text-[10px] opacity-75">
