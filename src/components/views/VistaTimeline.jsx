@@ -7,6 +7,7 @@ import { differenceInCalendarDays, eachMonthOfInterval, format, parseISO, startO
 import { es } from 'date-fns/locale';
 import { TEAM_STYLES, ensureMemberName } from '../../constants/team';
 import { filterProjects } from '../../utils/filterProjects';
+import { getClientStyles } from '../../utils/clientStyles';
 
 const parseDate = (value) => {
   if (!value) return null;
@@ -192,12 +193,24 @@ const VistaTimeline = () => {
                             onClick={() => openModal(project)}
                             className={`absolute top-4 flex h-14 items-center gap-3 rounded-md border px-4 text-left shadow-sm transition-all hover:shadow-lg ${styles.bg} ${styles.border} ${styles.text}`}
                             style={{ left: `${left}%`, width: `${width}%` }}>
-                            <div className="min-w-0">
+                            <div className="min-w-0 space-y-1">
                               <p className="truncate text-sm font-semibold">{project.name}</p>
-                              <p className="truncate text-xs opacity-80">
-                                {format(range.start, 'd MMM', { locale: es })} –{' '}
-                                {format(range.end, 'd MMM', { locale: es })}
-                              </p>
+                              <div className="flex items-center justify-between text-xs opacity-90">
+                                <span>
+                                  {format(range.start, 'd MMM', { locale: es })} –{' '}
+                                  {format(range.end, 'd MMM', { locale: es })}
+                                </span>
+                                {project.client && (
+                                  (() => {
+                                    const colors = getClientStyles(project.client);
+                                    return (
+                                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${colors.badge}`}>
+                                        {project.client}
+                                      </span>
+                                    );
+                                  })()
+                                )}
+                              </div>
                             </div>
                           </button>
                         );

@@ -19,6 +19,7 @@ import {
 import { es } from 'date-fns/locale';
 import { TEAM_STYLES, ensureMemberName } from '../../constants/team';
 import { filterProjects } from '../../utils/filterProjects';
+import { getClientStyles } from '../../utils/clientStyles';
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const MAX_ITEMS_PER_DAY = 3;
@@ -249,7 +250,14 @@ const VistaCalendario = () => {
                         </p>
                       ) : (
                         project.client && (
-                          <p className="mt-0.5 truncate text-[10px] opacity-70">{project.client}</p>
+                          (() => {
+                            const colors = getClientStyles(project.client);
+                            return (
+                              <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${colors.badge}`}>
+                                {project.client}
+                              </span>
+                            );
+                          })()
                         )
                       )}
                     </button>

@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import useStore from '../../hooks/useStore';
 import { LayoutGrid } from 'lucide-react';
 import { filterProjects } from '../../utils/filterProjects';
+import { getClientStyles } from '../../utils/clientStyles';
 
 const VistaGaleria = () => {
   const projects = useStore((state) => state.projects);
@@ -28,10 +29,21 @@ const VistaGaleria = () => {
           </div>
           <div className="p-4">
             <h3 className="font-semibold text-primary">{p.name}</h3>
-            <p className="text-sm text-secondary mt-1">{p.client}</p>
-            <div className="mt-4 flex justify-between items-center">
-              <span className={`px-2 py-1 text-xs font-medium rounded-full bg-border text-secondary`}>{p.status}</span>
-              <span className="text-sm text-secondary">{p.deadline}</span>
+            <div className="mt-2 flex items-center justify-between">
+              {(() => {
+                const clientLabel = p.client || 'Sin cliente';
+                const color = getClientStyles(clientLabel);
+                return (
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${color.badge}`}>
+                    {clientLabel}
+                  </span>
+                );
+              })()}
+              <span className="text-xs text-slate-400">{p.deadline || 'Sin fecha'}</span>
+            </div>
+            <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
+              <span className="rounded-full bg-white/5 px-2 py-1 text-[11px] uppercase tracking-wide">{p.status}</span>
+              <span>{p.manager || 'Sin responsable'}</span>
             </div>
           </div>
         </div>
