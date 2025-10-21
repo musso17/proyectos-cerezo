@@ -49,9 +49,9 @@ const VistaTabla = () => {
 
   const orderedProjects = useMemo(() => {
     return [...projects].sort((a, b) => {
-      const aDate = a.startDate ? new Date(a.startDate).getTime() : 0;
-      const bDate = b.startDate ? new Date(b.startDate).getTime() : 0;
-      return bDate - aDate;
+      const aDate = a.startDate ? new Date(a.startDate).getTime() : Number.POSITIVE_INFINITY;
+      const bDate = b.startDate ? new Date(b.startDate).getTime() : Number.POSITIVE_INFINITY;
+      return aDate - bDate;
     });
   }, [projects]);
 
