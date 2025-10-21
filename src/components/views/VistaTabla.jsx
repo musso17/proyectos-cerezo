@@ -4,7 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { Edit2, Trash2 } from 'lucide-react';
 import useStore from '../../hooks/useStore';
 import { filterProjects } from '../../utils/filterProjects';
-import { getClientStyles } from '../../utils/clientStyles';
+import { getClientBadgeClass } from '../../utils/clientStyles';
 
 const statusStyles = {
   Finalizado: 'bg-blue-500/20 text-blue-200 border-blue-400/40',
@@ -246,12 +246,7 @@ const VistaTabla = () => {
                     <td className="px-6 py-5">
                       {(() => {
                         const clientLabel = project.client || 'Sin cliente';
-                        const colors = getClientStyles(clientLabel);
-                        return (
-                          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${colors.badge}`}>
-                            {clientLabel}
-                          </span>
-                        );
+                        return <span className={getClientBadgeClass(clientLabel)}>{clientLabel}</span>;
                       })()}
                     </td>
                     <td className="px-6 py-5">

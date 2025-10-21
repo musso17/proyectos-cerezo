@@ -1,12 +1,12 @@
 const palette = [
-  { bg: 'bg-rose-500/15', text: 'text-rose-200', border: 'border-rose-400/40', badge: 'bg-rose-500/20 text-rose-200 border-rose-400/40' },
-  { bg: 'bg-cyan-500/15', text: 'text-cyan-200', border: 'border-cyan-400/40', badge: 'bg-cyan-500/20 text-cyan-200 border-cyan-400/40' },
-  { bg: 'bg-amber-500/15', text: 'text-amber-200', border: 'border-amber-400/40', badge: 'bg-amber-500/20 text-amber-200 border-amber-400/40' },
-  { bg: 'bg-emerald-500/15', text: 'text-emerald-200', border: 'border-emerald-400/40', badge: 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40' },
-  { bg: 'bg-indigo-500/15', text: 'text-indigo-200', border: 'border-indigo-400/40', badge: 'bg-indigo-500/20 text-indigo-200 border-indigo-400/40' },
-  { bg: 'bg-fuchsia-500/15', text: 'text-fuchsia-200', border: 'border-fuchsia-400/40', badge: 'bg-fuchsia-500/20 text-fuchsia-200 border-fuchsia-400/40' },
-  { bg: 'bg-lime-500/15', text: 'text-lime-200', border: 'border-lime-400/40', badge: 'bg-lime-500/20 text-lime-200 border-lime-400/40' },
-  { bg: 'bg-blue-500/15', text: 'text-blue-200', border: 'border-blue-400/40', badge: 'bg-blue-500/20 text-blue-200 border-blue-400/40' },
+  { badge: 'bg-rose-500/20 text-rose-200 border-rose-400/40' },
+  { badge: 'bg-cyan-500/20 text-cyan-200 border-cyan-400/40' },
+  { badge: 'bg-amber-500/20 text-amber-200 border-amber-400/40' },
+  { badge: 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40' },
+  { badge: 'bg-indigo-500/20 text-indigo-200 border-indigo-400/40' },
+  { badge: 'bg-violet-500/20 text-violet-200 border-violet-400/40' },
+  { badge: 'bg-pink-500/20 text-pink-200 border-pink-400/40' },
+  { badge: 'bg-blue-500/20 text-blue-200 border-blue-400/40' },
 ];
 
 const clientColorMap = new Map();
@@ -29,3 +29,13 @@ export const getClientStyles = (client) => {
   return styles;
 };
 
+const baseBadges = {
+  md: 'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide shadow-[0_0_0_1px_rgba(255,255,255,0.05)]',
+  sm: 'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide shadow-[0_0_0_1px_rgba(255,255,255,0.05)]',
+};
+
+export const getClientBadgeClass = (client, size = 'md') => {
+  const styles = getClientStyles(client);
+  const base = baseBadges[size] || baseBadges.md;
+  return `${base} ${styles.badge}`;
+};

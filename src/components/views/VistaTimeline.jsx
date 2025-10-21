@@ -7,7 +7,7 @@ import { differenceInCalendarDays, eachMonthOfInterval, format, parseISO, startO
 import { es } from 'date-fns/locale';
 import { TEAM_STYLES, ensureMemberName } from '../../constants/team';
 import { filterProjects } from '../../utils/filterProjects';
-import { getClientStyles } from '../../utils/clientStyles';
+import { getClientBadgeClass } from '../../utils/clientStyles';
 
 const parseDate = (value) => {
   if (!value) return null;
@@ -201,14 +201,9 @@ const VistaTimeline = () => {
                                   {format(range.end, 'd MMM', { locale: es })}
                                 </span>
                                 {project.client && (
-                                  (() => {
-                                    const colors = getClientStyles(project.client);
-                                    return (
-                                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${colors.badge}`}>
-                                        {project.client}
-                                      </span>
-                                    );
-                                  })()
+                                  <span className={getClientBadgeClass(project.client, 'sm')}>
+                                    {project.client}
+                                  </span>
                                 )}
                               </div>
                             </div>
