@@ -1,7 +1,6 @@
 "use client";
 
 import useStore from '../hooks/useStore';
-import VistaKanban from './views/VistaKanban';
 import VistaTabla from './views/VistaTabla';
 import VistaGaleria from './views/VistaGaleria';
 import VistaCalendario from './views/VistaCalendario';
@@ -13,8 +12,6 @@ const ViewRenderer = () => {
   switch (currentView) {
     case 'Table':
       return <VistaTabla />;
-    case 'Kanban':
-      return <VistaKanban />;
     case 'Calendar':
       return <VistaCalendario />;
     case 'Timeline':
@@ -22,9 +19,8 @@ const ViewRenderer = () => {
     case 'Gallery':
       return <VistaGaleria />;
     default:
-      return <VistaKanban />;
+      return <VistaTabla />;
   }
 };
 
 export default ViewRenderer;
-

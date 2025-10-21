@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { ChevronLeft, Menu, Kanban, List, Calendar, GanttChart, LayoutGrid } from 'lucide-react';
+import { ChevronLeft, Menu, List, Calendar, GanttChart, LayoutGrid } from 'lucide-react';
 import useStore from '../hooks/useStore';
 
 const Sidebar = () => {
@@ -11,7 +11,6 @@ const Sidebar = () => {
 
   const navItems = [
     { id: 'Table', icon: List, label: 'Table' },
-    { id: 'Kanban', icon: Kanban, label: 'Kanban' },
     { id: 'Calendar', icon: Calendar, label: 'Calendar' },
     { id: 'Timeline', icon: GanttChart, label: 'Timeline' },
     { id: 'Gallery', icon: LayoutGrid, label: 'Gallery' },

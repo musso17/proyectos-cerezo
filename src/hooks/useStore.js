@@ -65,7 +65,7 @@ const useStore = create((set) => ({
   projects: [],
   loading: true,
   error: null,
-  currentView: 'Kanban',
+  currentView: 'Table',
   isModalOpen: false,
   selectedProject: null,
   teamMembers: TEAM_MEMBERS,
