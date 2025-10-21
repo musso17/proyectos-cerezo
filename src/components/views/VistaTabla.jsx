@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Edit2, Trash2 } from 'lucide-react';
 import useStore from '../../hooks/useStore';
 
@@ -15,6 +15,12 @@ const statusStyles = {
 
 const typeStyles = 'bg-slate-700/60 text-slate-200 border border-slate-600/60';
 const clientStyles = 'bg-rose-500/20 text-rose-200 border border-rose-400/40';
+
+const getLabel = (value, fallback) => {
+  if (!value) return fallback;
+  const trimmed = value.toString().trim();
+  return trimmed.length === 0 ? fallback : trimmed;
+};
 
 const formatDate = (value) => {
   if (!value) return '—';
@@ -32,6 +38,13 @@ const VistaTabla = () => {
   const openModal = useStore((state) => state.openModal);
   const deleteProject = useStore((state) => state.deleteProject);
 
+  const [filters, setFilters] = useState({
+    type: 'Todos',
+    manager: 'Todos',
+    status: 'Todos',
+    client: 'Todos',
+  });
+
   const orderedProjects = useMemo(() => {
     return [...projects].sort((a, b) => {
       const aDate = a.startDate ? new Date(a.startDate).getTime() : 0;
@@ -39,6 +52,58 @@ const VistaTabla = () => {
       return bDate - aDate;
     });
   }, [projects]);
+
+  const filterOptions = useMemo(() => {
+    const typeSet = new Set();
+    const managerSet = new Set();
+    const statusSet = new Set();
+    const clientSet = new Set();
+
+    projects.forEach((project) => {
+      typeSet.add(getLabel(project.type, 'Sin tipo'));
+      managerSet.add(getLabel(project.manager, 'Sin asignar'));
+      statusSet.add(getLabel(project.status, 'Pendiente'));
+      clientSet.add(getLabel(project.client, 'Sin cliente'));
+    });
+
+    const toSortedArray = (set) => ['Todos', ...Array.from(set).sort((a, b) => a.localeCompare(b, 'es'))];
+
+    return {
+      types: toSortedArray(typeSet),
+      managers: toSortedArray(managerSet),
+      statuses: toSortedArray(statusSet),
+      clients: toSortedArray(clientSet),
+    };
+  }, [projects]);
+
+  const filteredProjects = useMemo(() => {
+    return orderedProjects.filter((project) => {
+      const typeLabel = getLabel(project.type, 'Sin tipo');
+      const managerLabel = getLabel(project.manager, 'Sin asignar');
+      const statusLabel = getLabel(project.status, 'Pendiente');
+      const clientLabel = getLabel(project.client, 'Sin cliente');
+
+      if (filters.type !== 'Todos' && filters.type !== typeLabel) return false;
+      if (filters.manager !== 'Todos' && filters.manager !== managerLabel) return false;
+      if (filters.status !== 'Todos' && filters.status !== statusLabel) return false;
+      if (filters.client !== 'Todos' && filters.client !== clientLabel) return false;
+      return true;
+    });
+  }, [orderedProjects, filters]);
+
+  const handleFilterChange = (key) => (event) => {
+    const value = event.target.value;
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleResetFilters = () => {
+    setFilters({
+      type: 'Todos',
+      manager: 'Todos',
+      status: 'Todos',
+      client: 'Todos',
+    });
+  };
 
   const handleEdit = (project, event) => {
     event.stopPropagation();
@@ -55,7 +120,77 @@ const VistaTabla = () => {
   };
 
   return (
-    <div className="soft-scroll h-full overflow-auto">
+    <div className="soft-scroll flex h-full flex-col gap-4 overflow-auto">
+      <div className="glass-panel flex flex-wrap items-end gap-4 rounded-3xl px-6 py-4 text-xs text-slate-200">
+        <div className="flex flex-col">
+          <label className="mb-1 font-medium uppercase tracking-wide text-slate-400">Tipo</label>
+          <select
+            value={filters.type}
+            onChange={handleFilterChange('type')}
+            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+          >
+            {filterOptions.types.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col">
+          <label className="mb-1 font-medium uppercase tracking-wide text-slate-400">Encargado</label>
+          <select
+            value={filters.manager}
+            onChange={handleFilterChange('manager')}
+            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+          >
+            {filterOptions.managers.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col">
+          <label className="mb-1 font-medium uppercase tracking-wide text-slate-400">Estado</label>
+          <select
+            value={filters.status}
+            onChange={handleFilterChange('status')}
+            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+          >
+            {filterOptions.statuses.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col">
+          <label className="mb-1 font-medium uppercase tracking-wide text-slate-400">Cliente</label>
+          <select
+            value={filters.client}
+            onChange={handleFilterChange('client')}
+            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+          >
+            {filterOptions.clients.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleResetFilters}
+          className="ml-auto inline-flex items-center rounded-2xl bg-white/10 px-4 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/20"
+        >
+          Limpiar filtros
+        </button>
+      </div>
+
       <div className="glass-panel overflow-hidden rounded-3xl">
         <table className="w-full border-collapse text-sm text-slate-300">
           <thead>
@@ -68,14 +203,14 @@ const VistaTabla = () => {
             </tr>
           </thead>
           <tbody>
-            {orderedProjects.length === 0 ? (
+            {filteredProjects.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
                   No hay proyectos para mostrar.
                 </td>
               </tr>
             ) : (
-              orderedProjects.map((project, index) => {
+              filteredProjects.map((project, index) => {
                 const statusClass = statusStyles[project.status] || statusStyles.Pendiente;
                 return (
                   <tr
