@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useMemo } from 'react';
 import { Edit2, Trash2 } from 'lucide-react';
 import useStore from '../../hooks/useStore';
@@ -53,13 +55,13 @@ const VistaTabla = () => {
   };
 
   return (
-    <div className="p-6">
-      <div className="overflow-hidden rounded-2xl border border-border/60 bg-surface/80 shadow-lg">
-        <table className="w-full border-collapse text-sm text-secondary">
+    <div className="soft-scroll h-full overflow-auto">
+      <div className="glass-panel overflow-hidden rounded-3xl">
+        <table className="w-full border-collapse text-sm text-slate-300">
           <thead>
-            <tr className="bg-background/80 text-xs uppercase tracking-wide text-secondary">
-              {['Contenido', 'Tipo', 'Encargado', 'Estado', 'Inicio', 'Finalización', 'Cliente', 'Acciones'].map((header) => (
-                <th key={header} className="px-6 py-4 text-left font-semibold text-slate-300">
+            <tr className="bg-white/5 text-xs uppercase tracking-wide text-slate-400">
+              {['Contenido', 'Tipo', 'Encargado', 'Estado', 'Inicio', 'Entrega', 'Cliente', 'Acciones'].map((header) => (
+                <th key={header} className="px-6 py-4 text-left font-semibold">
                   {header}
                 </th>
               ))}
@@ -68,7 +70,7 @@ const VistaTabla = () => {
           <tbody>
             {orderedProjects.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-12 text-center text-secondary">
+                <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
                   No hay proyectos para mostrar.
                 </td>
               </tr>
@@ -78,10 +80,12 @@ const VistaTabla = () => {
                 return (
                   <tr
                     key={project.id || index}
-                    className="border-t border-border/60 bg-background/20 transition-colors hover:bg-background/40"
-                    onClick={() => openModal(project)}>
-                    <td className="px-6 py-5 text-base font-medium text-primary">
+                    className="border-t border-white/5 transition hover:bg-white/5"
+                    onClick={() => openModal(project)}
+                  >
+                    <td className="px-6 py-5 text-sm font-semibold text-slate-100">
                       {project.name || 'Sin título'}
+                      <p className="text-xs font-normal text-slate-400">{project.description || 'Sin descripción'}</p>
                     </td>
                     <td className="px-6 py-5">
                       <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${typeStyles}`}>
@@ -102,18 +106,20 @@ const VistaTabla = () => {
                       </span>
                     </td>
                     <td className="px-6 py-5">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={(event) => handleEdit(project, event)}
-                          className="rounded-md bg-blue-600/80 p-2 text-white transition-colors hover:bg-blue-500">
-                          <Edit2 size={16} />
+                          className="rounded-full bg-white/10 p-2 text-slate-100 transition hover:bg-white/20"
+                        >
+                          <Edit2 size={14} />
                         </button>
                         <button
                           type="button"
                           onClick={(event) => handleDelete(project, event)}
-                          className="rounded-md bg-red-600/80 p-2 text-white transition-colors hover:bg-red-500">
-                          <Trash2 size={16} />
+                          className="rounded-full bg-red-500/20 p-2 text-red-200 transition hover:bg-red-500/30"
+                        >
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>

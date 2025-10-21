@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import useStore from '../../hooks/useStore';
 import { LayoutGrid } from 'lucide-react';

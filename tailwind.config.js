@@ -3,8 +3,9 @@ import { fontFamily } from 'tailwindcss/defaultTheme';
 
 export default {
   content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
+    './src/app/**/*.{js,jsx,ts,tsx}',
+    './src/components/**/*.{js,jsx,ts,tsx}',
+    './src/hooks/**/*.{js,jsx,ts,tsx}',
   ],
   theme: {
     extend: {
@@ -12,13 +13,13 @@ export default {
         sans: ['Inter', ...fontFamily.sans],
       },
       colors: {
-        background: '#0A0A0A',
-        surface: '#1A1A1A',
-        primary: '#FFFFFF',
-        secondary: '#858585',
-        accent: '#00A3FF',
-        'accent-hover': '#008FE6',
-        border: '#2A2A2A',
+        background: '#020617',
+        surface: '#0f172a',
+        primary: '#f8fafc',
+        secondary: '#94a3b8',
+        accent: '#38bdf8',
+        'accent-hover': '#0ea5e9',
+        border: '#1e293b',
       },
     },
   },

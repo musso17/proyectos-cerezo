@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useMemo, useState } from 'react';
 import useStore from '../../hooks/useStore';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';

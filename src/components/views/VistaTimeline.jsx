@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useMemo } from 'react';
 import useStore from '../../hooks/useStore';
 import { Clock, AlertCircle } from 'lucide-react';
