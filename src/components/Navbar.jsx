@@ -14,7 +14,7 @@ const Navbar = () => {
   };
 
   return (
-    <header className="glass-panel flex flex-col gap-3 rounded-3xl px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <header className="glass-panel animate-fade-up flex flex-col gap-3 rounded-3xl px-6 py-4 transition-all duration-200 sm:flex-row sm:items-center sm:justify-between">
       <div className="relative flex w-full items-center sm:max-w-md">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
         <input
@@ -28,7 +28,7 @@ const Navbar = () => {
       <button
         onClick={handleAddNew}
         type="button"
-        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 px-4 py-2 text-sm font-semibold text-slate-900 shadow-[0_10px_20px_rgba(56,189,248,0.35)] transition hover:shadow-[0_12px_24px_rgba(56,189,248,0.45)]"
+        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 px-4 py-2 text-sm font-semibold text-slate-900 shadow-[0_10px_20px_rgba(56,189,248,0.35)] transition duration-200 ease-[var(--ease-ios-out)] hover:-translate-y-0.5 hover:shadow-[0_18px_30px_rgba(56,189,248,0.45)]"
       >
         <Plus size={16} />
         <span>Nuevo proyecto</span>

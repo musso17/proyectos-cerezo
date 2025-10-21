@@ -23,7 +23,7 @@ const HomePage = () => {
       <Sidebar />
       <section className="flex w-full flex-1 flex-col gap-6 overflow-hidden">
         <Navbar />
-        <div className="glass-panel soft-scroll flex-1 overflow-hidden rounded-3xl p-6">
+        <div className="glass-panel soft-scroll flex-1 overflow-hidden rounded-3xl p-6 transition-all duration-200 ease-[var(--ease-ios-out)] hover:border-white/20 hover:shadow-[0_25px_55px_rgba(15,23,42,0.35)]">
           <div className="h-full overflow-y-auto soft-scroll pr-2">
             {loading ? <Loader /> : <ViewRenderer />}
           </div>
@@ -35,4 +35,3 @@ const HomePage = () => {
 };
 
 export default HomePage;
-

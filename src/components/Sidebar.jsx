@@ -18,7 +18,7 @@ const Sidebar = () => {
 
   return (
     <aside
-      className={`glass-panel flex h-[calc(100vh-6rem)] flex-col gap-6 transition-all duration-300 ease-in-out ${
+      className={`glass-panel animate-fade-up flex h-[calc(100vh-6rem)] flex-col gap-6 transition-all duration-300 ease-in-out ${
         isCollapsed ? 'w-[84px]' : 'w-[260px]'
       }`}
     >
@@ -68,14 +68,6 @@ const Sidebar = () => {
         </ul>
       </nav>
 
-      {!isCollapsed && (
-        <div className="mx-5 mb-6 rounded-2xl bg-gradient-to-r from-blue-500/20 to-cyan-400/20 p-4 text-xs text-slate-100">
-          <p className="font-semibold">Sincronización en vivo</p>
-          <p className="mt-1 text-slate-300">
-            Actualiza Supabase para compartir tu pipeline con el equipo en tiempo real.
-          </p>
-        </div>
-      )}
     </aside>
   );
 };
