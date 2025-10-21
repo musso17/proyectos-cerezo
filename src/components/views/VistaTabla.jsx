@@ -5,6 +5,7 @@ import { Edit2, Trash2 } from 'lucide-react';
 import useStore from '../../hooks/useStore';
 import { filterProjects } from '../../utils/filterProjects';
 import { getClientBadgeClass } from '../../utils/clientStyles';
+import { generarLinkGoogleCalendar } from '../../utils/calendar';
 
 const statusStyles = {
   Finalizado: 'bg-blue-500/20 text-blue-200 border-blue-400/40',
@@ -229,6 +230,39 @@ const VistaTabla = () => {
                     <td className="px-6 py-5 text-sm font-semibold text-slate-100">
                       {project.name || 'Sin título'}
                       <p className="text-xs font-normal text-slate-400">{project.description || 'Sin descripción'}</p>
+                      <div className="mt-3">
+                        {(() => {
+                          const calendarioUrl = generarLinkGoogleCalendar({
+                            contenido: project.name || 'Proyecto',
+                            detalle: project.description || '',
+                            fechaInicio: project.startDate || '',
+                            fechaFin: project.deadline || '',
+                            encargado: project.manager || '',
+                            cliente: project.client || '',
+                          });
+
+                          const disabled = !calendarioUrl;
+
+                          return (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                if (!calendarioUrl) return;
+                                window.open(calendarioUrl, '_blank', 'noopener');
+                              }}
+                              disabled={disabled}
+                              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition duration-200 ease-[var(--ease-ios-out)] ${
+                                disabled
+                                  ? 'cursor-not-allowed border border-white/5 bg-white/5 text-slate-500'
+                                  : 'border border-cyan-400/40 bg-cyan-500/20 text-cyan-100 hover:border-cyan-300/60 hover:bg-cyan-500/30'
+                              }`}
+                            >
+                              Agendar en Calendar
+                            </button>
+                          );
+                        })()}
+                      </div>
                     </td>
                     <td className="px-6 py-5">
                       <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${typeStyles}`}>
