@@ -9,6 +9,11 @@ const inter = Inter({
 export const metadata = {
   title: 'Cerezo Studio Planner',
   description: 'Gestión audiovisual con estilo iOS.',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({ children }) {
