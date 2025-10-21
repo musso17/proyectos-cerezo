@@ -78,11 +78,15 @@ const useStore = create((set) => ({
   selectedProject: null,
   teamMembers: TEAM_MEMBERS,
   searchTerm: '',
+  sidebarOpen: false,
 
   setCurrentView: (view) => set({ currentView: view }),
   openModal: (project) => set({ isModalOpen: true, selectedProject: project }),
   closeModal: () => set({ isModalOpen: false, selectedProject: null }),
   setSearchTerm: (term) => set({ searchTerm: term }),
+  openSidebar: () => set({ sidebarOpen: true }),
+  closeSidebar: () => set({ sidebarOpen: false }),
+  toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 
   fetchProjects: async () => {
     set({ loading: true, error: null });
