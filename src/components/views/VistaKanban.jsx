@@ -58,6 +58,7 @@ const VistaKanban = () => {
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
                             onClick={() => openModal(project)}
+                            style={provided.draggableProps.style}
                             className={`group cursor-pointer rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition-all duration-200 hover:border-cyan-400/40 hover:bg-white/[0.08] ${
                               snapshot.isDragging ? 'shadow-[0_12px_30px_rgba(56,189,248,0.4)]' : ''
                             }`}
