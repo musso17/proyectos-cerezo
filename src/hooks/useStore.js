@@ -40,6 +40,8 @@ const normalizeProject = (project) => {
 };
 
 const prepareProjectForSupabase = (project) => {
+  const id = project.id || generateLocalId();
+
   const normalizeDate = (value) => {
     if (!value) return null;
     const trimmed = value.toString().trim();
@@ -66,6 +68,7 @@ const prepareProjectForSupabase = (project) => {
 
   return {
     ...project,
+    id,
     startDate: normalizeDate(project.startDate),
     deadline: normalizeDate(project.deadline),
     notes: project.notes?.trim?.() ? project.notes.trim() : null,
