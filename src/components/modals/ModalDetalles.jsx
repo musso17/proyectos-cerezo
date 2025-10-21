@@ -26,7 +26,10 @@ const ModalDetalles = () => {
       const normalizedTeam = Array.isArray(selectedProject.team)
         ? selectedProject.team
         : typeof selectedProject.team === 'string' && selectedProject.team.length > 0
-          ? selectedProject.team.split(',').map((member) => member.trim()).filter(Boolean)
+          ? selectedProject.team
+              .split(',')
+              .map((member) => member.trim())
+              .filter(Boolean)
           : [];
 
       const defaultManager = teamMembers?.[0] || '';
@@ -47,24 +50,24 @@ const ModalDetalles = () => {
 
   if (!editedProject) return null;
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
     setEditedProject({ ...editedProject, [name]: value });
   };
 
   const handlePropertyChange = (key, value) => {
-    setEditedProject({
-      ...editedProject,
-      properties: { ...editedProject.properties, [key]: value },
-    });
+    setEditedProject((prev) => ({
+      ...prev,
+      properties: { ...prev.properties, [key]: value },
+    }));
   };
 
   const handleAddProperty = () => {
     const newKey = `Propiedad ${Object.keys(editedProject.properties).length + 1}`;
-    setEditedProject({
-      ...editedProject,
-      properties: { ...editedProject.properties, [newKey]: '' },
-    });
+    setEditedProject((prev) => ({
+      ...prev,
+      properties: { ...prev.properties, [newKey]: '' },
+    }));
   };
 
   const handleAddResource = () => {
@@ -122,204 +125,294 @@ const ModalDetalles = () => {
       <Dialog as="div" className="relative z-50" onClose={closeModal}>
         <Transition.Child
           as={Fragment}
-          enter="ease-in-out duration-500"
+          enter="ease-out duration-200"
           enterFrom="opacity-0"
           enterTo="opacity-100"
-          leave="ease-in-out duration-500"
+          leave="ease-in duration-150"
           leaveFrom="opacity-100"
           leaveTo="opacity-0">
-          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm transition-opacity" />
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity" />
         </Transition.Child>
 
-        <div className="fixed inset-0 overflow-hidden">
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
-              <Transition.Child
-                as={Fragment}
-                enter="transform transition ease-in-out duration-500 sm:duration-700"
-                enterFrom="translate-x-full"
-                enterTo="translate-x-0"
-                leave="transform transition ease-in-out duration-500 sm:duration-700"
-                leaveFrom="translate-x-0"
-                leaveTo="translate-x-full">
-                <Dialog.Panel className="pointer-events-auto w-screen max-w-2xl">
-                  <div className="flex h-full flex-col overflow-y-scroll bg-slate-800 shadow-xl">
-                    <div className="p-4 border-b border-slate-700">
-                      <div className="flex items-start justify-between">
-                        <Dialog.Title className="text-xl font-bold text-cyan-400">
-                          <input type="text" name="name" value={editedProject.name} onChange={handleInputChange} className="w-full bg-transparent focus:outline-none" placeholder="Nombre del Proyecto"/>
-                        </Dialog.Title>
-                        <div className="ml-3 flex h-7 items-center">
-                          <button
-                            type="button"
-                            className="p-2 hover:bg-slate-700 rounded-full"
-                            onClick={closeModal}>
-                            <X size={20} />
-                          </button>
-                        </div>
-                      </div>
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-6">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-200"
+              enterFrom="opacity-0 translate-y-6 scale-95"
+              enterTo="opacity-100 translate-y-0 scale-100"
+              leave="ease-in duration-150"
+              leaveFrom="opacity-100 translate-y-0 scale-100"
+              leaveTo="opacity-0 translate-y-4 scale-95">
+              <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-3xl border border-white/10 bg-slate-900/95 text-left align-middle shadow-[0_40px_120px_rgba(8,15,40,0.6)] transition-all">
+                <div className="flex items-start justify-between gap-4 border-b border-white/5 px-6 py-5">
+                  <Dialog.Title className="flex-1">
+                    <input
+                      type="text"
+                      name="name"
+                      value={editedProject.name}
+                      onChange={handleInputChange}
+                      className="w-full bg-transparent text-2xl font-semibold text-slate-50 placeholder:text-slate-500 focus:outline-none"
+                      placeholder="Nombre del proyecto"
+                    />
+                    <p className="mt-2 text-sm text-slate-400">
+                      Gestiona la información clave y comparte recursos con tu equipo.
+                    </p>
+                  </Dialog.Title>
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="rounded-full bg-white/10 p-2 text-slate-200 transition hover:bg-white/20"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="grid max-h-[68vh] gap-6 overflow-y-auto px-6 py-6 soft-scroll md:grid-cols-2">
+                  <div className="space-y-6">
+                    <div>
+                      <label className="text-sm font-medium text-slate-300">Descripción</label>
+                      <textarea
+                        name="description"
+                        value={editedProject.description || ''}
+                        onChange={handleInputChange}
+                        rows={4}
+                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                        placeholder="Describe objetivos, entregables y contexto del proyecto"
+                      />
                     </div>
-                    <div className="relative mt-6 flex-1 px-4 sm:px-6">
-                      <div className="border-b border-slate-700">
-                        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                          <a href="#" className="border-cyan-500 text-cyan-400 whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium">
-                            Details
-                          </a>
-                        </nav>
-                      </div>
 
-                      <div className="py-6 space-y-6">
-                        {/* Default properties */}
-                        <div className="space-y-4">
-                          <div>
-                            <label className="text-sm text-slate-400">Descripción</label>
-                            <textarea name="description" value={editedProject.description || ''} onChange={handleInputChange} rows="3" className="w-full bg-slate-700 rounded p-2 mt-1" placeholder="Descripción del proyecto"/>
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-6">
-                          <div>
-                            <label className="text-sm text-slate-400">Cliente</label>
-                            <input type="text" name="client" value={editedProject.client || ''} onChange={handleInputChange} className="w-full bg-slate-700 rounded p-2 mt-1" placeholder="Nombre del cliente"/>
-                          </div>
-                          <div>
-                            <label className="text-sm text-slate-400">Tipo</label>
-                            <input type="text" name="type" value={editedProject.type || ''} onChange={handleInputChange} className="w-full bg-slate-700 rounded p-2 mt-1" placeholder="Tipo de proyecto"/>
-                          </div>
-                          <div>
-                            <label className="text-sm text-slate-400">Estado</label>
-                            <select name="status" value={editedProject.status || 'Pendiente'} onChange={handleInputChange} className="w-full bg-slate-700 rounded p-2 mt-1">
-                              <option value="Pendiente">Pendiente</option>
-                              <option value="En progreso">En progreso</option>
-                              <option value="En revisión">En revisión</option>
-                              <option value="Completado">Completado</option>
-                              <option value="Cancelado">Cancelado</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="text-sm text-slate-400">Responsable</label>
-                            <select
-                              name="manager"
-                              value={editedProject.manager || ''}
-                              onChange={handleInputChange}
-                              className="w-full bg-slate-700 rounded p-2 mt-1">
-                              {teamMembers && teamMembers.length > 0 ? (
-                                teamMembers.map((member) => (
-                                  <option key={member} value={member}>
-                                    {member}
-                                  </option>
-                                ))
-                              ) : (
-                                <option value="">Sin integrantes definidos</option>
-                              )}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="text-sm text-slate-400">Fecha de inicio</label>
-                            <input type="date" name="startDate" value={editedProject.startDate || ''} onChange={handleInputChange} className="w-full bg-slate-700 rounded p-2 mt-1"/>
-                          </div>
-                          <div>
-                            <label className="text-sm text-slate-400">Fecha de entrega</label>
-                            <input type="date" name="deadline" value={editedProject.deadline || ''} onChange={handleInputChange} className="w-full bg-slate-700 rounded p-2 mt-1"/>
-                          </div>
-                          <div>
-                            <label className="text-sm text-slate-400">Equipo (separados por coma)</label>
-                            <input type="text" name="team" value={editedProject.team?.join(', ') || ''} onChange={(e) => handleInputChange({target: {name: 'team', value: e.target.value.split(',').map(m => m.trim()).filter(m => m)}})} className="w-full bg-slate-700 rounded p-2 mt-1" placeholder="Nombre1, Nombre2, Nombre3"/>
-                          </div>
-                          <div className="col-span-2">
-                            <label className="text-sm text-slate-400">Recursos</label>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {(editedProject.resources || []).length === 0 ? (
-                                <span className="text-xs text-slate-500">Sin enlaces añadidos.</span>
-                              ) : (
-                                editedProject.resources.map((resource, index) => (
-                                  <div
-                                    key={`${resource}-${index}`}
-                                    className="flex items-center gap-2 rounded-full bg-slate-700/80 px-3 py-1 text-xs text-slate-100"
-                                  >
-                                    <a
-                                      href={resource}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="max-w-[180px] truncate text-cyan-300 hover:text-cyan-200"
-                                    >
-                                      {resource}
-                                    </a>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemoveResource(index)}
-                                      className="rounded-full bg-slate-600/80 p-1 text-slate-200 transition hover:bg-slate-500"
-                                    >
-                                      <Trash2 size={12} />
-                                    </button>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={handleAddResource}
-                              className="mt-3 inline-flex items-center gap-2 rounded-full border border-cyan-400/60 px-3 py-1.5 text-xs font-medium text-cyan-200 transition hover:border-cyan-300 hover:text-cyan-100"
-                            >
-                              <Plus size={14} />
-                              Añadir recurso
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Custom properties */}
-                        <div>
-                          <h3 className="text-lg font-medium text-slate-300 mb-4">Propiedades Personalizadas</h3>
-                          <div className="space-y-4">
-                            {Object.entries(editedProject.properties)
-                              .filter(([key]) => key !== 'resources')
-                              .map(([key, value]) => (
-                              <div key={key} className="grid grid-cols-2 gap-4 items-center">
-                                <input
-                                  type="text"
-                                  value={key}
-                                  disabled
-                                  className="w-full bg-slate-700/50 rounded p-2 mt-1 text-slate-400"
-                                />
-                                <input
-                                  type="text"
-                                  value={value}
-                                  onChange={(e) => handlePropertyChange(key, e.target.value)}
-                                  className="w-full bg-slate-700 rounded p-2 mt-1"
-                                />
-                              </div>
-                              ))}
-                          </div>
-                          <button onClick={handleAddProperty} className="mt-4 flex items-center gap-2 text-cyan-400 hover:text-cyan-300">
-                            <Plus size={16} />
-                            Añadir propiedad
-                          </button>
-                        </div>
-                      </div>
-
-                    </div>
-                    <div className="flex flex-shrink-0 justify-between px-4 py-4 border-t border-slate-700">
+                    <div className="grid gap-4 md:grid-cols-2">
                       <div>
-                        {editedProject.id && (
-                          <button type="button" className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 flex items-center gap-2" onClick={handleDelete}>
-                            <Trash2 size={16} />
-                            Eliminar
-                          </button>
+                        <label className="text-sm font-medium text-slate-300">Cliente</label>
+                        <input
+                          type="text"
+                          name="client"
+                          value={editedProject.client || ''}
+                          onChange={handleInputChange}
+                          className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                          placeholder="Nombre del cliente"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-slate-300">Tipo</label>
+                        <input
+                          type="text"
+                          name="type"
+                          value={editedProject.type || ''}
+                          onChange={handleInputChange}
+                          className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                          placeholder="Edición, rodaje, etc."
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-slate-300">Estado</label>
+                        <select
+                          name="status"
+                          value={editedProject.status || 'Pendiente'}
+                          onChange={handleInputChange}
+                          className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                        >
+                          <option value="Pendiente">Pendiente</option>
+                          <option value="En progreso">En progreso</option>
+                          <option value="En revisión">En revisión</option>
+                          <option value="Completado">Completado</option>
+                          <option value="Cancelado">Cancelado</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-slate-300">Responsable</label>
+                        <select
+                          name="manager"
+                          value={editedProject.manager || ''}
+                          onChange={handleInputChange}
+                          className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                        >
+                          {teamMembers && teamMembers.length > 0 ? (
+                            teamMembers.map((member) => (
+                              <option key={member} value={member}>
+                                {member}
+                              </option>
+                            ))
+                          ) : (
+                            <option value="">Sin integrantes definidos</option>
+                          )}
+                        </select>
+                      </div>
+                    </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-slate-300">Equipo</label>
+                    <input
+                      type="text"
+                      name="team"
+                      value={editedProject.team?.join(', ') || ''}
+                      onChange={(event) =>
+                        handleInputChange({
+                          target: {
+                            name: 'team',
+                            value: event.target.value
+                              .split(',')
+                              .map((member) => member.trim())
+                              .filter((member) => member.length > 0),
+                          },
+                        })
+                      }
+                      className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                      placeholder="Nombre1, Nombre2, Nombre3"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="text-sm font-medium text-slate-300">Fecha de inicio</label>
+                        <input
+                          type="date"
+                          name="startDate"
+                          value={editedProject.startDate || ''}
+                          onChange={handleInputChange}
+                          className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-slate-300">Fecha de entrega</label>
+                        <input
+                          type="date"
+                          name="deadline"
+                          value={editedProject.deadline || ''}
+                          onChange={handleInputChange}
+                          className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-slate-300">Recursos compartidos</label>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {(editedProject.resources || []).length === 0 ? (
+                          <span className="text-xs text-slate-500">Sin enlaces añadidos.</span>
+                        ) : (
+                          editedProject.resources.map((resource, index) => (
+                            <div
+                              key={`${resource}-${index}`}
+                              className="group flex items-center gap-2 rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-100 transition hover:bg-slate-700"
+                            >
+                              <a
+                                href={resource}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="max-w-[200px] truncate text-cyan-300 transition group-hover:text-cyan-200"
+                              >
+                                {resource}
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveResource(index)}
+                                className="rounded-full bg-slate-700/80 p-1 text-slate-200 transition hover:bg-red-500/80 hover:text-white"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          ))
                         )}
                       </div>
-                      <div className="flex gap-4">
-                        <button type="button" className="rounded-md bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-600" onClick={closeModal}>
-                          Cancelar
-                        </button>
-                        <button type="button" className="rounded-md bg-cyan-500 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-cyan-400" onClick={handleSave}>
-                          Guardar
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddResource}
+                        className="mt-3 inline-flex items-center gap-2 rounded-full border border-cyan-400/60 px-3 py-1.5 text-xs font-medium text-cyan-200 transition hover:border-cyan-300 hover:text-cyan-100"
+                      >
+                        <Plus size={14} />
+                        Añadir recurso
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-slate-300">Notas rápidas</label>
+                      <textarea
+                        name="notes"
+                        value={editedProject.notes || ''}
+                        onChange={handleInputChange}
+                        rows={3}
+                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                        placeholder="Ideas, riesgos o recordatorios breves"
+                      />
                     </div>
                   </div>
-                </Dialog.Panel>
-              </Transition.Child>
-            </div>
+
+                  <div className="md:col-span-2">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-300">
+                      Propiedades personalizadas
+                    </h3>
+                    <div className="mt-3 space-y-4">
+                      {Object.entries(editedProject.properties)
+                        .filter(([key]) => key !== 'resources')
+                        .map(([key, value]) => (
+                          <div
+                            key={key}
+                            className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-slate-800/70 p-4 md:flex-row md:items-center md:gap-4"
+                          >
+                            <input
+                              type="text"
+                              value={key}
+                              disabled
+                              className="w-full rounded-xl bg-slate-900/40 px-3 py-2 text-xs uppercase tracking-wide text-slate-400 md:max-w-[200px]"
+                            />
+                            <input
+                              type="text"
+                              value={value}
+                              onChange={(event) => handlePropertyChange(key, event.target.value)}
+                              className="w-full rounded-xl bg-slate-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                            />
+                          </div>
+                        ))}
+                    </div>
+                    <button
+                      onClick={handleAddProperty}
+                      type="button"
+                      className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-cyan-200 transition hover:border-cyan-400/50 hover:text-cyan-100"
+                    >
+                      <Plus size={16} />
+                      Añadir propiedad
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 border-t border-white/5 bg-slate-900/70 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  {editedProject.id ? (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-full bg-red-500/20 px-4 py-2 text-sm font-medium text-red-200 transition hover:bg-red-500/30"
+                      onClick={handleDelete}
+                    >
+                      <Trash2 size={16} />
+                      Eliminar proyecto
+                    </button>
+                  ) : (
+                    <span className="text-xs uppercase tracking-wide text-slate-500">
+                      Nuevo proyecto
+                    </span>
+                  )}
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-slate-100 transition hover:border-white/30"
+                      onClick={closeModal}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-2 text-sm font-semibold text-slate-900 shadow-[0_12px_30px_rgba(56,189,248,0.35)] transition hover:shadow-[0_18px_40px_rgba(56,189,248,0.45)]"
+                      onClick={handleSave}
+                    >
+                      Guardar cambios
+                    </button>
+                  </div>
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
           </div>
         </div>
       </Dialog>
