@@ -1,16 +1,23 @@
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import useStore from '../../hooks/useStore';
 import { LayoutGrid } from 'lucide-react';
+import { filterProjects } from '../../utils/filterProjects';
 
 const VistaGaleria = () => {
   const projects = useStore((state) => state.projects);
+  const searchTerm = useStore((state) => state.searchTerm);
   const openModal = useStore((state) => state.openModal);
+
+  const filteredProjects = useMemo(
+    () => filterProjects(projects, searchTerm),
+    [projects, searchTerm]
+  );
 
   return (
     <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {projects.map(p => (
+      {filteredProjects.map((p) => (
         <div key={p.id} className="bg-surface rounded-lg overflow-hidden border border-border hover:border-accent cursor-pointer transition-all duration-200" onClick={() => openModal(p)}>
           <div className="h-40 bg-background flex items-center justify-center text-secondary">
             <LayoutGrid size={48} />

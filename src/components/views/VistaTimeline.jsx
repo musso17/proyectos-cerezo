@@ -6,6 +6,7 @@ import { Clock, AlertCircle } from 'lucide-react';
 import { differenceInCalendarDays, eachMonthOfInterval, format, parseISO, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TEAM_STYLES, ensureMemberName } from '../../constants/team';
+import { filterProjects } from '../../utils/filterProjects';
 
 const parseDate = (value) => {
   if (!value) return null;
@@ -29,17 +30,23 @@ const getRangeForProject = (project) => {
 
 const VistaTimeline = () => {
   const projects = useStore((state) => state.projects);
+  const searchTerm = useStore((state) => state.searchTerm);
   const openModal = useStore((state) => state.openModal);
   const teamMembers = useStore((state) => state.teamMembers);
 
+  const filteredProjects = useMemo(
+    () => filterProjects(projects, searchTerm),
+    [projects, searchTerm]
+  );
+
   const processedProjects = useMemo(
     () =>
-      projects.map((project) => {
+      filteredProjects.map((project) => {
         const range = getRangeForProject(project);
         const memberName = ensureMemberName(project.manager);
         return { project, range, memberName };
       }),
-    [projects]
+    [filteredProjects]
   );
 
   const projectsWithRange = useMemo(
@@ -105,7 +112,7 @@ const VistaTimeline = () => {
         <h2 className="text-2xl font-bold text-primary">Timeline por Responsable</h2>
       </div>
 
-      {projects.length === 0 ? (
+      {filteredProjects.length === 0 ? (
         <div className="bg-surface rounded-lg border border-border p-8 text-center">
           <Clock size={48} className="mx-auto text-secondary mb-4" />
           <p className="text-secondary">Aún no hay proyectos registrados.</p>

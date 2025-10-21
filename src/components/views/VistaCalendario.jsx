@@ -18,6 +18,7 @@ import {
 } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TEAM_STYLES, ensureMemberName } from '../../constants/team';
+import { filterProjects } from '../../utils/filterProjects';
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const MAX_ITEMS_PER_DAY = 3;
@@ -47,6 +48,7 @@ const getCalendarRange = (project) => {
 
 const VistaCalendario = () => {
   const projects = useStore((state) => state.projects);
+  const searchTerm = useStore((state) => state.searchTerm);
   const openModal = useStore((state) => state.openModal);
   const teamMembers = useStore((state) => state.teamMembers);
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
@@ -68,14 +70,19 @@ const VistaCalendario = () => {
     return days;
   }, [currentMonth]);
 
+  const filteredProjects = useMemo(
+    () => filterProjects(projects, searchTerm),
+    [projects, searchTerm]
+  );
+
   const processedProjects = useMemo(
     () =>
-      projects.map((project) => {
+      filteredProjects.map((project) => {
         const range = getCalendarRange(project);
         const memberName = ensureMemberName(project.manager);
         return { project, range, memberName };
       }),
-    [projects]
+    [filteredProjects]
   );
 
   const visibleProjects = useMemo(

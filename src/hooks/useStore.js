@@ -20,6 +20,12 @@ const normalizeProject = (project) => {
 
   const startDate = project.startDate || project.start_date || project.fecha_inicio || null;
   const deadline = project.deadline || project.endDate || project.end_date || project.fecha_entrega || null;
+  const properties = project.properties || {};
+  const resources = Array.isArray(project.resources)
+    ? project.resources.filter(Boolean)
+    : Array.isArray(properties.resources)
+      ? properties.resources.filter(Boolean)
+      : [];
 
   return {
     ...project,
@@ -29,6 +35,8 @@ const normalizeProject = (project) => {
     manager: project.manager || project.encargado || '',
     type: project.type || project.tipo || '',
     client: project.client || project.cliente || '',
+    resources,
+    properties: { ...properties, resources },
   };
 };
 
@@ -69,10 +77,12 @@ const useStore = create((set) => ({
   isModalOpen: false,
   selectedProject: null,
   teamMembers: TEAM_MEMBERS,
+  searchTerm: '',
 
   setCurrentView: (view) => set({ currentView: view }),
   openModal: (project) => set({ isModalOpen: true, selectedProject: project }),
   closeModal: () => set({ isModalOpen: false, selectedProject: null }),
+  setSearchTerm: (term) => set({ searchTerm: term }),
 
   fetchProjects: async () => {
     set({ loading: true, error: null });

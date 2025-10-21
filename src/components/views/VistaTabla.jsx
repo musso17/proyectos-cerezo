@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { Edit2, Trash2 } from 'lucide-react';
 import useStore from '../../hooks/useStore';
+import { filterProjects } from '../../utils/filterProjects';
 
 const statusStyles = {
   Finalizado: 'bg-blue-500/20 text-blue-200 border-blue-400/40',
@@ -37,6 +38,7 @@ const VistaTabla = () => {
   const projects = useStore((state) => state.projects);
   const openModal = useStore((state) => state.openModal);
   const deleteProject = useStore((state) => state.deleteProject);
+  const searchTerm = useStore((state) => state.searchTerm);
 
   const [filters, setFilters] = useState({
     type: 'Todos',
@@ -90,6 +92,11 @@ const VistaTabla = () => {
       return true;
     });
   }, [orderedProjects, filters]);
+
+  const searchFilteredProjects = useMemo(
+    () => filterProjects(filteredProjects, searchTerm),
+    [filteredProjects, searchTerm]
+  );
 
   const handleFilterChange = (key) => (event) => {
     const value = event.target.value;
@@ -195,7 +202,7 @@ const VistaTabla = () => {
         <table className="w-full border-collapse text-sm text-slate-300">
           <thead>
             <tr className="bg-white/5 text-xs uppercase tracking-wide text-slate-400">
-              {['Contenido', 'Tipo', 'Encargado', 'Estado', 'Inicio', 'Entrega', 'Cliente', 'Acciones'].map((header) => (
+              {['Proyecto', 'Tipo', 'Encargado', 'Estado', 'Inicio', 'Entrega', 'Cliente', 'Acciones'].map((header) => (
                 <th key={header} className="px-6 py-4 text-left font-semibold">
                   {header}
                 </th>
@@ -203,14 +210,14 @@ const VistaTabla = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredProjects.length === 0 ? (
+            {searchFilteredProjects.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
                   No hay proyectos para mostrar.
                 </td>
               </tr>
             ) : (
-              filteredProjects.map((project, index) => {
+              searchFilteredProjects.map((project, index) => {
                 const statusClass = statusStyles[project.status] || statusStyles.Pendiente;
                 return (
                   <tr

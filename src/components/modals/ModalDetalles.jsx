@@ -18,6 +18,11 @@ const ModalDetalles = () => {
   useEffect(() => {
     if (selectedProject) {
       const properties = selectedProject.properties || {};
+      const existingResources = Array.isArray(properties.resources)
+        ? properties.resources.filter(Boolean)
+        : Array.isArray(selectedProject.resources)
+          ? selectedProject.resources.filter(Boolean)
+          : [];
       const normalizedTeam = Array.isArray(selectedProject.team)
         ? selectedProject.team
         : typeof selectedProject.team === 'string' && selectedProject.team.length > 0
@@ -32,7 +37,8 @@ const ModalDetalles = () => {
         startDate: selectedProject.startDate || '',
         deadline: selectedProject.deadline || '',
         team: normalizedTeam,
-        properties,
+        properties: { ...properties, resources: existingResources },
+        resources: existingResources,
       });
     } else {
       setEditedProject(null);
@@ -61,11 +67,45 @@ const ModalDetalles = () => {
     });
   };
 
+  const handleAddResource = () => {
+    const url = window.prompt('Ingresa el enlace del recurso');
+    if (!url) return;
+    const trimmed = url.trim();
+    if (!trimmed) return;
+    setEditedProject((prev) => {
+      const nextResources = [...(prev.resources || []), trimmed];
+      return {
+        ...prev,
+        resources: nextResources,
+        properties: { ...prev.properties, resources: nextResources },
+      };
+    });
+  };
+
+  const handleRemoveResource = (index) => {
+    setEditedProject((prev) => {
+      const currentResources = prev.resources || [];
+      const nextResources = currentResources.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        resources: nextResources,
+        properties: { ...prev.properties, resources: nextResources },
+      };
+    });
+  };
+
   const handleSave = () => {
-    if (editedProject.id) {
-      updateProject(editedProject);
+    const resources = editedProject.resources || [];
+    const payload = {
+      ...editedProject,
+      properties: { ...editedProject.properties, resources },
+    };
+    delete payload.resources;
+
+    if (payload.id) {
+      updateProject(payload);
     } else {
-      addProject(editedProject);
+      addProject(payload);
     }
     closeModal();
   };
@@ -183,12 +223,47 @@ const ModalDetalles = () => {
                             <input type="date" name="deadline" value={editedProject.deadline || ''} onChange={handleInputChange} className="w-full bg-slate-700 rounded p-2 mt-1"/>
                           </div>
                           <div>
-                            <label className="text-sm text-slate-400">Presupuesto</label>
-                            <input type="number" name="budget" value={editedProject.budget || ''} onChange={handleInputChange} className="w-full bg-slate-700 rounded p-2 mt-1" placeholder="0"/>
-                          </div>
-                          <div>
                             <label className="text-sm text-slate-400">Equipo (separados por coma)</label>
                             <input type="text" name="team" value={editedProject.team?.join(', ') || ''} onChange={(e) => handleInputChange({target: {name: 'team', value: e.target.value.split(',').map(m => m.trim()).filter(m => m)}})} className="w-full bg-slate-700 rounded p-2 mt-1" placeholder="Nombre1, Nombre2, Nombre3"/>
+                          </div>
+                          <div className="col-span-2">
+                            <label className="text-sm text-slate-400">Recursos</label>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {(editedProject.resources || []).length === 0 ? (
+                                <span className="text-xs text-slate-500">Sin enlaces añadidos.</span>
+                              ) : (
+                                editedProject.resources.map((resource, index) => (
+                                  <div
+                                    key={`${resource}-${index}`}
+                                    className="flex items-center gap-2 rounded-full bg-slate-700/80 px-3 py-1 text-xs text-slate-100"
+                                  >
+                                    <a
+                                      href={resource}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="max-w-[180px] truncate text-cyan-300 hover:text-cyan-200"
+                                    >
+                                      {resource}
+                                    </a>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveResource(index)}
+                                      className="rounded-full bg-slate-600/80 p-1 text-slate-200 transition hover:bg-slate-500"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleAddResource}
+                              className="mt-3 inline-flex items-center gap-2 rounded-full border border-cyan-400/60 px-3 py-1.5 text-xs font-medium text-cyan-200 transition hover:border-cyan-300 hover:text-cyan-100"
+                            >
+                              <Plus size={14} />
+                              Añadir recurso
+                            </button>
                           </div>
                         </div>
 
@@ -196,7 +271,9 @@ const ModalDetalles = () => {
                         <div>
                           <h3 className="text-lg font-medium text-slate-300 mb-4">Propiedades Personalizadas</h3>
                           <div className="space-y-4">
-                            {Object.entries(editedProject.properties).map(([key, value]) => (
+                            {Object.entries(editedProject.properties)
+                              .filter(([key]) => key !== 'resources')
+                              .map(([key, value]) => (
                               <div key={key} className="grid grid-cols-2 gap-4 items-center">
                                 <input
                                   type="text"
@@ -211,7 +288,7 @@ const ModalDetalles = () => {
                                   className="w-full bg-slate-700 rounded p-2 mt-1"
                                 />
                               </div>
-                            ))}
+                              ))}
                           </div>
                           <button onClick={handleAddProperty} className="mt-4 flex items-center gap-2 text-cyan-400 hover:text-cyan-300">
                             <Plus size={16} />
