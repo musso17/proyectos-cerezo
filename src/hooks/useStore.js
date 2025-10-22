@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../config/supabase';
 import { TEAM_MEMBERS } from '../constants/team';
+import { generarTareasEdicionDesdeProyectos } from '../utils/editingTasks';
 
 const LOCAL_STORAGE_KEY = 'cerezo-projects';
 
@@ -25,6 +26,15 @@ const normalizeProject = (project) => {
     : Array.isArray(properties.resources)
       ? properties.resources.filter(Boolean)
       : [];
+  const fechaGrabacion =
+    project.fechaGrabacion ||
+    project.fecha_grabacion ||
+    project.fechaGrabación ||
+    project.recordingDate ||
+    project.recording_date ||
+    project.properties?.fechaGrabacion ||
+    project.properties?.fecha_grabacion ||
+    null;
 
   return {
     ...project,
@@ -34,6 +44,7 @@ const normalizeProject = (project) => {
     manager: project.manager || project.encargado || '',
     type: project.type || project.tipo || '',
     client: project.client || project.cliente || '',
+    fechaGrabacion,
     resources,
     properties: { ...properties, resources },
   };
@@ -71,6 +82,13 @@ const prepareProjectForSupabase = (project) => {
     id,
     startDate: normalizeDate(project.startDate),
     deadline: normalizeDate(project.deadline),
+    fechaGrabacion: normalizeDate(
+      project.fechaGrabacion ||
+        project.fecha_grabacion ||
+        project.fechaGrabación ||
+        project.recordingDate ||
+        project.recording_date
+    ),
     notes: project.notes?.trim?.() ? project.notes.trim() : null,
     team: normalizeTeam(project.team),
     properties: {
@@ -110,6 +128,8 @@ const generateLocalId = () => {
 
 const supabaseClient = supabase;
 
+const buildEditingTasks = (projects) => generarTareasEdicionDesdeProyectos(projects || []);
+
 const useStore = create((set) => ({
   projects: [],
   loading: true,
@@ -120,6 +140,7 @@ const useStore = create((set) => ({
   teamMembers: TEAM_MEMBERS,
   searchTerm: '',
   sidebarOpen: false,
+  editingTasks: [],
 
   setCurrentView: (view) => set({ currentView: view }),
   openModal: (project) => set({ isModalOpen: true, selectedProject: project }),
@@ -134,7 +155,11 @@ const useStore = create((set) => ({
 
     if (!supabaseClient) {
       const localProjects = readLocalProjects();
-      set({ projects: localProjects, loading: false });
+      set({
+        projects: localProjects,
+        editingTasks: buildEditingTasks(localProjects),
+        loading: false,
+      });
       return;
     }
 
@@ -150,14 +175,15 @@ const useStore = create((set) => ({
         const tsB = startB ? new Date(startB).getTime() : 0;
         return tsB - tsA;
       });
-      set({ projects });
       persistLocalProjects(projects);
+      set({ projects, editingTasks: buildEditingTasks(projects) });
     } catch (error) {
       console.error('Error fetching projects:', error);
       const localProjects = readLocalProjects();
       set({
         error: 'Error fetching projects',
         projects: localProjects,
+        editingTasks: buildEditingTasks(localProjects),
       });
     } finally {
       set({ loading: false });
@@ -182,7 +208,7 @@ const useStore = create((set) => ({
           return startB - startA;
         });
         persistLocalProjects(projects);
-        return { projects };
+        return { projects, editingTasks: buildEditingTasks(projects) };
       });
       set({ loading: false });
       return;
@@ -205,7 +231,7 @@ const useStore = create((set) => ({
             return startB - startA;
           });
           persistLocalProjects(projects);
-          return { projects };
+          return { projects, editingTasks: buildEditingTasks(projects) };
         });
       }
     } catch (error) {
@@ -230,7 +256,7 @@ const useStore = create((set) => ({
             return startB - startA;
           });
         persistLocalProjects(projects);
-        return { projects };
+        return { projects, editingTasks: buildEditingTasks(projects) };
       });
       set({ loading: false });
       return;
@@ -259,7 +285,7 @@ const useStore = create((set) => ({
             return startB - startA;
           });
         persistLocalProjects(projects);
-        return { projects };
+        return { projects, editingTasks: buildEditingTasks(projects) };
       });
     } catch (error) {
       set({ error: 'Error updating project' });
@@ -276,7 +302,7 @@ const useStore = create((set) => ({
       set((state) => {
         const projects = state.projects.filter((p) => p.id !== id);
         persistLocalProjects(projects);
-        return { projects };
+        return { projects, editingTasks: buildEditingTasks(projects) };
       });
       set({ loading: false });
       return;
@@ -289,7 +315,7 @@ const useStore = create((set) => ({
       set((state) => {
         const projects = state.projects.filter((p) => p.id !== id);
         persistLocalProjects(projects);
-        return { projects };
+        return { projects, editingTasks: buildEditingTasks(projects) };
       });
     } catch (error) {
       set({ error: 'Error deleting project' });
@@ -306,7 +332,7 @@ const useStore = create((set) => ({
       return startB - startA;
     });
     persistLocalProjects(normalized);
-    set({ projects: normalized });
+    set({ projects: normalized, editingTasks: buildEditingTasks(normalized) });
   },
 }));
 
