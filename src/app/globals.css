@@ -24,7 +24,7 @@ body {
 }
 
 .glass-panel {
-  @apply rounded-3xl border border-border/60 bg-slate-900/70 backdrop-blur-2xl shadow-[0_30px_60px_rgba(2,6,23,0.6)];
+  @apply rounded-3xl border border-border/60 bg-surface/80 backdrop-blur-2xl shadow-[0_30px_60px_rgba(2,6,23,0.6)];
 }
 
 .soft-scroll::-webkit-scrollbar {

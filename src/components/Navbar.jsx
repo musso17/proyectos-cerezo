@@ -15,8 +15,8 @@ const Navbar = () => {
   };
 
   return (
-    <header className="glass-panel animate-fade-up flex flex-col gap-3 px-4 py-4 transition-all duration-200 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-      <div className="flex w-full flex-col gap-2 sm:max-w-md sm:flex-row sm:items-center">
+    <header className="glass-panel animate-fade-up flex flex-col gap-3 rounded-3xl px-4 py-4 transition-all duration-200 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <div className="flex w-full items-center gap-2 sm:max-w-md">
         <button
           type="button"
           onClick={toggleSidebar}
@@ -39,7 +39,7 @@ const Navbar = () => {
       <button
         onClick={handleAddNew}
         type="button"
-        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-500 to-lime-500 px-4 py-2 text-sm font-semibold text-slate-900 shadow-[0_16px_32px_rgba(16,185,129,0.35)] transition duration-200 ease-[var(--ease-ios-out)] hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(16,185,129,0.45)] sm:w-auto"
+        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-500 to-lime-500 px-4 py-2 text-sm font-semibold text-slate-900 shadow-[0_16px_32px_rgba(16,185,129,0.35)] transition duration-200 ease-[var(--ease-ios-out)] hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(16,185,129,0.45)]"
       >
         <Plus size={16} />
         <span>Nuevo proyecto</span>
