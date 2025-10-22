@@ -38,7 +38,12 @@ const statusStyles = {
   },
 };
 
-const typeStyles = 'bg-slate-700/60 text-slate-200 border border-slate-600/60';
+const typeStylesMap = {
+  grabacion: 'border-cyan-500/40 bg-cyan-500/15 text-cyan-100',
+  edicion: 'border-fuchsia-500/40 bg-fuchsia-500/15 text-fuchsia-100',
+  default: 'border-slate-600/60 bg-slate-700/60 text-slate-200',
+};
+
 const clientStyles = 'bg-rose-500/20 text-rose-200 border border-rose-400/40';
 
 const getLabel = (value, fallback) => {
@@ -312,11 +317,7 @@ const VistaTabla = () => {
                         })()}
                       </div>
                     </td>
-                    <td className="px-6 py-5">
-                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${typeStyles}`}>
-                        {project.type || 'Sin tipo'}
-                      </span>
-                    </td>
+                    <td className="px-6 py-5">{renderTypeBadge(project)}</td>
                     <td className="px-6 py-5 text-sm text-slate-300">{project.manager || 'Sin asignar'}</td>
                     <td className="px-6 py-5">{renderStatusBadge(project.status)}</td>
                     <td className="px-6 py-5 text-sm text-slate-300">{formatDate(project.startDate)}</td>
@@ -357,3 +358,16 @@ const VistaTabla = () => {
 };
 
 export default VistaTabla;
+const renderTypeBadge = (project) => {
+  const stage = (project.stage || project.properties?.stage || project.type || '')
+    .toString()
+    .trim()
+    .toLowerCase();
+  const label = stage === 'grabacion' ? 'Grabación' : stage === 'edicion' ? 'Edición' : project.type || 'Sin tipo';
+  const className = typeStylesMap[stage] || typeStylesMap.default;
+  return (
+    <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${className}`}>
+      {label}
+    </span>
+  );
+};
