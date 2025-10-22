@@ -45,6 +45,15 @@ const ModalDetalles = () => {
               .filter(Boolean)
           : [];
 
+      const normalizedManagers = Array.isArray(selectedProject.managers)
+        ? selectedProject.managers
+        : typeof selectedProject.manager === 'string' && selectedProject.manager.length > 0
+          ? selectedProject.manager
+              .split(',')
+              .map((manager) => manager.trim())
+              .filter(Boolean)
+          : [];
+
       const defaultManager = teamMembers?.[0] || '';
       const rawStage = selectedProject.stage || properties.stage || '';
       const stage = rawStage ? rawStage.toString().trim().toLowerCase() : STAGES.GRABACION;
@@ -62,9 +71,12 @@ const ModalDetalles = () => {
       const recordingDescription =
         selectedProject.recordingDescription || properties.recordingDescription || '';
 
+      const managers = normalizedManagers.length > 0 ? normalizedManagers : defaultManager ? [defaultManager] : [];
+
       setEditedProject({
         ...selectedProject,
-        manager: selectedProject.manager || defaultManager,
+        manager: managers[0] || '',
+        managers,
         startDate:
           selectedProject.startDate || (stage === STAGES.GRABACION ? recordingDate || '' : ''),
         deadline: selectedProject.deadline || '',
@@ -80,6 +92,7 @@ const ModalDetalles = () => {
         properties: {
           ...properties,
           resources: existingResources,
+          managers,
           registrationType,
           stage,
           recordingTime,
@@ -179,6 +192,16 @@ const ModalDetalles = () => {
     }));
   };
 
+  const handleManagersChange = (event) => {
+    const selectedManagers = Array.from(event.target.selectedOptions).map((option) => option.value);
+    setEditedProject((prev) => ({
+      ...prev,
+      managers: selectedManagers,
+      manager: selectedManagers[0] || '',
+      properties: { ...prev.properties, managers: selectedManagers },
+    }));
+  };
+
   const handleTeamChange = (event) => {
     const { value } = event.target;
     const members = value
@@ -192,13 +215,14 @@ const ModalDetalles = () => {
   };
 
   const handleOpenRecordingCalendar = () => {
-    const { name, client, recordingDate, recordingTime, recordingLocation, recordingDescription, manager, team } = editedProject;
+    const { name, client, recordingDate, recordingTime, recordingLocation, recordingDescription, team, managers } = editedProject;
     if (!recordingDate) return;
+    const managerNames = Array.isArray(managers) && managers.length > 0 ? managers.join(', ') : editedProject.manager;
     const link = generarLinkGoogleCalendar({
       contenido: name,
       cliente: client,
       detalle: recordingDescription || editedProject.description || '',
-      encargado: manager,
+      encargado: managerNames,
       fechaInicio: recordingDate,
       fechaFin: recordingDate,
       horaInicio: recordingTime,
@@ -261,6 +285,15 @@ const ModalDetalles = () => {
     const recordingTime = editedProject.recordingTime || '';
     const recordingLocation = editedProject.recordingLocation || '';
     const recordingDescription = editedProject.recordingDescription || '';
+    const managers = Array.isArray(editedProject.managers)
+      ? editedProject.managers.filter((manager) => manager && manager.trim().length > 0)
+      : editedProject.manager
+        ? editedProject.manager
+            .split(',')
+            .map((manager) => manager.trim())
+            .filter(Boolean)
+        : [];
+    const managerString = managers.join(', ');
 
     const startDate =
       stage === STAGES.GRABACION
@@ -272,6 +305,7 @@ const ModalDetalles = () => {
     const updatedProperties = {
       ...editedProject.properties,
       resources,
+      managers,
       registrationType,
       stage,
       recordingTime,
@@ -292,6 +326,8 @@ const ModalDetalles = () => {
 
     const payload = {
       ...editedProject,
+      manager: managers[0] || managerString || '',
+      managers,
       startDate,
       deadline,
       type: registrationType || editedProject.type || '',
@@ -449,11 +485,11 @@ const ModalDetalles = () => {
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-secondary">Responsable</label>
+                      <label className="text-sm font-medium text-secondary">Responsables</label>
                       <select
-                        name="manager"
-                        value={editedProject.manager || ''}
-                        onChange={handleInputChange}
+                        multiple
+                        value={editedProject.managers || []}
+                        onChange={handleManagersChange}
                         className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-900/70 px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
                       >
                         {teamMembers && teamMembers.length > 0 ? (
@@ -466,6 +502,9 @@ const ModalDetalles = () => {
                           <option value="">Sin integrantes definidos</option>
                         )}
                       </select>
+                      <p className="mt-1 text-[11px] text-secondary/70">
+                        Selecciona uno o varios integrantes (Ctrl o Cmd para múltiple).
+                      </p>
                     </div>
                   </div>
 

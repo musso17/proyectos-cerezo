@@ -298,6 +298,9 @@ const VistaCalendario = () => {
           const { task, project } = item;
           const startLabel = format(item.range.start, 'HH:mm');
           const endLabel = format(item.range.end, 'HH:mm');
+          const managersLabel = project?.managers?.length
+            ? project.managers.join(', ')
+            : item.memberName;
           return {
             id: task.id,
             sortTime: item.range.start.getTime(),
@@ -306,7 +309,7 @@ const VistaCalendario = () => {
             description: task.descripcion,
             eventLabel: 'Edición',
             timeLabel: `${startLabel} - ${endLabel}`,
-            manager: item.memberName,
+            manager: managersLabel,
             colorClass: EDITING_TASK_PILL,
             project,
             client: project?.client,
@@ -336,6 +339,10 @@ const VistaCalendario = () => {
           scheduleLabel = `${project.startDate || 'Sin inicio'} → ${project.deadline || 'Sin entrega'}`;
         }
 
+        const managersLabel = project.managers?.length
+          ? project.managers.join(', ')
+          : memberName;
+
         return {
           id: project.id || `${project.name}-${eventType}`,
           sortTime: slot.getTime(),
@@ -344,7 +351,7 @@ const VistaCalendario = () => {
           description: project.description,
           eventLabel: label,
           timeLabel: scheduleLabel,
-          manager: memberName,
+          manager: managersLabel,
           colorClass: PROJECT_EVENT_PILLS[eventType] || PROJECT_EVENT_PILLS.duracion,
           project,
           client: project.client,

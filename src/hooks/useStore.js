@@ -17,6 +17,20 @@ const normalizeStatus = (status) => {
   return status;
 };
 
+const normalizeManagers = (value) => {
+  if (Array.isArray(value)) {
+    return value
+      .map((manager) => (manager ? manager.toString().trim() : ''))
+      .filter(Boolean);
+  }
+  if (!value) return [];
+  return value
+    .toString()
+    .split(',')
+    .map((manager) => manager.trim())
+    .filter(Boolean);
+};
+
 const normalizeProject = (project) => {
   if (!project) return project;
   const startDate = project.startDate || project.start_date || project.fecha_inicio || null;
@@ -27,6 +41,9 @@ const normalizeProject = (project) => {
     : Array.isArray(properties.resources)
       ? properties.resources.filter(Boolean)
       : [];
+  const managers = normalizeManagers(
+    project.managers || project.manager || project.encargado || properties.managers
+  );
   const rawStage = project.stage || properties.stage || '';
   const normalizedStage =
     rawStage && rawStage.toString().trim().length > 0
@@ -57,7 +74,8 @@ const normalizeProject = (project) => {
     startDate,
     deadline,
     status: normalizeStatus(project.status),
-    manager: project.manager || project.encargado || '',
+    manager: managers[0] || '',
+    managers,
     type: registrationType || project.type || project.tipo || '',
     client: project.client || project.cliente || '',
     fechaGrabacion,
@@ -70,6 +88,7 @@ const normalizeProject = (project) => {
     properties: {
       ...properties,
       resources,
+      managers,
       registrationType,
       stage: normalizedStage || properties.stage,
       recordingTime,
@@ -106,6 +125,9 @@ const prepareProjectForSupabase = (project) => {
     : Array.isArray(project.properties?.resources)
       ? project.properties.resources.filter(Boolean)
       : [];
+  const managers = normalizeManagers(
+    project.managers || project.manager || project.encargado || project.properties?.managers
+  );
 
   const recordingDate = normalizeDate(
     project.fechaGrabacion ||
@@ -137,6 +159,12 @@ const prepareProjectForSupabase = (project) => {
     ...(project.properties || {}),
     resources,
   };
+
+  if (managers.length > 0) {
+    nextProperties.managers = managers;
+  } else if (Object.prototype.hasOwnProperty.call(nextProperties, 'managers')) {
+    delete nextProperties.managers;
+  }
 
   if (recordingDate) {
     nextProperties.fechaGrabacion = recordingDate;
@@ -183,6 +211,8 @@ const prepareProjectForSupabase = (project) => {
   const baseProject = {
     ...project,
     id,
+    manager: managers.join(', '),
+    managers,
     startDate: normalizeDate(project.startDate),
     deadline: normalizeDate(project.deadline),
     type: registrationType || project.type || null,
@@ -284,6 +314,7 @@ const createEditingProjectFromRecording = (project) => {
   if (!recordingDate) return null;
 
   const registrationType = getRegistrationType(project) || project.type || '';
+  const managers = normalizeManagers(project.managers || project.manager);
   const startDate = addDays(recordingDate, 1);
   const durationDays = computeEditingDurationDays(registrationType || '');
   const endDate = addDays(startDate, Math.max(0, durationDays - 1));
@@ -297,7 +328,8 @@ const createEditingProjectFromRecording = (project) => {
   return {
     name: project.name,
     client: project.client,
-    manager: project.manager,
+    manager: managers[0] || '',
+    managers,
     status: 'Pendiente',
     type: 'edicion',
     registrationType,
@@ -310,6 +342,7 @@ const createEditingProjectFromRecording = (project) => {
       stage: 'edicion',
       registrationType,
       linkedRecordingId: project.id,
+      managers,
       resources,
     },
     resources,

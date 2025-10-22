@@ -27,5 +27,13 @@ export const TEAM_STYLES = {
   },
 };
 
-export const ensureMemberName = (name) =>
-  name && name.trim().length > 0 ? name.trim() : 'Sin asignar';
+export const ensureMemberName = (name) => {
+  if (Array.isArray(name)) {
+    const [first] = name.map((member) => (member ? member.toString().trim() : '')).filter(Boolean);
+    return first || 'Sin asignar';
+  }
+  if (name && name.toString().trim().length > 0) {
+    return name.toString().trim();
+  }
+  return 'Sin asignar';
+};

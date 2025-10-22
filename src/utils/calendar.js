@@ -67,7 +67,11 @@ export const generarLinkGoogleCalendar = (proyecto) => {
   const contenido = proyecto.contenido || proyecto.name || 'Proyecto';
   const cliente = proyecto.cliente || proyecto.client || 'Cliente';
   const detalle = proyecto.detalle || proyecto.description || '';
-  const encargado = proyecto.encargado || proyecto.manager || '';
+  const encargado =
+    proyecto.encargado ||
+    (Array.isArray(proyecto.managers) && proyecto.managers.length > 0
+      ? proyecto.managers.join(', ')
+      : proyecto.manager || '');
   const fechaInicio = proyecto.fechaInicio || proyecto.startDate || '';
   const fechaFin = proyecto.fechaFin || proyecto.deadline || '';
   const horaInicio = proyecto.horaInicio || proyecto.recordingTime || '';

@@ -16,9 +16,12 @@ export const filterProjects = (projects, term) => {
       haystack.push(...project.team);
     }
 
+    if (Array.isArray(project.managers)) {
+      haystack.push(...project.managers);
+    }
+
     return haystack
       .filter(Boolean)
       .some((value) => value.toString().toLowerCase().includes(normalized));
   });
 };
-

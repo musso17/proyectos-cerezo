@@ -111,7 +111,12 @@ const orderedProjects = useMemo(() => {
 
     projects.forEach((project) => {
       typeSet.add(getLabel(project.type, 'Sin tipo'));
-      managerSet.add(getLabel(project.manager, 'Sin asignar'));
+      const managers = getProjectManagers(project);
+      if (managers.length === 0) {
+        managerSet.add('Sin asignar');
+      } else {
+        managers.forEach((manager) => managerSet.add(getLabel(manager, 'Sin asignar')));
+      }
       statusSet.add(getLabel(project.status, 'Pendiente'));
       clientSet.add(getLabel(project.client, 'Sin cliente'));
     });
@@ -129,12 +134,18 @@ const orderedProjects = useMemo(() => {
   const filteredProjects = useMemo(() => {
     return orderedProjects.filter((project) => {
       const typeLabel = getLabel(project.type, 'Sin tipo');
-      const managerLabel = getLabel(project.manager, 'Sin asignar');
       const statusLabel = getLabel(project.status, 'Pendiente');
       const clientLabel = getLabel(project.client, 'Sin cliente');
 
       if (filters.type !== 'Todos' && filters.type !== typeLabel) return false;
-      if (filters.manager !== 'Todos' && filters.manager !== managerLabel) return false;
+      if (filters.manager !== 'Todos') {
+        const managers = getProjectManagers(project);
+        if (managers.length === 0) {
+          if (filters.manager !== 'Sin asignar') return false;
+        } else if (!managers.some((manager) => getLabel(manager, 'Sin asignar') === filters.manager)) {
+          return false;
+        }
+      }
       if (filters.status !== 'Todos' && filters.status !== statusLabel) return false;
       if (filters.client !== 'Todos' && filters.client !== clientLabel) return false;
       return true;
@@ -275,7 +286,7 @@ const orderedProjects = useMemo(() => {
                     <td className="px-6 py-5 text-sm font-semibold text-primary">
                       {project.name || 'Sin título'}
                       <p className="mt-1 text-[11px] uppercase tracking-wide text-accent/90">
-                        {`Fase: ${getStageLabel(project)}`}
+                        {getStageLabel(project)}
                       </p>
                       <div className="mt-3">
                         {(() => {
@@ -311,7 +322,12 @@ const orderedProjects = useMemo(() => {
                         })()}
                       </div>
                     </td>
-                    <td className="px-6 py-5 text-sm text-secondary">{project.manager || 'Sin asignar'}</td>
+                    <td className="px-6 py-5 text-sm text-secondary">
+                      {(() => {
+                        const managers = getProjectManagers(project);
+                        return managers.length > 0 ? managers.join(', ') : 'Sin asignar';
+                      })()}
+                    </td>
                     <td className="px-6 py-5">{renderStatusBadge(project.status)}</td>
                     <td className="px-6 py-5 text-sm text-secondary">{formatDate(project.startDate)}</td>
                     <td className="px-6 py-5 text-sm text-secondary">{formatDate(project.deadline)}</td>
@@ -356,5 +372,17 @@ function getStageLabel(project) {
   const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
   if (stage === 'grabacion') return 'Grabación';
   if (stage === 'edicion') return 'Edición';
-  return 'Sin definir';
+  return 'Sin asignar';
+}
+
+function getProjectManagers(project) {
+  if (Array.isArray(project.managers)) {
+    return project.managers.filter((manager) => manager && manager.toString().trim().length > 0);
+  }
+  if (!project.manager) return [];
+  return project.manager
+    .toString()
+    .split(',')
+    .map((manager) => manager.trim())
+    .filter(Boolean);
 }
