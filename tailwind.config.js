@@ -43,7 +43,7 @@ export default {
       animation: {
         'fade-up': 'fade-up 0.35s var(--ease-ios-out)',
         'scale-in': 'scale-in 0.3s var(--ease-ios-out)',
-        'modal-pop': 'modal-pop 0.38s var(--ease-ios-out)',
+        'modal-pop': 'modal-pop 0.22s var(--ease-ios-out)',
       },
     },
   },

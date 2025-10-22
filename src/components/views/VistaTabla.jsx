@@ -38,14 +38,6 @@ const statusStyles = {
   },
 };
 
-const typeStylesMap = {
-  grabacion: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-100',
-  edicion: 'border-emerald-300/40 bg-emerald-500/10 text-emerald-100',
-  default: 'border-slate-600/60 bg-slate-700/60 text-secondary',
-};
-
-const clientStyles = 'bg-rose-500/20 text-rose-200 border border-rose-400/40';
-
 const getLabel = (value, fallback) => {
   if (!value) return fallback;
   const trimmed = value.toString().trim();
@@ -103,7 +95,7 @@ const VistaTabla = () => {
     client: 'Todos',
   });
 
-  const orderedProjects = useMemo(() => {
+const orderedProjects = useMemo(() => {
     return [...projects].sort((a, b) => {
       const aDate = a.startDate ? new Date(a.startDate).getTime() : Number.POSITIVE_INFINITY;
       const bDate = b.startDate ? new Date(b.startDate).getTime() : Number.POSITIVE_INFINITY;
@@ -258,7 +250,7 @@ const VistaTabla = () => {
         <table className="w-full border-collapse text-sm text-secondary">
           <thead>
             <tr className="bg-white/5 text-xs uppercase tracking-wide text-secondary">
-              {['Proyecto', 'Tipo', 'Encargado', 'Estado', 'Inicio', 'Entrega', 'Cliente', 'Acciones'].map((header) => (
+              {['Proyecto', 'Encargado', 'Estado', 'Inicio', 'Entrega', 'Cliente', 'Acciones'].map((header) => (
                 <th key={header} className="px-6 py-4 text-left font-semibold">
                   {header}
                 </th>
@@ -268,7 +260,7 @@ const VistaTabla = () => {
           <tbody>
             {searchFilteredProjects.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-12 text-center text-secondary">
+                <td colSpan={7} className="px-6 py-12 text-center text-secondary">
                   No hay proyectos para mostrar.
                 </td>
               </tr>
@@ -282,25 +274,9 @@ const VistaTabla = () => {
                   >
                     <td className="px-6 py-5 text-sm font-semibold text-primary">
                       {project.name || 'Sin título'}
-                      {(() => {
-                        const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
-                        const showRegistration = stage === 'grabacion';
-                        const registrationType = (project.registrationType || project.properties?.registrationType || project.type || '')
-                          .toString()
-                          .trim();
-                        return (
-                          <>
-                            {showRegistration && registrationType && (
-                              <p className="mt-1 text-[11px] uppercase tracking-wide text-accent">
-                                {registrationType}
-                              </p>
-                            )}
-                            <p className="text-xs font-normal text-secondary">
-                              {project.description || 'Sin descripción'}
-                            </p>
-                          </>
-                        );
-                      })()}
+                      <p className="mt-1 text-[11px] uppercase tracking-wide text-accent/90">
+                        {`Fase: ${getStageLabel(project)}`}
+                      </p>
                       <div className="mt-3">
                         {(() => {
                           const calendarioUrl = generarLinkGoogleCalendar({
@@ -335,7 +311,6 @@ const VistaTabla = () => {
                         })()}
                       </div>
                     </td>
-                    <td className="px-6 py-5">{renderTypeBadge(project)}</td>
                     <td className="px-6 py-5 text-sm text-secondary">{project.manager || 'Sin asignar'}</td>
                     <td className="px-6 py-5">{renderStatusBadge(project.status)}</td>
                     <td className="px-6 py-5 text-sm text-secondary">{formatDate(project.startDate)}</td>
@@ -376,16 +351,10 @@ const VistaTabla = () => {
 };
 
 export default VistaTabla;
-function renderTypeBadge(project) {
-  const stage = (project.stage || project.properties?.stage || project.type || '')
-    .toString()
-    .trim()
-    .toLowerCase();
-  const label = stage === 'grabacion' ? 'Grabación' : stage === 'edicion' ? 'Edición' : project.type || 'Sin tipo';
-  const className = typeStylesMap[stage] || typeStylesMap.default;
-  return (
-    <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${className}`}>
-      {label}
-    </span>
-  );
+
+function getStageLabel(project) {
+  const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
+  if (stage === 'grabacion') return 'Grabación';
+  if (stage === 'edicion') return 'Edición';
+  return 'Sin definir';
 }
