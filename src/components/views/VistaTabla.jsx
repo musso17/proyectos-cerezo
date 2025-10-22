@@ -8,12 +8,34 @@ import { getClientBadgeClass } from '../../utils/clientStyles';
 import { generarLinkGoogleCalendar } from '../../utils/calendar';
 
 const statusStyles = {
-  Finalizado: 'bg-blue-500/20 text-blue-200 border-blue-400/40',
-  'En curso': 'bg-amber-300/20 text-amber-200 border-amber-300/40',
-  'En progreso': 'bg-amber-300/20 text-amber-200 border-amber-300/40',
-  Pendiente: 'bg-slate-500/20 text-slate-200 border-slate-400/40',
-  'En revisión': 'bg-purple-500/20 text-purple-200 border-purple-400/40',
-  Cancelado: 'bg-red-500/20 text-red-200 border-red-400/40',
+  Completado: {
+    badge: 'border-blue-400/40 bg-blue-500/20 text-blue-100',
+    dot: 'bg-blue-300',
+  },
+  Finalizado: {
+    badge: 'border-blue-400/40 bg-blue-500/20 text-blue-100',
+    dot: 'bg-blue-300',
+  },
+  'En curso': {
+    badge: 'border-amber-400/40 bg-amber-500/20 text-amber-100',
+    dot: 'bg-amber-300',
+  },
+  'En progreso': {
+    badge: 'border-amber-400/40 bg-amber-500/20 text-amber-100',
+    dot: 'bg-amber-300',
+  },
+  Pendiente: {
+    badge: 'border-slate-400/40 bg-slate-600/30 text-slate-100',
+    dot: 'bg-slate-200',
+  },
+  'En revisión': {
+    badge: 'border-purple-400/40 bg-purple-500/20 text-purple-100',
+    dot: 'bg-purple-300',
+  },
+  Cancelado: {
+    badge: 'border-red-400/40 bg-red-600/20 text-red-100',
+    dot: 'bg-red-300',
+  },
 };
 
 const typeStyles = 'bg-slate-700/60 text-slate-200 border border-slate-600/60';
@@ -30,10 +52,28 @@ const formatDate = (value) => {
   try {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
-    return date.toISOString().split('T')[0];
+    return date.toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
   } catch {
     return value;
   }
+};
+
+const renderStatusBadge = (status) => {
+  const key = status && statusStyles[status] ? status : 'Pendiente';
+  const { badge, dot } = statusStyles[key] || statusStyles.Pendiente;
+  const label = status || 'Pendiente';
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${badge}`}
+    >
+      <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
+      {label}
+    </span>
+  );
 };
 
 const VistaTabla = () => {
@@ -220,7 +260,6 @@ const VistaTabla = () => {
               </tr>
             ) : (
               searchFilteredProjects.map((project, index) => {
-                const statusClass = statusStyles[project.status] || statusStyles.Pendiente;
                 return (
                   <tr
                     key={project.id || index}
@@ -270,11 +309,7 @@ const VistaTabla = () => {
                       </span>
                     </td>
                     <td className="px-6 py-5 text-sm text-slate-300">{project.manager || 'Sin asignar'}</td>
-                    <td className="px-6 py-5">
-                      <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusClass}`}>
-                        {project.status || 'Pendiente'}
-                      </span>
-                    </td>
+                    <td className="px-6 py-5">{renderStatusBadge(project.status)}</td>
                     <td className="px-6 py-5 text-sm text-slate-300">{formatDate(project.startDate)}</td>
                     <td className="px-6 py-5 text-sm text-slate-300">{formatDate(project.deadline)}</td>
                     <td className="px-6 py-5">
