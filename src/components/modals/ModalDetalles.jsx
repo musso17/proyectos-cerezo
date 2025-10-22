@@ -346,25 +346,25 @@ const ModalDetalles = () => {
               leave="ease-in duration-150"
               leaveFrom="opacity-100 translate-y-0 scale-100"
               leaveTo="opacity-0 translate-y-4 scale-95">
-              <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-3xl border border-white/10 bg-slate-900/95 text-left align-middle shadow-[0_40px_120px_rgba(8,15,40,0.6)] transition-all">
-                <div className="flex items-start justify-between gap-4 border-b border-white/5 px-6 py-5">
+              <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-3xl border border-border/70 bg-white text-left align-middle shadow-[0_48px_120px_rgba(15,23,42,0.18)] transition-all animate-modal-pop">
+                <div className="flex items-start justify-between gap-4 border-b border-border/60 px-6 py-5">
                   <Dialog.Title className="flex-1">
                     <input
                       type="text"
                       name="name"
                       value={editedProject.name}
                       onChange={handleInputChange}
-                      className="w-full bg-transparent text-2xl font-semibold text-slate-50 placeholder:text-slate-500 focus:outline-none"
+                      className="w-full bg-transparent text-2xl font-semibold text-slate-50 placeholder:text-secondary focus:outline-none"
                       placeholder="Nombre del proyecto"
                     />
-                    <p className="mt-2 text-sm text-slate-400">
+                    <p className="mt-2 text-sm text-secondary">
                       Gestiona la información clave y comparte recursos con tu equipo.
                     </p>
                   </Dialog.Title>
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="rounded-full bg-white/10 p-2 text-slate-200 transition hover:bg-white/20"
+                    className="rounded-full border border-border/60 bg-white p-2 text-secondary shadow-sm transition hover:-translate-y-0.5 hover:border-border hover:shadow-[0_12px_24px_rgba(15,23,42,0.12)]"
                   >
                     <X size={20} />
                   </button>
@@ -373,24 +373,24 @@ const ModalDetalles = () => {
                 <div className="grid max-h-[68vh] gap-6 overflow-y-auto px-6 py-6 soft-scroll md:grid-cols-2">
                   <div className="space-y-5">
                     <div>
-                      <label className="text-sm font-medium text-slate-300">Cliente</label>
+                      <label className="text-sm font-medium text-secondary">Cliente</label>
                       <input
                         type="text"
                         name="client"
                         value={editedProject.client || ''}
                         onChange={handleInputChange}
-                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                        className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-100/80 px-4 py-2 text-sm text-primary placeholder:text-secondary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
                         placeholder="Nombre del cliente"
                       />
                     </div>
 
                     {isRecordingStage && (
                       <div>
-                        <label className="text-sm font-medium text-slate-300">Tipo de registro</label>
+                        <label className="text-sm font-medium text-secondary">Tipo de registro</label>
                         <select
                           value={editedProject.registrationType || ''}
                           onChange={handleRegistrationTypeChange}
-                          className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                          className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-100/80 px-4 py-2 text-sm text-primary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
                         >
                           <option value="" disabled>
                             Selecciona una opción
@@ -405,15 +405,15 @@ const ModalDetalles = () => {
                     )}
 
                     <div>
-                      <label className="text-sm font-medium text-slate-300">Fase</label>
+                      <label className="text-sm font-medium text-secondary">Fase</label>
                       <div className="mt-2 flex gap-2">
                         <button
                           type="button"
                           onClick={() => handleStageChange(STAGES.GRABACION)}
                           className={`flex-1 rounded-2xl border px-3 py-2 text-sm font-semibold transition ${
                             isRecordingStage
-                              ? 'border-cyan-400/60 bg-cyan-500/15 text-cyan-100'
-                              : 'border-white/10 bg-white/5 text-slate-200 hover:border-cyan-300/40 hover:text-cyan-100'
+                              ? 'border-cyan-300/70 bg-cyan-50 text-accent shadow-sm'
+                              : 'border-border/60 bg-white text-secondary hover:border-cyan-300/60 hover:text-accent'
                           }`}
                         >
                           Grabación
@@ -423,8 +423,8 @@ const ModalDetalles = () => {
                           onClick={() => handleStageChange(STAGES.EDICION)}
                           className={`flex-1 rounded-2xl border px-3 py-2 text-sm font-semibold transition ${
                             !isRecordingStage
-                              ? 'border-cyan-400/60 bg-cyan-500/15 text-cyan-100'
-                              : 'border-white/10 bg-white/5 text-slate-200 hover:border-cyan-300/40 hover:text-cyan-100'
+                              ? 'border-cyan-300/70 bg-cyan-50 text-accent shadow-sm'
+                              : 'border-border/60 bg-white text-secondary hover:border-cyan-300/60 hover:text-accent'
                           }`}
                         >
                           Edición
@@ -433,12 +433,12 @@ const ModalDetalles = () => {
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-slate-300">Estado</label>
+                      <label className="text-sm font-medium text-secondary">Estado</label>
                       <select
                         name="status"
                         value={editedProject.status || 'Pendiente'}
                         onChange={handleInputChange}
-                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                        className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-100/80 px-4 py-2 text-sm text-primary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
                       >
                         <option value="Pendiente">Pendiente</option>
                         <option value="En progreso">En progreso</option>
@@ -449,12 +449,12 @@ const ModalDetalles = () => {
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-slate-300">Responsable</label>
+                      <label className="text-sm font-medium text-secondary">Responsable</label>
                       <select
                         name="manager"
                         value={editedProject.manager || ''}
                         onChange={handleInputChange}
-                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                        className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-100/80 px-4 py-2 text-sm text-primary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
                       >
                         {teamMembers && teamMembers.length > 0 ? (
                           teamMembers.map((member) => (
@@ -471,36 +471,36 @@ const ModalDetalles = () => {
 
                   <div className="space-y-5">
                     <div>
-                      <label className="text-sm font-medium text-slate-300">Descripción general</label>
+                      <label className="text-sm font-medium text-secondary">Descripción general</label>
                       <textarea
                         name="description"
                         value={editedProject.description || ''}
                         onChange={handleInputChange}
                         rows={4}
-                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                        className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-100/80 px-4 py-3 text-sm text-primary placeholder:text-secondary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
                         placeholder="Describe objetivos, entregables y contexto del proyecto"
                       />
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-slate-300">Equipo</label>
+                      <label className="text-sm font-medium text-secondary">Equipo</label>
                       <input
                         type="text"
                         value={editedProject.team?.join(', ') || ''}
                         onChange={handleTeamChange}
-                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                        className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-100/80 px-4 py-2 text-sm text-primary placeholder:text-secondary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
                         placeholder="Nombre1, Nombre2, Nombre3"
                       />
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-slate-300">Notas rápidas</label>
+                      <label className="text-sm font-medium text-secondary">Notas rápidas</label>
                       <textarea
                         name="notes"
                         value={editedProject.notes || ''}
                         onChange={handleInputChange}
                         rows={3}
-                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                        className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-100/80 px-4 py-2 text-sm text-primary placeholder:text-secondary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
                         placeholder="Ideas, riesgos o recordatorios breves"
                       />
                     </div>
@@ -508,13 +508,13 @@ const ModalDetalles = () => {
 
                   <div className="md:col-span-2 space-y-6">
                     {isRecordingStage && (
-                      <div className="rounded-3xl border border-white/10 bg-slate-800/60 p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+                      <div className="rounded-3xl border border-border/60 bg-slate-100/60 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
                           <div>
-                            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-200">
+                            <h3 className="text-sm font-semibold uppercase tracking-wide text-secondary">
                               Detalles de la grabación
                             </h3>
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs text-secondary">
                               Define fecha, hora, ubicación y contexto para coordinar el rodaje.
                             </p>
                           </div>
@@ -524,8 +524,8 @@ const ModalDetalles = () => {
                             disabled={!editedProject.recordingDate}
                             className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                               editedProject.recordingDate
-                                ? 'border-cyan-400/60 text-cyan-100 hover:border-cyan-300 hover:text-cyan-50'
-                                : 'cursor-not-allowed border-white/10 text-slate-500'
+                                ? 'border-cyan-400/60 text-accent hover:border-cyan-300 hover:text-accent'
+                                : 'cursor-not-allowed border-border/60 text-secondary'
                             }`}
                           >
                             <Calendar size={14} />
@@ -534,40 +534,40 @@ const ModalDetalles = () => {
                         </div>
                         <div className="mt-4 grid gap-4 md:grid-cols-2">
                           <div>
-                            <label className="text-sm font-medium text-slate-300">Día de grabación</label>
+                            <label className="text-sm font-medium text-secondary">Día de grabación</label>
                             <input
                               type="date"
                               value={editedProject.recordingDate || ''}
                               onChange={handleRecordingDateChange}
-                              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                              className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-50 px-4 py-2 text-sm text-primary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
                             />
                           </div>
                           <div>
-                            <label className="text-sm font-medium text-slate-300">Hora</label>
+                            <label className="text-sm font-medium text-secondary">Hora</label>
                             <input
                               type="time"
                               value={editedProject.recordingTime || ''}
                               onChange={handleRecordingFieldChange('recordingTime')}
-                              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                              className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-50 px-4 py-2 text-sm text-primary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
                             />
                           </div>
                           <div>
-                            <label className="text-sm font-medium text-slate-300">Lugar</label>
+                            <label className="text-sm font-medium text-secondary">Lugar</label>
                             <input
                               type="text"
                               value={editedProject.recordingLocation || ''}
                               onChange={handleRecordingFieldChange('recordingLocation')}
-                              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                              className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-50 px-4 py-2 text-sm text-primary placeholder:text-secondary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
                               placeholder="Estudio, locación, referencia"
                             />
                           </div>
                           <div>
-                            <label className="text-sm font-medium text-slate-300">Descripción de la grabación</label>
+                            <label className="text-sm font-medium text-secondary">Descripción de la grabación</label>
                             <textarea
                               value={editedProject.recordingDescription || ''}
                               onChange={handleRecordingFieldChange('recordingDescription')}
                               rows={3}
-                              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                              className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-50 px-4 py-2 text-sm text-primary placeholder:text-secondary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
                               placeholder="Ángulos, requerimientos técnicos o mensajes clave"
                             />
                           </div>
@@ -576,56 +576,56 @@ const ModalDetalles = () => {
                     )}
 
                     <div>
-                      <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-300">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-secondary">
                         Planificación
                       </h3>
                       <div className="mt-3 grid gap-4 md:grid-cols-2">
                         <div>
-                          <label className="text-sm font-medium text-slate-300">Fecha de inicio</label>
+                          <label className="text-sm font-medium text-secondary">Fecha de inicio</label>
                           <input
                             type="date"
                             name="startDate"
                             value={editedProject.startDate || ''}
                             onChange={handleInputChange}
-                            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                            className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-100/80 px-4 py-2 text-sm text-primary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
                           />
                         </div>
                         <div>
-                          <label className="text-sm font-medium text-slate-300">Fecha de entrega</label>
+                          <label className="text-sm font-medium text-secondary">Fecha de entrega</label>
                           <input
                             type="date"
                             name="deadline"
                             value={editedProject.deadline || ''}
                             onChange={handleInputChange}
-                            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                            className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-100/80 px-4 py-2 text-sm text-primary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
                           />
                         </div>
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-slate-300">Recursos compartidos</label>
+                      <label className="text-sm font-medium text-secondary">Recursos compartidos</label>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {(editedProject.resources || []).length === 0 ? (
-                          <span className="text-xs text-slate-500">Sin enlaces añadidos.</span>
+                          <span className="text-xs text-secondary">Sin enlaces añadidos.</span>
                         ) : (
                           editedProject.resources.map((resource, index) => (
                             <div
                               key={`${resource}-${index}`}
-                              className="group flex items-center gap-2 rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-100 transition hover:bg-slate-700"
+                              className="group flex items-center gap-2 rounded-full border border-border/60 bg-white px-3 py-1 text-xs text-primary shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-300/60"
                             >
                               <a
                                 href={resource}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="max-w-[200px] truncate text-cyan-300 transition group-hover:text-cyan-200"
+                                className="max-w-[200px] truncate text-accent transition group-hover:text-accent"
                               >
                                 {resource}
                               </a>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveResource(index)}
-                                className="rounded-full bg-slate-700/80 p-1 text-slate-200 transition hover:bg-red-500/80 hover:text-white"
+                                className="rounded-full bg-slate-100 p-1 text-secondary transition hover:bg-red-500/80 hover:text-white"
                               >
                                 <Trash2 size={12} />
                               </button>
@@ -636,7 +636,7 @@ const ModalDetalles = () => {
                       <button
                         type="button"
                         onClick={handleAddResource}
-                        className="mt-3 inline-flex items-center gap-2 rounded-full border border-cyan-400/60 px-3 py-1.5 text-xs font-medium text-cyan-200 transition hover:border-cyan-300 hover:text-cyan-100"
+                        className="mt-3 inline-flex items-center gap-2 rounded-full border border-cyan-300/60 px-3 py-1.5 text-xs font-medium text-accent transition hover:border-cyan-400 hover:-translate-y-0.5"
                       >
                         <Plus size={14} />
                         Añadir recurso
@@ -645,7 +645,7 @@ const ModalDetalles = () => {
                   </div>
 
                   <div className="md:col-span-2">
-                    <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-300">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-secondary">
                       Propiedades personalizadas
                     </h3>
                     <div className="mt-3 space-y-4">
@@ -666,19 +666,19 @@ const ModalDetalles = () => {
                         .map(([key, value]) => (
                           <div
                             key={key}
-                            className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-slate-800/70 p-4 md:flex-row md:items-center md:gap-4"
+                            className="flex flex-col gap-2 rounded-2xl border border-border/60 bg-slate-100/70 p-4 md:flex-row md:items-center md:gap-4"
                           >
                             <input
                               type="text"
                               value={key}
                               disabled
-                              className="w-full rounded-xl bg-slate-900/40 px-3 py-2 text-xs uppercase tracking-wide text-slate-400 md:max-w-[200px]"
+                              className="w-full rounded-xl bg-slate-100/60 px-3 py-2 text-xs uppercase tracking-wide text-secondary md:max-w-[200px]"
                             />
                             <input
                               type="text"
                               value={value}
                               onChange={(event) => handlePropertyChange(key, event.target.value)}
-                              className="w-full rounded-xl bg-slate-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                              className="w-full rounded-xl bg-slate-100/60 px-3 py-2 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
                             />
                           </div>
                         ))}
@@ -686,7 +686,7 @@ const ModalDetalles = () => {
                     <button
                       onClick={handleAddProperty}
                       type="button"
-                      className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-cyan-200 transition hover:border-cyan-400/50 hover:text-cyan-100"
+                      className="mt-4 inline-flex items-center gap-2 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-accent transition hover:border-cyan-400/50 hover:text-accent"
                     >
                       <Plus size={16} />
                       Añadir propiedad
@@ -694,7 +694,7 @@ const ModalDetalles = () => {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-3 border-t border-white/5 bg-slate-900/70 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 border-t border-border/60 bg-slate-100/80 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                   {editedProject.id ? (
                     <button
                       type="button"
@@ -705,14 +705,14 @@ const ModalDetalles = () => {
                       Eliminar proyecto
                     </button>
                   ) : (
-                    <span className="text-xs uppercase tracking-wide text-slate-500">
+                    <span className="text-xs uppercase tracking-wide text-secondary">
                       Nuevo proyecto
                     </span>
                   )}
                   <div className="flex flex-wrap gap-3">
                     <button
                       type="button"
-                      className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-slate-100 transition hover:border-white/30"
+                      className="rounded-full border border-border/60 px-4 py-2 text-sm font-medium text-primary transition hover:border-cyan-300/70"
                       onClick={closeModal}
                     >
                       Cancelar

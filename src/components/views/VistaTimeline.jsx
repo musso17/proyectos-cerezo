@@ -293,11 +293,11 @@ const VistaTimeline = () => {
                             key={project.id}
                             type="button"
                             onClick={() => openModal(project)}
-                            className={`absolute flex h-[52px] flex-col justify-center gap-1 overflow-hidden rounded-xl border px-4 text-left text-slate-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg ${statusAccent}`}
+                            className={`absolute flex h-[52px] flex-col justify-center gap-1 overflow-hidden rounded-xl border px-4 text-left text-primary shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg ${statusAccent}`}
                             style={{ left: `${left}%`, width: `${width}%`, top: `${laneIndex * laneHeight}px` }}>
                             <span className={`absolute inset-y-0 left-0 w-1 ${styles.bg}`} />
                             <div className="flex items-center justify-between gap-2">
-                              <p className="truncate text-sm font-semibold text-slate-100">{project.name}</p>
+                              <p className="truncate text-sm font-semibold text-primary">{project.name}</p>
                               <span className="text-[11px] uppercase tracking-wide text-secondary/80">
                                 {durationLabel}
                               </span>

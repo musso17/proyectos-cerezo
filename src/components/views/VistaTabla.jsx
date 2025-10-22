@@ -9,39 +9,39 @@ import { generarLinkGoogleCalendar } from '../../utils/calendar';
 
 const statusStyles = {
   Completado: {
-    badge: 'border-blue-400/40 bg-blue-500/20 text-blue-100',
-    dot: 'bg-blue-300',
+    badge: 'border-blue-200 bg-blue-50 text-blue-700',
+    dot: 'bg-blue-400',
   },
   Finalizado: {
-    badge: 'border-blue-400/40 bg-blue-500/20 text-blue-100',
-    dot: 'bg-blue-300',
+    badge: 'border-blue-200 bg-blue-50 text-blue-700',
+    dot: 'bg-blue-400',
   },
   'En curso': {
-    badge: 'border-amber-400/40 bg-amber-500/20 text-amber-100',
-    dot: 'bg-amber-300',
+    badge: 'border-amber-200 bg-amber-50 text-amber-700',
+    dot: 'bg-amber-400',
   },
   'En progreso': {
-    badge: 'border-amber-400/40 bg-amber-500/20 text-amber-100',
-    dot: 'bg-amber-300',
+    badge: 'border-amber-200 bg-amber-50 text-amber-700',
+    dot: 'bg-amber-400',
   },
   Pendiente: {
-    badge: 'border-slate-400/40 bg-slate-600/30 text-slate-100',
-    dot: 'bg-slate-200',
+    badge: 'border-border bg-slate-100 text-secondary',
+    dot: 'bg-slate-400',
   },
   'En revisión': {
-    badge: 'border-purple-400/40 bg-purple-500/20 text-purple-100',
-    dot: 'bg-purple-300',
+    badge: 'border-purple-200 bg-purple-50 text-purple-700',
+    dot: 'bg-purple-400',
   },
   Cancelado: {
-    badge: 'border-red-400/40 bg-red-600/20 text-red-100',
-    dot: 'bg-red-300',
+    badge: 'border-red-200 bg-red-50 text-red-600',
+    dot: 'bg-red-400',
   },
 };
 
 const typeStylesMap = {
-  grabacion: 'border-cyan-500/40 bg-cyan-500/15 text-cyan-100',
-  edicion: 'border-fuchsia-500/40 bg-fuchsia-500/15 text-fuchsia-100',
-  default: 'border-slate-600/60 bg-slate-700/60 text-slate-200',
+  grabacion: 'border-cyan-300 bg-cyan-50 text-accent',
+  edicion: 'border-fuchsia-300 bg-fuchsia-50 text-fuchsia-600',
+  default: 'border-border bg-slate-100 text-secondary',
 };
 
 const clientStyles = 'bg-rose-500/20 text-rose-200 border border-rose-400/40';
@@ -184,13 +184,13 @@ const VistaTabla = () => {
 
   return (
     <div className="soft-scroll flex h-full flex-col gap-4 overflow-auto">
-      <div className="glass-panel flex flex-wrap items-end gap-4 rounded-3xl px-6 py-4 text-xs text-slate-200">
+      <div className="glass-panel flex flex-wrap items-end gap-4 rounded-3xl px-6 py-4 text-xs text-secondary">
         <div className="flex flex-col">
-          <label className="mb-1 font-medium uppercase tracking-wide text-slate-400">Tipo</label>
+          <label className="mb-1 font-medium uppercase tracking-wide text-secondary">Tipo</label>
           <select
             value={filters.type}
             onChange={handleFilterChange('type')}
-            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+            className="rounded-2xl border border-border/60 bg-white px-4 py-2 text-sm text-primary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
           >
             {filterOptions.types.map((option) => (
               <option key={option} value={option}>
@@ -201,11 +201,11 @@ const VistaTabla = () => {
         </div>
 
         <div className="flex flex-col">
-          <label className="mb-1 font-medium uppercase tracking-wide text-slate-400">Encargado</label>
+          <label className="mb-1 font-medium uppercase tracking-wide text-secondary">Encargado</label>
           <select
             value={filters.manager}
             onChange={handleFilterChange('manager')}
-            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+            className="rounded-2xl border border-border/60 bg-white px-4 py-2 text-sm text-primary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
           >
             {filterOptions.managers.map((option) => (
               <option key={option} value={option}>
@@ -216,11 +216,11 @@ const VistaTabla = () => {
         </div>
 
         <div className="flex flex-col">
-          <label className="mb-1 font-medium uppercase tracking-wide text-slate-400">Estado</label>
+          <label className="mb-1 font-medium uppercase tracking-wide text-secondary">Estado</label>
           <select
             value={filters.status}
             onChange={handleFilterChange('status')}
-            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+            className="rounded-2xl border border-border/60 bg-white px-4 py-2 text-sm text-primary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
           >
             {filterOptions.statuses.map((option) => (
               <option key={option} value={option}>
@@ -231,11 +231,11 @@ const VistaTabla = () => {
         </div>
 
         <div className="flex flex-col">
-          <label className="mb-1 font-medium uppercase tracking-wide text-slate-400">Cliente</label>
+          <label className="mb-1 font-medium uppercase tracking-wide text-secondary">Cliente</label>
           <select
             value={filters.client}
             onChange={handleFilterChange('client')}
-            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+            className="rounded-2xl border border-border/60 bg-white px-4 py-2 text-sm text-primary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
           >
             {filterOptions.clients.map((option) => (
               <option key={option} value={option}>
@@ -248,16 +248,16 @@ const VistaTabla = () => {
         <button
           type="button"
           onClick={handleResetFilters}
-          className="ml-auto inline-flex items-center rounded-2xl bg-white/10 px-4 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/20"
+          className="ml-auto inline-flex items-center rounded-2xl bg-white px-4 py-2 text-sm font-medium text-primary transition hover:bg-slate-100/80"
         >
           Limpiar filtros
         </button>
       </div>
 
       <div className="glass-panel overflow-hidden rounded-3xl">
-        <table className="w-full border-collapse text-sm text-slate-300">
+        <table className="w-full border-collapse text-sm text-secondary">
           <thead>
-            <tr className="bg-white/5 text-xs uppercase tracking-wide text-slate-400">
+            <tr className="bg-slate-100/60 text-xs uppercase tracking-wide text-secondary">
               {['Proyecto', 'Tipo', 'Encargado', 'Estado', 'Inicio', 'Entrega', 'Cliente', 'Acciones'].map((header) => (
                 <th key={header} className="px-6 py-4 text-left font-semibold">
                   {header}
@@ -268,7 +268,7 @@ const VistaTabla = () => {
           <tbody>
             {searchFilteredProjects.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
+                <td colSpan={8} className="px-6 py-12 text-center text-secondary">
                   No hay proyectos para mostrar.
                 </td>
               </tr>
@@ -277,12 +277,30 @@ const VistaTabla = () => {
                 return (
                   <tr
                     key={project.id || index}
-                    className="border-t border-white/5 transition-all duration-200 ease-[var(--ease-ios-out)] hover:-translate-y-0.5 hover:bg-white/10"
+                    className="border-t border-border/60 transition-all duration-200 ease-[var(--ease-ios-out)] hover:-translate-y-0.5 hover:bg-slate-100/60"
                     onClick={() => openModal(project)}
                   >
-                    <td className="px-6 py-5 text-sm font-semibold text-slate-100">
+                    <td className="px-6 py-5 text-sm font-semibold text-primary">
                       {project.name || 'Sin título'}
-                      <p className="text-xs font-normal text-slate-400">{project.description || 'Sin descripción'}</p>
+                      {(() => {
+                        const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
+                        const showRegistration = stage === 'grabacion';
+                        const registrationType = (project.registrationType || project.properties?.registrationType || project.type || '')
+                          .toString()
+                          .trim();
+                        return (
+                          <>
+                            {showRegistration && registrationType && (
+                              <p className="mt-1 text-[11px] uppercase tracking-wide text-accent">
+                                {registrationType}
+                              </p>
+                            )}
+                            <p className="text-xs font-normal text-secondary">
+                              {project.description || 'Sin descripción'}
+                            </p>
+                          </>
+                        );
+                      })()}
                       <div className="mt-3">
                         {(() => {
                           const calendarioUrl = generarLinkGoogleCalendar({
@@ -306,9 +324,9 @@ const VistaTabla = () => {
                               }}
                               disabled={disabled}
                               className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition duration-200 ease-[var(--ease-ios-out)] ${
-                                disabled
-                                  ? 'cursor-not-allowed border border-white/5 bg-white/5 text-slate-500'
-                                  : 'border border-cyan-400/40 bg-cyan-500/20 text-cyan-100 hover:border-cyan-300/60 hover:bg-cyan-500/30'
+                              disabled
+                                  ? 'cursor-not-allowed border border-border/60 bg-slate-100/80 text-secondary'
+                                  : 'border border-cyan-300/60 bg-cyan-100/60 text-primary hover:border-cyan-400/80 hover:bg-cyan-100'
                               }`}
                             >
                               Agendar en Calendar
@@ -318,10 +336,10 @@ const VistaTabla = () => {
                       </div>
                     </td>
                     <td className="px-6 py-5">{renderTypeBadge(project)}</td>
-                    <td className="px-6 py-5 text-sm text-slate-300">{project.manager || 'Sin asignar'}</td>
+                    <td className="px-6 py-5 text-sm text-secondary">{project.manager || 'Sin asignar'}</td>
                     <td className="px-6 py-5">{renderStatusBadge(project.status)}</td>
-                    <td className="px-6 py-5 text-sm text-slate-300">{formatDate(project.startDate)}</td>
-                    <td className="px-6 py-5 text-sm text-slate-300">{formatDate(project.deadline)}</td>
+                    <td className="px-6 py-5 text-sm text-secondary">{formatDate(project.startDate)}</td>
+                    <td className="px-6 py-5 text-sm text-secondary">{formatDate(project.deadline)}</td>
                     <td className="px-6 py-5">
                       {(() => {
                         const clientLabel = project.client || 'Sin cliente';
@@ -333,7 +351,7 @@ const VistaTabla = () => {
                         <button
                           type="button"
                           onClick={(event) => handleEdit(project, event)}
-                          className="rounded-full bg-white/10 p-2 text-slate-100 transition hover:bg-white/20"
+                          className="rounded-full bg-white p-2 text-primary transition hover:bg-slate-100/80"
                         >
                           <Edit2 size={14} />
                         </button>
@@ -358,7 +376,7 @@ const VistaTabla = () => {
 };
 
 export default VistaTabla;
-const renderTypeBadge = (project) => {
+function renderTypeBadge(project) {
   const stage = (project.stage || project.properties?.stage || project.type || '')
     .toString()
     .trim()
@@ -370,4 +388,4 @@ const renderTypeBadge = (project) => {
       {label}
     </span>
   );
-};
+}

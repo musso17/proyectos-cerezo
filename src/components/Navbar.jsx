@@ -20,7 +20,7 @@ const Navbar = () => {
         <button
           type="button"
           onClick={toggleSidebar}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-slate-100 transition hover:border-cyan-400/60 hover:bg-white/20 lg:hidden"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border/70 bg-white text-slate-500 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-300/80 hover:shadow-[0_12px_24px_rgba(15,23,42,0.15)] lg:hidden"
           aria-label="Abrir menú"
         >
           <Menu size={18} />
@@ -32,7 +32,7 @@ const Navbar = () => {
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="Buscar proyectos, clientes o responsables…"
-            className="w-full rounded-2xl border border-white/10 bg-white/10 py-2.5 pl-12 pr-4 text-sm text-slate-100 placeholder:text-slate-400 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+            className="w-full rounded-2xl border border-border/70 bg-white/90 py-2.5 pl-12 pr-4 text-sm text-primary placeholder:text-secondary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-200/40"
           />
         </div>
       </div>

@@ -6,6 +6,7 @@ import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   addDays,
   addMonths,
+  differenceInCalendarDays,
   endOfMonth,
   endOfWeek,
   format,
@@ -26,6 +27,7 @@ const MAX_ITEMS_PER_DAY = 3;
 const EDITING_TASK_PILL = 'bg-fuchsia-500/20 text-fuchsia-100 border-fuchsia-400/40';
 const PROJECT_EVENT_PILLS = {
   grabacion: 'bg-emerald-500/20 text-emerald-100 border-emerald-400/40',
+  edicion: 'bg-fuchsia-500/20 text-fuchsia-100 border-fuchsia-400/40',
   entrega: 'bg-sky-500/20 text-sky-100 border-sky-400/40',
   duracion: 'bg-slate-500/20 text-slate-200 border-slate-400/40',
 };
@@ -94,18 +96,37 @@ const getProjectRecordingDate = (project) => {
 
 const getProjectEventTypeForDay = (project, range, day) => {
   if (!project || !range || !day) return 'duracion';
+
+  const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
+  const isStartDay = range.start && isSameDay(range.start, day);
+  const isEndDay = range.end && isSameDay(range.end, day);
+  const deadline = project.deadline ? parseDate(project.deadline) : null;
+  const isDeadlineDay = deadline ? isSameDay(deadline, day) : false;
+
+  if (stage === 'edicion') {
+    const durationDays = differenceInCalendarDays(range.end, range.start) + 1;
+    if (durationDays <= 1) {
+      return 'entrega';
+    }
+    if (isEndDay || isDeadlineDay) {
+      return 'entrega';
+    }
+    return 'edicion';
+  }
+
   const recordingDate = getProjectRecordingDate(project);
   if (recordingDate && isSameDay(recordingDate, day)) {
     return 'grabacion';
   }
-  if (range.start && isSameDay(range.start, day)) {
-    return 'grabacion';
+  if (stage === 'grabacion' || !stage) {
+    if (isStartDay) {
+      return 'grabacion';
+    }
   }
-  const deadline = project.deadline ? parseDate(project.deadline) : null;
-  if (deadline && isSameDay(deadline, day)) {
+  if (isDeadlineDay) {
     return 'entrega';
   }
-  if (range.end && isSameDay(range.end, day)) {
+  if (isEndDay) {
     return 'entrega';
   }
   return 'duracion';
