@@ -85,6 +85,17 @@ const prepareProjectForSupabase = (project) => {
       project.recording_date
   );
 
+  const nextProperties = {
+    ...(project.properties || {}),
+    resources,
+  };
+
+  if (recordingDate) {
+    nextProperties.fechaGrabacion = recordingDate;
+  } else if (Object.prototype.hasOwnProperty.call(nextProperties, 'fechaGrabacion')) {
+    delete nextProperties.fechaGrabacion;
+  }
+
   const baseProject = {
     ...project,
     id,
@@ -92,14 +103,11 @@ const prepareProjectForSupabase = (project) => {
     deadline: normalizeDate(project.deadline),
     notes: project.notes?.trim?.() ? project.notes.trim() : null,
     team: normalizeTeam(project.team),
-    properties: {
-      ...(project.properties || {}),
-      resources,
-    },
+    properties: nextProperties,
     resources,
   };
 
-  baseProject.fecha_grabacion = recordingDate;
+  delete baseProject.fecha_grabacion;
   delete baseProject.fechaGrabacion;
   delete baseProject.fechaGrabación;
   delete baseProject.recordingDate;
