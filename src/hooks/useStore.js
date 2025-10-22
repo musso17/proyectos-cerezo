@@ -77,18 +77,19 @@ const prepareProjectForSupabase = (project) => {
       ? project.properties.resources.filter(Boolean)
       : [];
 
-  return {
-    ...project,
-    id,
-    startDate: normalizeDate(project.startDate),
-    deadline: normalizeDate(project.deadline),
-    fechaGrabacion: normalizeDate(
+  const recordingDate = normalizeDate(
       project.fechaGrabacion ||
         project.fecha_grabacion ||
         project.fechaGrabación ||
         project.recordingDate ||
         project.recording_date
-    ),
+    );
+
+  const baseProject = {
+    ...project,
+    id,
+    startDate: normalizeDate(project.startDate),
+    deadline: normalizeDate(project.deadline),
     notes: project.notes?.trim?.() ? project.notes.trim() : null,
     team: normalizeTeam(project.team),
     properties: {
@@ -97,6 +98,25 @@ const prepareProjectForSupabase = (project) => {
     },
     resources,
   };
+
+  const hasSnakeRecordingField = Object.prototype.hasOwnProperty.call(project, 'fecha_grabacion');
+  const hasCamelRecordingField = Object.prototype.hasOwnProperty.call(project, 'fechaGrabacion');
+  const hasAltCamelRecordingField = Object.prototype.hasOwnProperty.call(project, 'fechaGrabación');
+
+  if (hasSnakeRecordingField || (!hasCamelRecordingField && !hasAltCamelRecordingField)) {
+    baseProject.fecha_grabacion = recordingDate;
+  }
+  if (hasCamelRecordingField && !hasSnakeRecordingField) {
+    baseProject.fechaGrabacion = recordingDate;
+  }
+  if (hasAltCamelRecordingField && !hasSnakeRecordingField && !hasCamelRecordingField) {
+    baseProject.fechaGrabación = recordingDate;
+  }
+
+  delete baseProject.recordingDate;
+  delete baseProject.recording_date;
+
+  return baseProject;
 };
 
 const readLocalProjects = () => {
