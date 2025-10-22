@@ -78,12 +78,12 @@ const prepareProjectForSupabase = (project) => {
       : [];
 
   const recordingDate = normalizeDate(
-      project.fechaGrabacion ||
-        project.fecha_grabacion ||
-        project.fechaGrabación ||
-        project.recordingDate ||
-        project.recording_date
-    );
+    project.fechaGrabacion ||
+      project.fecha_grabacion ||
+      project.fechaGrabación ||
+      project.recordingDate ||
+      project.recording_date
+  );
 
   const baseProject = {
     ...project,
@@ -99,20 +99,9 @@ const prepareProjectForSupabase = (project) => {
     resources,
   };
 
-  const hasSnakeRecordingField = Object.prototype.hasOwnProperty.call(project, 'fecha_grabacion');
-  const hasCamelRecordingField = Object.prototype.hasOwnProperty.call(project, 'fechaGrabacion');
-  const hasAltCamelRecordingField = Object.prototype.hasOwnProperty.call(project, 'fechaGrabación');
-
-  if (hasSnakeRecordingField || (!hasCamelRecordingField && !hasAltCamelRecordingField)) {
-    baseProject.fecha_grabacion = recordingDate;
-  }
-  if (hasCamelRecordingField && !hasSnakeRecordingField) {
-    baseProject.fechaGrabacion = recordingDate;
-  }
-  if (hasAltCamelRecordingField && !hasSnakeRecordingField && !hasCamelRecordingField) {
-    baseProject.fechaGrabación = recordingDate;
-  }
-
+  baseProject.fecha_grabacion = recordingDate;
+  delete baseProject.fechaGrabacion;
+  delete baseProject.fechaGrabación;
   delete baseProject.recordingDate;
   delete baseProject.recording_date;
 
