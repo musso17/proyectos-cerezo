@@ -19,7 +19,7 @@ import {
 import { es } from 'date-fns/locale';
 import { ensureMemberName } from '../../constants/team';
 import { filterProjects } from '../../utils/filterProjects';
-import { getClientBadgeClass } from '../../utils/clientStyles';
+import { getClientStyles } from '../../utils/clientStyles';
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const MAX_ITEMS_PER_DAY = 3;
@@ -28,6 +28,12 @@ const PROJECT_EVENT_PILLS = {
   grabacion: 'bg-emerald-500/20 text-emerald-100 border-emerald-400/40',
   entrega: 'bg-sky-500/20 text-sky-100 border-sky-400/40',
   duracion: 'bg-slate-500/20 text-slate-200 border-slate-400/40',
+};
+
+const getClientDetailBadgeClass = (client) => {
+  const styles = getClientStyles(client);
+  const paletteClass = styles?.badge || 'bg-slate-500/20 text-slate-200 border-slate-400/40';
+  return `inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${paletteClass}`;
 };
 
 const parseDate = (value) => {
@@ -108,7 +114,7 @@ const getProjectEventTypeForDay = (project, range, day) => {
 const getProjectEventLabel = (type) => {
   if (type === 'grabacion') return 'Grabación';
   if (type === 'entrega') return 'Entrega';
-  return 'Seguimiento';
+  return 'Edición';
 };
 
 const VistaCalendario = () => {
@@ -551,9 +557,12 @@ const VistaCalendario = () => {
                       )}
                     </div>
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                  <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-secondary">
                     {item.client && (
-                      <span className={getClientBadgeClass(item.client, 'sm')}>{item.client}</span>
+                      <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+                        <span className="text-[10px] uppercase tracking-wide text-secondary/70">Cliente</span>
+                        <span className={getClientDetailBadgeClass(item.client)}>{item.client}</span>
+                      </div>
                     )}
                     {item.projectType && (
                       <span className="rounded-full bg-white/5 px-3 py-1 text-[11px] uppercase tracking-wide text-secondary">
