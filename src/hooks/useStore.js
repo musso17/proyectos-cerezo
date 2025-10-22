@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { addDays, parseISO, isValid, format } from 'date-fns';
 import { supabase } from '../config/supabase';
 import { TEAM_MEMBERS } from '../constants/team';
 import { generarTareasEdicionDesdeProyectos } from '../utils/editingTasks';
@@ -26,6 +27,17 @@ const normalizeProject = (project) => {
     : Array.isArray(properties.resources)
       ? properties.resources.filter(Boolean)
       : [];
+  const rawStage = project.stage || properties.stage || '';
+  const normalizedStage =
+    rawStage && rawStage.toString().trim().length > 0
+      ? rawStage.toString().trim().toLowerCase()
+      : '';
+  const registrationType =
+    project.registrationType ||
+    properties.registrationType ||
+    project.type ||
+    project.tipo ||
+    '';
   const fechaGrabacion =
     project.fechaGrabacion ||
     project.fecha_grabacion ||
@@ -35,6 +47,10 @@ const normalizeProject = (project) => {
     project.properties?.fechaGrabacion ||
     project.properties?.fecha_grabacion ||
     null;
+  const recordingTime = project.recordingTime || properties.recordingTime || '';
+  const recordingLocation = project.recordingLocation || properties.recordingLocation || '';
+  const recordingDescription =
+    project.recordingDescription || properties.recordingDescription || project.detalle || project.description || '';
 
   return {
     ...project,
@@ -42,11 +58,25 @@ const normalizeProject = (project) => {
     deadline,
     status: normalizeStatus(project.status),
     manager: project.manager || project.encargado || '',
-    type: project.type || project.tipo || '',
+    type: registrationType || project.type || project.tipo || '',
     client: project.client || project.cliente || '',
     fechaGrabacion,
     resources,
-    properties: { ...properties, resources },
+    registrationType,
+    stage: normalizedStage || (fechaGrabacion ? 'grabacion' : properties.stage || ''),
+    recordingTime,
+    recordingLocation,
+    recordingDescription,
+    properties: {
+      ...properties,
+      resources,
+      registrationType,
+      stage: normalizedStage || properties.stage,
+      recordingTime,
+      recordingLocation,
+      recordingDescription,
+      fechaGrabacion,
+    },
   };
 };
 
@@ -84,6 +114,24 @@ const prepareProjectForSupabase = (project) => {
       project.recordingDate ||
       project.recording_date
   );
+  const registrationType =
+    (project.registrationType ||
+      project.type ||
+      project.properties?.registrationType ||
+      '').toString().trim() || null;
+  const stage =
+    (project.stage || project.properties?.stage || '').toString().trim().toLowerCase() || null;
+  const recordingTime =
+    project.recordingTime || project.properties?.recordingTime || '';
+  const recordingLocation =
+    project.recordingLocation || project.properties?.recordingLocation || '';
+  const recordingDescription =
+    project.recordingDescription ||
+    project.properties?.recordingDescription ||
+    project.description ||
+    '';
+  const linkedRecordingId =
+    project.linkedRecordingId || project.properties?.linkedRecordingId || null;
 
   const nextProperties = {
     ...(project.properties || {}),
@@ -96,11 +144,48 @@ const prepareProjectForSupabase = (project) => {
     delete nextProperties.fechaGrabacion;
   }
 
+  if (registrationType) {
+    nextProperties.registrationType = registrationType;
+  } else if (Object.prototype.hasOwnProperty.call(nextProperties, 'registrationType')) {
+    delete nextProperties.registrationType;
+  }
+
+  if (stage) {
+    nextProperties.stage = stage;
+  } else if (Object.prototype.hasOwnProperty.call(nextProperties, 'stage')) {
+    delete nextProperties.stage;
+  }
+
+  if (recordingTime) {
+    nextProperties.recordingTime = recordingTime;
+  } else if (Object.prototype.hasOwnProperty.call(nextProperties, 'recordingTime')) {
+    delete nextProperties.recordingTime;
+  }
+
+  if (recordingLocation) {
+    nextProperties.recordingLocation = recordingLocation;
+  } else if (Object.prototype.hasOwnProperty.call(nextProperties, 'recordingLocation')) {
+    delete nextProperties.recordingLocation;
+  }
+
+  if (recordingDescription) {
+    nextProperties.recordingDescription = recordingDescription;
+  } else if (Object.prototype.hasOwnProperty.call(nextProperties, 'recordingDescription')) {
+    delete nextProperties.recordingDescription;
+  }
+
+  if (linkedRecordingId) {
+    nextProperties.linkedRecordingId = linkedRecordingId;
+  } else if (Object.prototype.hasOwnProperty.call(nextProperties, 'linkedRecordingId')) {
+    delete nextProperties.linkedRecordingId;
+  }
+
   const baseProject = {
     ...project,
     id,
     startDate: normalizeDate(project.startDate),
     deadline: normalizeDate(project.deadline),
+    type: registrationType || project.type || null,
     notes: project.notes?.trim?.() ? project.notes.trim() : null,
     team: normalizeTeam(project.team),
     properties: nextProperties,
@@ -112,6 +197,12 @@ const prepareProjectForSupabase = (project) => {
   delete baseProject.fechaGrabación;
   delete baseProject.recordingDate;
   delete baseProject.recording_date;
+  delete baseProject.stage;
+  delete baseProject.registrationType;
+  delete baseProject.recordingTime;
+  delete baseProject.recordingLocation;
+  delete baseProject.recordingDescription;
+  delete baseProject.linkedRecordingId;
 
   return baseProject;
 };
@@ -147,7 +238,94 @@ const supabaseClient = supabase;
 
 const buildEditingTasks = (projects) => generarTareasEdicionDesdeProyectos(projects || []);
 
-const useStore = create((set) => ({
+const parseDateOnly = (value) => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  const stringValue = value.toString().trim();
+  if (!stringValue) return null;
+  let parsed = null;
+  try {
+    parsed = parseISO(stringValue.length <= 10 ? `${stringValue}T00:00:00` : stringValue);
+    if (isValid(parsed)) return parsed;
+  } catch (error) {
+    // ignore and fallback
+  }
+  const fallback = new Date(stringValue);
+  if (isValid(fallback)) return fallback;
+  return null;
+};
+
+const formatDateOnly = (date) => {
+  if (!date) return null;
+  return format(date, 'yyyy-MM-dd');
+};
+
+const shouldGenerateEditingProject = (project) => {
+  const stage = project?.stage || project?.properties?.stage || '';
+  return stage.toString().trim().toLowerCase() === 'grabacion';
+};
+
+const getRegistrationType = (project) =>
+  (project?.registrationType || project?.properties?.registrationType || project?.type || '')
+    .toString()
+    .trim()
+    .toLowerCase();
+
+const computeEditingDurationDays = (registrationType) => {
+  const normalized = registrationType.toLowerCase();
+  if (normalized === 'spot') return 2;
+  if (['evento', 'contenido', 'lanzamiento'].includes(normalized)) return 1;
+  return 1;
+};
+
+const createEditingProjectFromRecording = (project) => {
+  if (!shouldGenerateEditingProject(project)) return null;
+  const recordingDate = parseDateOnly(project.fechaGrabacion || project.startDate);
+  if (!recordingDate) return null;
+
+  const registrationType = getRegistrationType(project) || project.type || '';
+  const startDate = addDays(recordingDate, 1);
+  const durationDays = computeEditingDurationDays(registrationType || '');
+  const endDate = addDays(startDate, Math.max(0, durationDays - 1));
+
+  const resources = Array.isArray(project.properties?.resources)
+    ? project.properties.resources.filter(Boolean)
+    : Array.isArray(project.resources)
+      ? project.resources.filter(Boolean)
+      : [];
+
+  return {
+    name: project.name,
+    client: project.client,
+    manager: project.manager,
+    status: 'Pendiente',
+    type: registrationType,
+    registrationType,
+    startDate: formatDateOnly(startDate),
+    deadline: formatDateOnly(endDate),
+    stage: 'edicion',
+    linkedRecordingId: project.id,
+    description: project.recordingDescription || project.description || '',
+    properties: {
+      stage: 'edicion',
+      registrationType,
+      linkedRecordingId: project.id,
+      resources,
+    },
+    resources,
+  };
+};
+
+const hasGeneratedEditingProject = (projects, recordingId) => {
+  if (!recordingId) return false;
+  return projects.some((item) => {
+    const stage = (item.stage || item.properties?.stage || '').toString().trim().toLowerCase();
+    const linkedId = item.linkedRecordingId || item.properties?.linkedRecordingId || null;
+    return stage === 'edicion' && linkedId === recordingId;
+  });
+};
+
+const useStore = create((set, get) => ({
   projects: [],
   loading: true,
   error: null,
@@ -207,19 +385,39 @@ const useStore = create((set) => ({
     }
   },
 
-  addProject: async (project) => {
+  addProject: async (project, options = {}) => {
     set({ loading: true, error: null });
 
+    const { skipAutoEditingGeneration = false } = options;
+    const isNewProject = !project?.id;
+    const wantsAutoEditing =
+      isNewProject && !skipAutoEditingGeneration && shouldGenerateEditingProject(project);
+
     if (!supabaseClient) {
+      const baseId = project.id || generateLocalId();
       const newProject = normalizeProject({
         ...project,
-        id: project.id || generateLocalId(),
+        id: baseId,
         properties: project.properties || {},
         created_at: project.created_at || new Date().toISOString(),
       });
 
       set((state) => {
-        const projects = [...state.projects, newProject].sort((a, b) => {
+        const nextProjects = [...state.projects, newProject];
+        if (wantsAutoEditing && !hasGeneratedEditingProject(nextProjects, newProject.id)) {
+          const editingCandidate = createEditingProjectFromRecording(newProject);
+          if (editingCandidate) {
+            const editingProject = normalizeProject({
+              ...editingCandidate,
+              id: editingCandidate.id || generateLocalId(),
+              properties: editingCandidate.properties || {},
+              created_at: new Date().toISOString(),
+            });
+            nextProjects.push(editingProject);
+          }
+        }
+
+        const projects = nextProjects.sort((a, b) => {
           const startA = a.startDate ? new Date(a.startDate).getTime() : 0;
           const startB = b.startDate ? new Date(b.startDate).getTime() : 0;
           return startB - startA;
@@ -242,7 +440,8 @@ const useStore = create((set) => ({
       if (inserted) {
         const normalized = normalizeProject(inserted);
         set((state) => {
-          const projects = [...state.projects, normalized].sort((a, b) => {
+          const nextProjects = [...state.projects, normalized];
+          const projects = nextProjects.sort((a, b) => {
             const startA = a.startDate ? new Date(a.startDate).getTime() : 0;
             const startB = b.startDate ? new Date(b.startDate).getTime() : 0;
             return startB - startA;
@@ -250,6 +449,13 @@ const useStore = create((set) => ({
           persistLocalProjects(projects);
           return { projects, editingTasks: buildEditingTasks(projects) };
         });
+
+        if (wantsAutoEditing && !hasGeneratedEditingProject(get().projects, normalized.id)) {
+          const editingPayload = createEditingProjectFromRecording(normalized);
+          if (editingPayload) {
+            await get().addProject(editingPayload, { skipAutoEditingGeneration: true });
+          }
+        }
       }
     } catch (error) {
       set({ error: 'Error adding project' });

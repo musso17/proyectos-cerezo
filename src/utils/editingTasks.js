@@ -78,6 +78,8 @@ const formatKeywordLabel = (keyword) => {
 
 export const generarTareaEdicion = (project) => {
   if (!project) return null;
+  const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
+  if (stage && stage !== 'grabacion') return null;
 
   const recordingDate = normalizeRecordingDate(project);
   if (!recordingDate) return null;

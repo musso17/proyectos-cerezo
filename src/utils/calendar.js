@@ -11,10 +11,20 @@ const MEMBER_EMAILS = {
   'marcelo musso': 'hola@cerezoperu.com',
 };
 
+const normalizeTimeValue = (time, fallback = '09:00:00') => {
+  if (!time) return fallback;
+  const trimmed = time.toString().trim();
+  if (!trimmed) return fallback;
+  if (/^\d{2}:\d{2}$/.test(trimmed)) return `${trimmed}:00`;
+  if (/^\d{2}:\d{2}:\d{2}$/.test(trimmed)) return trimmed;
+  return fallback;
+};
+
 const formatCalendarDate = (dateStr, time) => {
   if (!dateStr) return null;
+  const normalizedTime = normalizeTimeValue(time);
 
-  const date = new Date(`${dateStr}T${time}${LIMA_TIMEZONE_OFFSET}`);
+  const date = new Date(`${dateStr}T${normalizedTime}${LIMA_TIMEZONE_OFFSET}`);
   if (Number.isNaN(date.getTime())) return null;
 
   const iso = date.toISOString();
@@ -60,10 +70,14 @@ export const generarLinkGoogleCalendar = (proyecto) => {
   const encargado = proyecto.encargado || proyecto.manager || '';
   const fechaInicio = proyecto.fechaInicio || proyecto.startDate || '';
   const fechaFin = proyecto.fechaFin || proyecto.deadline || '';
+  const horaInicio = proyecto.horaInicio || proyecto.recordingTime || '';
+  const horaFin =
+    proyecto.horaFin || proyecto.recordingEndTime || proyecto.horaTermino || '';
+  const lugar = proyecto.lugar || proyecto.location || proyecto.recordingLocation || '';
   const equipo = proyecto.team || proyecto.equipo || [];
 
-  const startStamp = formatCalendarDate(fechaInicio, '09:00:00');
-  const endStamp = formatCalendarDate(fechaFin, '18:00:00');
+  const startStamp = formatCalendarDate(fechaInicio, horaInicio || '09:00:00');
+  const endStamp = formatCalendarDate(fechaFin, horaFin || horaInicio || '18:00:00');
 
   if (!startStamp || !endStamp) {
     return '';
@@ -72,6 +86,8 @@ export const generarLinkGoogleCalendar = (proyecto) => {
   const text = encodeURIComponent(`Proyecto: ${contenido} - Cliente: ${cliente}`);
   const detailsLines = [
     buildCalendarField('Encargado: ', encargado),
+    buildCalendarField('Cliente: ', cliente),
+    buildCalendarField('Lugar: ', lugar),
     detalle || '',
   ].filter(Boolean);
 
