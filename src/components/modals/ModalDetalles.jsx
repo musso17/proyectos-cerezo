@@ -384,23 +384,25 @@ const ModalDetalles = () => {
                       />
                     </div>
 
-                    <div>
-                      <label className="text-sm font-medium text-slate-300">Tipo de registro</label>
-                      <select
-                        value={editedProject.registrationType || ''}
-                        onChange={handleRegistrationTypeChange}
-                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
-                      >
-                        <option value="" disabled>
-                          Selecciona una opción
-                        </option>
-                        {REGISTRATION_TYPES.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
+                    {isRecordingStage && (
+                      <div>
+                        <label className="text-sm font-medium text-slate-300">Tipo de registro</label>
+                        <select
+                          value={editedProject.registrationType || ''}
+                          onChange={handleRegistrationTypeChange}
+                          className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                        >
+                          <option value="" disabled>
+                            Selecciona una opción
                           </option>
-                        ))}
-                      </select>
-                    </div>
+                          {REGISTRATION_TYPES.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
 
                     <div>
                       <label className="text-sm font-medium text-slate-300">Fase</label>

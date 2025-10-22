@@ -299,7 +299,7 @@ const createEditingProjectFromRecording = (project) => {
     client: project.client,
     manager: project.manager,
     status: 'Pendiente',
-    type: registrationType,
+    type: 'edicion',
     registrationType,
     startDate: formatDateOnly(startDate),
     deadline: formatDateOnly(endDate),
