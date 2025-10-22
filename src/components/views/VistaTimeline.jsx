@@ -351,7 +351,8 @@ const VistaTimeline = () => {
                   </div>
                 )}
               </div>
-              ))}
+            );
+          })}
             </div>
           </div>
         </div>
