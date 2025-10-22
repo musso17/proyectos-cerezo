@@ -49,16 +49,25 @@ const getLabel = (value, fallback) => {
 
 const formatDate = (value) => {
   if (!value) return '—';
+  const str = value.toString().trim();
+  const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return `${day}/${month}/${year}`;
+  }
+  const altMatch = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (altMatch) {
+    return str;
+  }
   try {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
+    const date = new Date(str);
+    if (Number.isNaN(date.getTime())) return str;
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
   } catch {
-    return value;
+    return str;
   }
 };
 
