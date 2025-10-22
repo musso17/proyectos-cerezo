@@ -9,39 +9,39 @@ import { generarLinkGoogleCalendar } from '../../utils/calendar';
 
 const statusStyles = {
   Completado: {
-    badge: 'border-blue-200 bg-blue-50 text-blue-700',
-    dot: 'bg-blue-400',
+    badge: 'border-emerald-400/40 bg-emerald-500/20 text-emerald-100',
+    dot: 'bg-emerald-300',
   },
   Finalizado: {
-    badge: 'border-blue-200 bg-blue-50 text-blue-700',
-    dot: 'bg-blue-400',
+    badge: 'border-emerald-400/40 bg-emerald-500/20 text-emerald-100',
+    dot: 'bg-emerald-300',
   },
   'En curso': {
-    badge: 'border-amber-200 bg-amber-50 text-amber-700',
-    dot: 'bg-amber-400',
+    badge: 'border-amber-400/40 bg-amber-500/20 text-amber-100',
+    dot: 'bg-amber-300',
   },
   'En progreso': {
-    badge: 'border-amber-200 bg-amber-50 text-amber-700',
-    dot: 'bg-amber-400',
+    badge: 'border-amber-400/40 bg-amber-500/20 text-amber-100',
+    dot: 'bg-amber-300',
   },
   Pendiente: {
-    badge: 'border-border bg-slate-100 text-secondary',
-    dot: 'bg-slate-400',
+    badge: 'border-slate-500/40 bg-slate-700/30 text-slate-200',
+    dot: 'bg-slate-300',
   },
   'En revisión': {
-    badge: 'border-purple-200 bg-purple-50 text-purple-700',
-    dot: 'bg-purple-400',
+    badge: 'border-purple-400/40 bg-purple-600/20 text-purple-100',
+    dot: 'bg-purple-300',
   },
   Cancelado: {
-    badge: 'border-red-200 bg-red-50 text-red-600',
+    badge: 'border-red-500/40 bg-red-600/20 text-red-100',
     dot: 'bg-red-400',
   },
 };
 
 const typeStylesMap = {
-  grabacion: 'border-cyan-300 bg-cyan-50 text-accent',
-  edicion: 'border-fuchsia-300 bg-fuchsia-50 text-fuchsia-600',
-  default: 'border-border bg-slate-100 text-secondary',
+  grabacion: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-100',
+  edicion: 'border-emerald-300/40 bg-emerald-500/10 text-emerald-100',
+  default: 'border-slate-600/60 bg-slate-700/60 text-secondary',
 };
 
 const clientStyles = 'bg-rose-500/20 text-rose-200 border border-rose-400/40';
@@ -190,7 +190,7 @@ const VistaTabla = () => {
           <select
             value={filters.type}
             onChange={handleFilterChange('type')}
-            className="rounded-2xl border border-border/60 bg-white px-4 py-2 text-sm text-primary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+            className="rounded-2xl border border-border/60 bg-slate-900/70 px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
           >
             {filterOptions.types.map((option) => (
               <option key={option} value={option}>
@@ -205,7 +205,7 @@ const VistaTabla = () => {
           <select
             value={filters.manager}
             onChange={handleFilterChange('manager')}
-            className="rounded-2xl border border-border/60 bg-white px-4 py-2 text-sm text-primary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+            className="rounded-2xl border border-border/60 bg-slate-900/70 px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
           >
             {filterOptions.managers.map((option) => (
               <option key={option} value={option}>
@@ -220,7 +220,7 @@ const VistaTabla = () => {
           <select
             value={filters.status}
             onChange={handleFilterChange('status')}
-            className="rounded-2xl border border-border/60 bg-white px-4 py-2 text-sm text-primary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+            className="rounded-2xl border border-border/60 bg-slate-900/70 px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
           >
             {filterOptions.statuses.map((option) => (
               <option key={option} value={option}>
@@ -235,7 +235,7 @@ const VistaTabla = () => {
           <select
             value={filters.client}
             onChange={handleFilterChange('client')}
-            className="rounded-2xl border border-border/60 bg-white px-4 py-2 text-sm text-primary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+            className="rounded-2xl border border-border/60 bg-slate-900/70 px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
           >
             {filterOptions.clients.map((option) => (
               <option key={option} value={option}>
@@ -248,7 +248,7 @@ const VistaTabla = () => {
         <button
           type="button"
           onClick={handleResetFilters}
-          className="ml-auto inline-flex items-center rounded-2xl bg-white px-4 py-2 text-sm font-medium text-primary transition hover:bg-slate-100/80"
+          className="ml-auto inline-flex items-center rounded-2xl border border-accent/60 bg-emerald-500/20 px-4 py-2 text-sm font-medium text-emerald-100 transition hover:-translate-y-0.5 hover:bg-emerald-500/30"
         >
           Limpiar filtros
         </button>
@@ -257,7 +257,7 @@ const VistaTabla = () => {
       <div className="glass-panel overflow-hidden rounded-3xl">
         <table className="w-full border-collapse text-sm text-secondary">
           <thead>
-            <tr className="bg-slate-100/60 text-xs uppercase tracking-wide text-secondary">
+            <tr className="bg-white/5 text-xs uppercase tracking-wide text-secondary">
               {['Proyecto', 'Tipo', 'Encargado', 'Estado', 'Inicio', 'Entrega', 'Cliente', 'Acciones'].map((header) => (
                 <th key={header} className="px-6 py-4 text-left font-semibold">
                   {header}
@@ -277,7 +277,7 @@ const VistaTabla = () => {
                 return (
                   <tr
                     key={project.id || index}
-                    className="border-t border-border/60 transition-all duration-200 ease-[var(--ease-ios-out)] hover:-translate-y-0.5 hover:bg-slate-100/60"
+                    className="border-t border-border/60 transition-all duration-200 ease-[var(--ease-ios-out)] hover:-translate-y-0.5 hover:bg-slate-900/40"
                     onClick={() => openModal(project)}
                   >
                     <td className="px-6 py-5 text-sm font-semibold text-primary">
@@ -324,9 +324,9 @@ const VistaTabla = () => {
                               }}
                               disabled={disabled}
                               className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition duration-200 ease-[var(--ease-ios-out)] ${
-                              disabled
-                                  ? 'cursor-not-allowed border border-border/60 bg-slate-100/80 text-secondary'
-                                  : 'border border-cyan-300/60 bg-cyan-100/60 text-primary hover:border-cyan-400/80 hover:bg-cyan-100'
+                                disabled
+                                  ? 'cursor-not-allowed border border-border/60 bg-slate-800/60 text-secondary'
+                                  : 'border border-accent/50 bg-emerald-500/20 text-emerald-100 hover:border-accent hover:bg-emerald-500/30'
                               }`}
                             >
                               Agendar en Calendar
@@ -351,14 +351,14 @@ const VistaTabla = () => {
                         <button
                           type="button"
                           onClick={(event) => handleEdit(project, event)}
-                          className="rounded-full bg-white p-2 text-primary transition hover:bg-slate-100/80"
+                          className="rounded-full border border-border/50 bg-slate-900/70 p-2 text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
                         >
                           <Edit2 size={14} />
                         </button>
                         <button
                           type="button"
                           onClick={(event) => handleDelete(project, event)}
-                          className="rounded-full bg-red-500/20 p-2 text-red-200 transition hover:bg-red-500/30"
+                          className="rounded-full border border-red-500/60 bg-red-600/20 p-2 text-red-200 transition hover:-translate-y-0.5 hover:bg-red-600/30"
                         >
                           <Trash2 size={14} />
                         </button>

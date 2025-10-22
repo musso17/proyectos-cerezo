@@ -264,7 +264,7 @@ const VistaTimeline = () => {
             return (
               <div
                 key={member}
-                className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-surface/60 p-4 transition-all duration-200 ease-[var(--ease-ios-out)] hover:border-cyan-400/50 hover:shadow-[0_18px_36px_rgba(8,47,73,0.35)] md:grid-cols-[200px_1fr] md:items-center">
+                className="grid grid-cols-1 gap-3 rounded-xl border border-border/60 bg-slate-900/60 p-4 transition-all duration-200 ease-[var(--ease-ios-out)] hover:border-accent/60 hover:shadow-[0_30px_60px_rgba(2,6,23,0.45)] md:grid-cols-[200px_1fr] md:items-center">
                 <div>
                   <h3 className="text-primary font-semibold text-lg">{member}</h3>
                   <p className="text-secondary text-sm">
@@ -272,8 +272,8 @@ const VistaTimeline = () => {
                   </p>
                 </div>
 
-                <div className="relative overflow-hidden rounded-lg border border-border bg-background/60 p-4">
-                  <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.12)_1px,transparent_1px)] bg-[length:48px_100%] opacity-40 pointer-events-none" />
+                <div className="relative overflow-hidden rounded-lg border border-border/60 bg-slate-950/60 p-4">
+                  <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.18)_1px,transparent_1px)] bg-[length:48px_100%] opacity-30 pointer-events-none" />
 
                   {hasAssignments ? (
                     <div className="relative" style={{ height: `${containerHeight}px` }}>
@@ -331,7 +331,7 @@ const VistaTimeline = () => {
 
                 {hasNotes && (
                   <div className="md:col-span-2">
-                    <div className="mt-3 rounded-lg border border-dashed border-border/60 bg-background/40 p-3 text-xs text-secondary">
+                    <div className="mt-3 rounded-lg border border-dashed border-border/70 bg-slate-900/60 p-3 text-xs text-secondary">
                       <p className="font-semibold text-primary">
                         Proyectos sin fechas para {member}:
                       </p>

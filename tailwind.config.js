@@ -17,13 +17,13 @@ export default {
         'ios-out': 'cubic-bezier(0.2, 0.8, 0.2, 1)',
       },
       colors: {
-        background: '#f5f7fb',
-        surface: '#ffffff',
-        primary: '#0f172a',
-        secondary: '#475569',
-        accent: '#38bdf8',
-        'accent-hover': '#0ea5e9',
-        border: '#e2e8f0',
+        background: '#030712',
+        surface: '#0b1220',
+        primary: '#f8fafc',
+        secondary: '#94a3b8',
+        accent: '#22c55e',
+        'accent-hover': '#16a34a',
+        border: '#1f2937',
       },
       keyframes: {
         'fade-up': {

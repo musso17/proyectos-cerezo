@@ -15,12 +15,12 @@ const Navbar = () => {
   };
 
   return (
-    <header className="glass-panel animate-fade-up flex flex-col gap-3 rounded-3xl px-4 py-4 transition-all duration-200 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-      <div className="flex w-full items-center gap-2 sm:max-w-md">
+    <header className="glass-panel animate-fade-up flex flex-col gap-3 px-4 py-4 transition-all duration-200 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <div className="flex w-full flex-col gap-2 sm:max-w-md sm:flex-row sm:items-center">
         <button
           type="button"
           onClick={toggleSidebar}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border/70 bg-white text-slate-500 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-300/80 hover:shadow-[0_12px_24px_rgba(15,23,42,0.15)] lg:hidden"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border/70 bg-slate-900 text-secondary shadow-[inset_0_1px_0_rgba(148,163,184,0.12)] transition hover:-translate-y-0.5 hover:border-accent/70 hover:text-accent lg:hidden"
           aria-label="Abrir menú"
         >
           <Menu size={18} />
@@ -32,14 +32,14 @@ const Navbar = () => {
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="Buscar proyectos, clientes o responsables…"
-            className="w-full rounded-2xl border border-border/70 bg-white/90 py-2.5 pl-12 pr-4 text-sm text-primary placeholder:text-secondary focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-200/40"
+            className="w-full rounded-2xl border border-border/60 bg-slate-900/70 py-2.5 pl-12 pr-4 text-sm text-primary placeholder:text-secondary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
           />
         </div>
       </div>
       <button
         onClick={handleAddNew}
         type="button"
-        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 px-4 py-2 text-sm font-semibold text-slate-900 shadow-[0_10px_20px_rgba(56,189,248,0.35)] transition duration-200 ease-[var(--ease-ios-out)] hover:-translate-y-0.5 hover:shadow-[0_18px_30px_rgba(56,189,248,0.45)]"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-500 to-lime-500 px-4 py-2 text-sm font-semibold text-slate-900 shadow-[0_16px_32px_rgba(16,185,129,0.35)] transition duration-200 ease-[var(--ease-ios-out)] hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(16,185,129,0.45)] sm:w-auto"
       >
         <Plus size={16} />
         <span>Nuevo proyecto</span>

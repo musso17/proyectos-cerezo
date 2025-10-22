@@ -27,9 +27,9 @@ const MAX_ITEMS_PER_DAY = 3;
 const EDITING_TASK_PILL = 'bg-fuchsia-500/20 text-fuchsia-100 border-fuchsia-400/40';
 const PROJECT_EVENT_PILLS = {
   grabacion: 'bg-emerald-500/20 text-emerald-100 border-emerald-400/40',
-  edicion: 'bg-fuchsia-500/20 text-fuchsia-100 border-fuchsia-400/40',
-  entrega: 'bg-sky-500/20 text-sky-100 border-sky-400/40',
-  duracion: 'bg-slate-500/20 text-slate-200 border-slate-400/40',
+  edicion: 'bg-emerald-400/15 text-emerald-100 border-emerald-300/40',
+  entrega: 'bg-lime-400/15 text-lime-100 border-lime-300/40',
+  duracion: 'bg-slate-800/60 text-secondary border-border/60',
 };
 
 const getClientDetailBadgeClass = (client) => {
@@ -399,7 +399,7 @@ const VistaCalendario = () => {
               className={`rounded-full border px-4 py-2 text-sm transition-colors ${
                 isActive
                   ? 'border-accent bg-accent/20 text-primary'
-                  : 'border-border bg-surface/60 text-secondary hover:text-primary'
+                  : 'border-border bg-slate-900/60 text-secondary hover:border-accent/40 hover:text-primary'
               }`}>
               {option === 'Todos' ? 'Todos los responsables' : option}
             </button>
@@ -411,7 +411,7 @@ const VistaCalendario = () => {
         {WEEKDAYS.map((weekday) => (
           <div
             key={weekday}
-            className="bg-surface/80 px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-secondary">
+            className="bg-slate-900/70 px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-secondary">
             {weekday}
           </div>
         ))}
@@ -430,19 +430,19 @@ const VistaCalendario = () => {
             <div
               key={key}
               onClick={() => handleDaySelect(day)}
-              className={`min-h-[110px] cursor-pointer bg-surface/70 p-2 transition-all duration-200 ease-[var(--ease-ios-out)] ${
+              className={`min-h-[110px] cursor-pointer bg-slate-900/60 p-2 transition-all duration-200 ease-[var(--ease-ios-out)] ${
                 isCurrentMonth ? 'text-primary' : 'text-secondary/60'
               } ${
                 isToday
-                  ? 'border border-accent/60 bg-accent/10 shadow-[0_15px_35px_rgba(56,189,248,0.25)]'
-                  : 'border border-surface/40 hover:border-cyan-400/40 hover:bg-surface/90 hover:shadow-[0_12px_30px_rgba(8,47,73,0.35)]'
-              } ${isSelected ? 'ring-2 ring-cyan-400/60' : ''}`}>
+                  ? 'border border-accent/60 bg-accent/10 shadow-[0_18px_40px_rgba(34,197,94,0.3)]'
+                  : 'border border-border/60 hover:border-accent/60 hover:bg-slate-900/70 hover:shadow-[0_12px_30px_rgba(2,6,23,0.55)]'
+              } ${isSelected ? 'ring-2 ring-accent/60' : ''}`}>
               <div className="flex items-center justify-between text-xs">
                 <span className={`text-sm font-semibold ${isCurrentMonth ? 'text-primary' : ''}`}>
                   {format(day, 'd', { locale: es })}
                 </span>
                 {dayItems.length > 0 && (
-                  <span className="rounded-full bg-background/60 px-2 py-0.5 text-[10px] text-secondary">
+                  <span className="rounded-full bg-slate-900/60 px-2 py-0.5 text-[10px] text-secondary">
                     {dayItems.length}
                   </span>
                 )}
@@ -513,7 +513,7 @@ const VistaCalendario = () => {
                   );
                 })}
                 {extraItems > 0 && (
-                  <div className="rounded-md bg-background/70 px-2 py-1 text-[10px] text-secondary">
+                  <div className="rounded-md bg-slate-900/60 px-2 py-1 text-[10px] text-secondary">
                     +{extraItems} más
                   </div>
                 )}
@@ -524,7 +524,7 @@ const VistaCalendario = () => {
       </div>
 
       {selectedDayDate && (
-        <div className="mt-6 rounded-3xl border border-border bg-surface/80 p-6">
+        <div className="mt-6 rounded-3xl border border-border/60 bg-slate-900/70 p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-xl font-semibold text-primary">
@@ -537,7 +537,7 @@ const VistaCalendario = () => {
             <button
               type="button"
               onClick={() => setSelectedDayKey(null)}
-              className="rounded-full border border-border px-3 py-1 text-xs text-secondary transition hover:border-accent hover:text-primary">
+              className="rounded-full border border-border/60 px-3 py-1 text-xs text-secondary transition hover:border-accent/70 hover:text-accent">
               Cerrar
             </button>
           </div>
@@ -549,7 +549,7 @@ const VistaCalendario = () => {
               {selectedDayDetails.map((item) => (
                 <div
                   key={item.id}
-                  className="rounded-2xl border border-white/10 bg-surface/90 p-4 transition hover:border-cyan-400/50 hover:bg-surface">
+                  className="rounded-2xl border border-border/60 bg-slate-900/60 p-4 transition hover:border-accent/60 hover:bg-slate-900/40">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-[200px] max-w-full">
                       <div className="flex flex-wrap items-center gap-2">
@@ -580,13 +580,13 @@ const VistaCalendario = () => {
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-secondary">
                     {item.client && (
-                      <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+                      <div className="flex items-center gap-2 rounded-full border border-border/60 bg-slate-900/50 px-3 py-1.5">
                         <span className="text-[10px] uppercase tracking-wide text-secondary/70">Cliente</span>
                         <span className={getClientDetailBadgeClass(item.client)}>{item.client}</span>
                       </div>
                     )}
                     {item.projectType && (
-                      <span className="rounded-full bg-white/5 px-3 py-1 text-[11px] uppercase tracking-wide text-secondary">
+                      <span className="rounded-full bg-slate-900/50 px-3 py-1 text-[11px] uppercase tracking-wide text-secondary">
                         {item.projectType}
                       </span>
                     )}
@@ -599,7 +599,7 @@ const VistaCalendario = () => {
                       <button
                         type="button"
                         onClick={() => openModal(item.project)}
-                        className="rounded-full border border-cyan-400/50 px-3 py-1 text-xs font-medium text-cyan-200 transition hover:border-cyan-300 hover:text-cyan-100">
+                        className="rounded-full border border-accent/60 px-3 py-1 text-xs font-medium text-accent transition hover:border-accent/80 hover:text-accent">
                         Ver proyecto
                       </button>
                     </div>
@@ -612,7 +612,7 @@ const VistaCalendario = () => {
       )}
 
       {unscheduledProjects.length > 0 && (
-        <div className="mt-6 rounded-xl border border-dashed border-border/70 bg-surface/60 p-4 text-sm text-secondary">
+        <div className="mt-6 rounded-xl border border-dashed border-border/60 bg-slate-900/60 p-4 text-sm text-secondary">
           <p className="font-semibold text-primary">
             Proyectos sin fechas asignadas ({unscheduledProjects.length}):
           </p>
@@ -622,7 +622,7 @@ const VistaCalendario = () => {
                 key={project.id}
                 type="button"
                 onClick={() => openModal(project)}
-                className="rounded-full border border-border px-3 py-1 text-xs text-secondary hover:border-accent hover:text-primary">
+                className="rounded-full border border-border/60 px-3 py-1 text-xs text-secondary transition hover:border-accent/60 hover:text-accent">
                 {project.name}
               </button>
             ))}

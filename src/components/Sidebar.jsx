@@ -42,10 +42,10 @@ const Sidebar = ({ variant = 'desktop', className, onNavigate }) => {
 
   return (
     <aside className={containerClasses}>
-      <div className={clsx('flex items-center justify-between px-5 pt-6', variant === 'mobile' && 'px-2 pt-2')}> 
+      <div className={clsx('flex items-center justify-between px-5 pt-6', variant === 'mobile' && 'px-2 pt-2')}>
         {!isCollapsed && (
           <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-secondary/70">Cerezo</p>
+            <p className="text-xs uppercase tracking-[0.35em] text-secondary/60">Cerezo</p>
             <h1 className="mt-1 text-xl font-semibold text-primary">Studio Planner</h1>
           </div>
         )}
@@ -53,7 +53,7 @@ const Sidebar = ({ variant = 'desktop', className, onNavigate }) => {
           <button
             type="button"
             onClick={handleCollapse}
-            className="rounded-full border border-border/60 bg-white p-2 text-secondary shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-300/80 hover:shadow-[0_12px_24px_rgba(15,23,42,0.18)]"
+            className="rounded-full border border-border/60 bg-slate-900 p-2 text-secondary shadow-[inset_0_1px_0_rgba(148,163,184,0.12)] transition hover:-translate-y-0.5 hover:border-accent/70 hover:text-accent"
           >
             {isCollapsed ? <Menu size={18} /> : <ChevronLeft size={18} />}
           </button>
@@ -71,13 +71,15 @@ const Sidebar = ({ variant = 'desktop', className, onNavigate }) => {
                   onClick={() => handleNavigate(item.id)}
                   className={`group relative flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
                     isActive
-                      ? 'bg-cyan-50 text-primary shadow-[inset_0_1px_0_rgba(148,163,184,0.25)]'
-                      : 'text-secondary hover:bg-slate-100/60 hover:text-primary'
+                      ? 'bg-emerald-500/15 text-accent shadow-[inset_0_1px_0_rgba(34,197,94,0.35)]'
+                      : 'text-secondary hover:bg-slate-900/60 hover:text-primary'
                   } ${isCollapsed ? 'justify-center px-0 py-3' : ''}`}
                 >
                   <span
-                    className={`flex items-center justify-center rounded-xl border border-transparent bg-slate-100 p-2 text-secondary transition ${
-                      isActive ? 'bg-white text-primary shadow-md' : 'group-hover:border-cyan-200 group-hover:bg-white'
+                    className={`flex items-center justify-center rounded-xl border border-transparent bg-slate-900 p-2 text-secondary transition ${
+                      isActive
+                        ? 'bg-emerald-500 text-primary shadow-[0_12px_24px_rgba(34,197,94,0.35)]'
+                        : 'group-hover:border-accent/40 group-hover:bg-slate-800'
                     } ${isCollapsed ? 'h-10 w-10' : 'h-9 w-9'}`}
                   >
                     <item.icon size={isCollapsed ? 18 : 16} />
