@@ -212,7 +212,6 @@ const prepareProjectForSupabase = (project) => {
     ...project,
     id,
     manager: managers.join(', '),
-    managers,
     startDate: normalizeDate(project.startDate),
     deadline: normalizeDate(project.deadline),
     type: registrationType || project.type || null,
@@ -221,6 +220,10 @@ const prepareProjectForSupabase = (project) => {
     properties: nextProperties,
     resources,
   };
+
+  if (Object.prototype.hasOwnProperty.call(baseProject, 'managers')) {
+    delete baseProject.managers;
+  }
 
   delete baseProject.fecha_grabacion;
   delete baseProject.fechaGrabacion;
