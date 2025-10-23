@@ -82,8 +82,7 @@ const TYPE_BADGES = {
 const getProjectTypeBadge = (project) => {
   if (!project) return { label: 'Sin tipo', className: 'bg-slate-700/50 text-secondary border border-border/60' };
 
-  const rawStage =
-    project.stage || project.properties?.stage || (project.fechaGrabacion ? 'grabacion' : '');
+  const rawStage = project.stage || project.properties?.stage || '';
   const rawType = project.type || project.properties?.registrationType || '';
 
   const normalizedStage = rawStage?.toString().trim().toLowerCase();
@@ -346,11 +345,30 @@ const orderedProjects = useMemo(() => {
                       <span className="text-secondary/70">Cliente: </span>
                       <span className="text-primary">{project.client || 'Sin cliente'}</span>
                     </p>
-                    <div className="grid gap-y-1 text-sm">
-                      <span className="text-secondary/70">
-                        Inicio:{' '}
-                        <span className="text-primary">{formatDate(project.startDate)}</span>
-                      </span>
+                    <div className="grid gap-y-3 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-secondary/70">
+                          Inicio:{' '}
+                          <span className="text-primary">{formatDate(project.startDate)}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (!calendarLink) return;
+                            window.open(calendarLink, '_blank', 'noopener');
+                          }}
+                          disabled={calendarDisabled}
+                          className={`flex h-8 w-8 items-center justify-center rounded-full text-xs transition focus:outline-none focus:ring-2 focus:ring-accent/50 ${
+                            calendarDisabled
+                              ? 'cursor-not-allowed border border-border/60 text-secondary'
+                              : 'border border-accent/50 text-accent hover:bg-accent/10'
+                          }`}
+                          aria-label="Agendar en Calendar"
+                        >
+                          📅
+                        </button>
+                      </div>
                       <span className="text-secondary/70">
                         Entrega:{' '}
                         <span className="text-primary">{formatDate(project.deadline)}</span>
@@ -369,22 +387,6 @@ const orderedProjects = useMemo(() => {
                     className="w-full rounded-2xl border border-accent/70 bg-emerald-500/20 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:border-accent hover:bg-emerald-500/30"
                   >
                     Ver detalles
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (!calendarLink) return;
-                      window.open(calendarLink, '_blank', 'noopener');
-                    }}
-                    disabled={calendarDisabled}
-                    className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                      calendarDisabled
-                        ? 'cursor-not-allowed border border-border/60 bg-slate-800/60 text-secondary'
-                        : 'border border-accent/50 bg-emerald-500/20 text-emerald-100 hover:border-accent hover:bg-emerald-500/30'
-                    }`}
-                  >
-                    Agendar en Calendar
                   </button>
                   <button
                     type="button"
@@ -431,10 +433,8 @@ const orderedProjects = useMemo(() => {
                   >
                     <td className="px-6 py-5 text-sm font-semibold text-primary">
                       {project.name || 'Sin título'}
-                      <div className="mt-2">
+                      <div className="mt-2 flex items-start justify-between gap-2">
                         {renderTypeBadge(project)}
-                      </div>
-                      <div className="mt-3">
                         {(() => {
                           const calendarioUrl = generarLinkGoogleCalendar({
                             contenido: project.name || 'Proyecto',
@@ -456,13 +456,14 @@ const orderedProjects = useMemo(() => {
                                 window.open(calendarioUrl, '_blank', 'noopener');
                               }}
                               disabled={disabled}
-                              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition duration-200 ease-[var(--ease-ios-out)] ${
+                              className={`flex h-8 w-8 items-center justify-center rounded-full text-xs transition focus:outline-none focus:ring-2 focus:ring-accent/50 ${
                                 disabled
-                                  ? 'cursor-not-allowed border border-border/60 bg-slate-800/60 text-secondary'
-                                  : 'border border-accent/50 bg-emerald-500/20 text-emerald-100 hover:border-accent hover:bg-emerald-500/30'
+                                  ? 'cursor-not-allowed border border-border/60 text-secondary'
+                                  : 'border border-accent/50 text-accent hover:bg-accent/10'
                               }`}
+                              aria-label="Agendar en Calendar"
                             >
-                              Agendar en Calendar
+                              📅
                             </button>
                           );
                         })()}
