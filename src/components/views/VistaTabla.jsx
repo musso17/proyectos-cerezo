@@ -6,8 +6,6 @@ import useStore from '../../hooks/useStore';
 import { filterProjects } from '../../utils/filterProjects';
 import { getClientBadgeClass } from '../../utils/clientStyles';
 import { generarLinkGoogleCalendar } from '../../utils/calendar';
-import Badge from '../common/Badge';
-import { getProjectTypeMeta } from '../../utils/projectType';
 
 const statusStyles = {
   Completado: {
@@ -187,16 +185,10 @@ const orderedProjects = useMemo(() => {
     }
   };
 
-  const openCalendarLink = (event, link) => {
-    event.stopPropagation();
-    if (!link) return;
-    window.open(link, '_blank', 'noopener');
-  };
-
   return (
     <div className="soft-scroll flex h-full flex-col gap-4 overflow-auto">
       <div className="glass-panel flex flex-wrap items-end gap-4 rounded-3xl px-6 py-4 text-xs text-secondary">
-        <div className="flex w-full flex-col sm:w-auto sm:flex-1">
+        <div className="flex flex-col">
           <label className="mb-1 font-medium uppercase tracking-wide text-secondary">Tipo</label>
           <select
             value={filters.type}
@@ -211,7 +203,7 @@ const orderedProjects = useMemo(() => {
           </select>
         </div>
 
-        <div className="flex w-full flex-col sm:w-auto sm:flex-1">
+        <div className="flex flex-col">
           <label className="mb-1 font-medium uppercase tracking-wide text-secondary">Encargado</label>
           <select
             value={filters.manager}
@@ -226,7 +218,7 @@ const orderedProjects = useMemo(() => {
           </select>
         </div>
 
-        <div className="flex w-full flex-col sm:w-auto sm:flex-1">
+        <div className="flex flex-col">
           <label className="mb-1 font-medium uppercase tracking-wide text-secondary">Estado</label>
           <select
             value={filters.status}
@@ -259,208 +251,129 @@ const orderedProjects = useMemo(() => {
         <button
           type="button"
           onClick={handleResetFilters}
-          className="flex w-full items-center justify-center rounded-2xl border border-accent/60 bg-emerald-500/20 px-4 py-2 text-sm font-medium text-emerald-100 transition hover:-translate-y-0.5 hover:bg-emerald-500/30 sm:ml-auto sm:w-auto"
+          className="ml-auto inline-flex items-center rounded-2xl border border-accent/60 bg-emerald-500/20 px-4 py-2 text-sm font-medium text-emerald-100 transition hover:-translate-y-0.5 hover:bg-emerald-500/30"
         >
           Limpiar filtros
         </button>
       </div>
 
-      <div className="sm:hidden">
-        {searchFilteredProjects.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-border/60 bg-slate-900/60 p-6 text-center text-sm text-secondary">
-            No hay proyectos para mostrar.
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {searchFilteredProjects.map((project, index) => {
-              const typeMeta = getProjectTypeMeta(project);
-              const managers = getProjectManagers(project);
-              const managerLabel = managers.length > 0 ? managers.join(', ') : 'Sin asignar';
-              const calendarLink = generarLinkGoogleCalendar({
-                contenido: project.name || 'Proyecto',
-                detalle: project.description || '',
-                fechaInicio: project.startDate || '',
-                fechaFin: project.deadline || '',
-                encargado: project.manager || '',
-                cliente: project.client || '',
-              });
-              const calendarDisabled = !calendarLink;
-
-              return (
-                <div
-                  key={project.id || index}
-                  className="space-y-4 rounded-3xl border border-border/60 bg-slate-900/70 p-4 shadow-[0_12px_40px_rgba(2,6,23,0.4)]"
-                >
-                  <div className="space-y-2">
-                    <div className="flex flex-col gap-2">
-                      <h3 className="text-xl font-semibold text-primary">
-                        {project.name || 'Sin título'}
-                      </h3>
-                      <Badge variant={typeMeta.variant} className="w-fit text-sm">
-                        {typeMeta.label}
-                      </Badge>
-                    </div>
-                    <div className="space-y-2 text-sm text-secondary">
-                      <p>
-                        <span className="text-secondary/70">Responsable: </span>
-                        <span className="text-primary">{managerLabel}</span>
-                      </p>
-                      <p>
-                        <span className="text-secondary/70">Cliente: </span>
-                        <span className="text-primary">{project.client || 'Sin cliente'}</span>
-                      </p>
-                      <div className="grid grid-cols-1 gap-y-1">
-                        <span className="text-secondary/70">
-                          Inicio:{' '}
-                          <span className="text-primary">{formatDate(project.startDate)}</span>
-                        </span>
-                        <span className="text-secondary/70">
-                          Entrega:{' '}
-                          <span className="text-primary">{formatDate(project.deadline)}</span>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <button
-                      type="button"
-                      onClick={() => openModal(project)}
-                      className="w-full rounded-2xl border border-accent/70 bg-emerald-500/20 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:border-accent hover:bg-emerald-500/30"
-                    >
-                      Ver detalles
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(event) => openCalendarLink(event, calendarLink)}
-                      disabled={calendarDisabled}
-                      className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                        calendarDisabled
-                          ? 'cursor-not-allowed border border-border/60 bg-slate-800/60 text-secondary'
-                          : 'border border-accent/50 bg-emerald-500/20 text-emerald-100 hover:border-accent hover:bg-emerald-500/30'
-                      }`}
-                    >
-                      Agendar en Calendar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(event) => handleDelete(project, event)}
-                      className="w-full rounded-2xl border border-red-500/60 bg-red-600/20 px-4 py-3 text-sm font-semibold text-red-200 transition hover:-translate-y-0.5 hover:bg-red-600/30"
-                    >
-                      Eliminar
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="hidden sm:block">
-        <div className="glass-panel overflow-hidden rounded-3xl">
-          <table className="w-full border-collapse text-sm text-secondary">
-            <thead>
-              <tr className="bg-white/5 text-xs uppercase tracking-wide text-secondary">
-                {['Proyecto', 'Encargado', 'Estado', 'Inicio', 'Entrega', 'Cliente', 'Acciones'].map((header) => (
-                  <th key={header} className="px-6 py-4 text-left font-semibold">
-                    {header}
-                  </th>
-                ))}
+      <div className="glass-panel overflow-hidden rounded-3xl">
+        <table className="w-full border-collapse text-sm text-secondary">
+          <thead>
+            <tr className="bg-white/5 text-xs uppercase tracking-wide text-secondary">
+              {['Proyecto', 'Encargado', 'Estado', 'Inicio', 'Entrega', 'Cliente', 'Acciones'].map((header) => (
+                <th key={header} className="px-6 py-4 text-left font-semibold">
+                  {header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {searchFilteredProjects.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-12 text-center text-secondary">
+                  No hay proyectos para mostrar.
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {searchFilteredProjects.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-secondary">
-                    No hay proyectos para mostrar.
-                  </td>
-                </tr>
-              ) : (
-                searchFilteredProjects.map((project, index) => {
-                  const typeMeta = getProjectTypeMeta(project);
-                  const calendarLink = generarLinkGoogleCalendar({
-                    contenido: project.name || 'Proyecto',
-                    detalle: project.description || '',
-                    fechaInicio: project.startDate || '',
-                    fechaFin: project.deadline || '',
-                    encargado: project.manager || '',
-                    cliente: project.client || '',
-                  });
-                  const calendarDisabled = !calendarLink;
-                  return (
-                    <tr
-                      key={project.id || index}
-                      className="border-t border-border/60 transition-all duration-200 ease-[var(--ease-ios-out)] hover:-translate-y-0.5 hover:bg-slate-900/40"
-                      onClick={() => openModal(project)}
-                    >
-                      <td className="px-6 py-5 text-sm font-semibold text-primary">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                          <span className="text-base text-primary sm:text-sm">
-                            {project.name || 'Sin título'}
-                          </span>
-                          <Badge variant={typeMeta.variant}>{typeMeta.label}</Badge>
-                        </div>
-                        <div className="mt-3">
-                          <button
-                            type="button"
-                            onClick={(event) => openCalendarLink(event, calendarLink)}
-                            disabled={calendarDisabled}
-                            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition duration-200 ease-[var(--ease-ios-out)] ${
-                              calendarDisabled
-                                ? 'cursor-not-allowed border border-border/60 bg-slate-800/60 text-secondary'
-                                : 'border border-accent/50 bg-emerald-500/20 text-emerald-100 hover:border-accent hover:bg-emerald-500/30'
-                            }`}
-                          >
-                            Agendar en Calendar
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5 text-sm text-secondary">
+            ) : (
+              searchFilteredProjects.map((project, index) => {
+                return (
+                  <tr
+                    key={project.id || index}
+                    className="border-t border-border/60 transition-all duration-200 ease-[var(--ease-ios-out)] hover:-translate-y-0.5 hover:bg-slate-900/40"
+                    onClick={() => openModal(project)}
+                  >
+                    <td className="px-6 py-5 text-sm font-semibold text-primary">
+                      {project.name || 'Sin título'}
+                      <p className="mt-1 text-[11px] uppercase tracking-wide text-accent/90">
+                        {getStageLabel(project)}
+                      </p>
+                      <div className="mt-3">
                         {(() => {
-                          const managers = getProjectManagers(project);
-                          return managers.length > 0 ? managers.join(', ') : 'Sin asignar';
+                          const calendarioUrl = generarLinkGoogleCalendar({
+                            contenido: project.name || 'Proyecto',
+                            detalle: project.description || '',
+                            fechaInicio: project.startDate || '',
+                            fechaFin: project.deadline || '',
+                            encargado: project.manager || '',
+                            cliente: project.client || '',
+                          });
+
+                          const disabled = !calendarioUrl;
+
+                          return (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                if (!calendarioUrl) return;
+                                window.open(calendarioUrl, '_blank', 'noopener');
+                              }}
+                              disabled={disabled}
+                              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition duration-200 ease-[var(--ease-ios-out)] ${
+                                disabled
+                                  ? 'cursor-not-allowed border border-border/60 bg-slate-800/60 text-secondary'
+                                  : 'border border-accent/50 bg-emerald-500/20 text-emerald-100 hover:border-accent hover:bg-emerald-500/30'
+                              }`}
+                            >
+                              Agendar en Calendar
+                            </button>
+                          );
                         })()}
-                      </td>
-                      <td className="px-6 py-5">{renderStatusBadge(project.status)}</td>
-                      <td className="px-6 py-5 text-sm text-secondary">{formatDate(project.startDate)}</td>
-                      <td className="px-6 py-5 text-sm text-secondary">{formatDate(project.deadline)}</td>
-                      <td className="px-6 py-5">
-                        {(() => {
-                          const clientLabel = project.client || 'Sin cliente';
-                          return <span className={getClientBadgeClass(clientLabel)}>{clientLabel}</span>;
-                        })()}
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={(event) => handleEdit(project, event)}
-                            className="rounded-full border border-border/50 bg-slate-900/70 p-2 text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
-                          >
-                            <Edit2 size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(event) => handleDelete(project, event)}
-                            className="rounded-full border border-red-500/60 bg-red-600/20 p-2 text-red-200 transition hover:-translate-y-0.5 hover:bg-red-600/30"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 text-sm text-secondary">
+                      {(() => {
+                        const managers = getProjectManagers(project);
+                        return managers.length > 0 ? managers.join(', ') : 'Sin asignar';
+                      })()}
+                    </td>
+                    <td className="px-6 py-5">{renderStatusBadge(project.status)}</td>
+                    <td className="px-6 py-5 text-sm text-secondary">{formatDate(project.startDate)}</td>
+                    <td className="px-6 py-5 text-sm text-secondary">{formatDate(project.deadline)}</td>
+                    <td className="px-6 py-5">
+                      {(() => {
+                        const clientLabel = project.client || 'Sin cliente';
+                        return <span className={getClientBadgeClass(clientLabel)}>{clientLabel}</span>;
+                      })()}
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(event) => handleEdit(project, event)}
+                          className="rounded-full border border-border/50 bg-slate-900/70 p-2 text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => handleDelete(project, event)}
+                          className="rounded-full border border-red-500/60 bg-red-600/20 p-2 text-red-200 transition hover:-translate-y-0.5 hover:bg-red-600/30"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 };
 
 export default VistaTabla;
+
+function getStageLabel(project) {
+  const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
+  if (stage === 'grabacion') return 'Grabación';
+  if (stage === 'edicion') return 'Edición';
+  return 'Sin asignar';
+}
 
 function getProjectManagers(project) {
   if (Array.isArray(project.managers)) {
