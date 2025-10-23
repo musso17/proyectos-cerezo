@@ -356,34 +356,35 @@ const orderedProjects = useMemo(() => {
                       <span className="text-primary">{project.client || 'Sin cliente'}</span>
                     </p>
                     <div className="space-y-2 text-sm">
-                      {[
-                        { label: 'Inicio', value: formatDate(project.startDate) },
-                        { label: 'Entrega', value: formatDate(project.deadline) },
-                      ].map(({ label, value }) => (
-                        <div key={label} className="flex items-center justify-between gap-3">
-                          <span className="text-secondary/70">
-                            {label}:{' '}
-                            <span className="text-primary">{value}</span>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              if (!calendarLink) return;
-                              window.open(calendarLink, '_blank', 'noopener');
-                            }}
-                            disabled={calendarDisabled}
-                            className={`flex h-8 w-8 items-center justify-center rounded-full transition focus:outline-none focus:ring-2 focus:ring-accent/50 ${
-                              calendarDisabled
-                                ? 'cursor-not-allowed border border-border/60 text-secondary'
-                                : 'border border-accent/50 text-accent hover:bg-accent/10'
-                            }`}
-                            aria-label={`Agendar ${label.toLowerCase()} en Calendar`}
-                          >
-                            <CalendarIcon size={14} />
-                          </button>
-                        </div>
-                      ))}
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-secondary/70">
+                          Inicio:{' '}
+                          <span className="text-primary">{formatDate(project.startDate)}</span>
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-secondary/70">
+                          Entrega:{' '}
+                          <span className="text-primary">{formatDate(project.deadline)}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (!calendarLink) return;
+                            window.open(calendarLink, '_blank', 'noopener');
+                          }}
+                          disabled={calendarDisabled}
+                          className={`flex h-8 w-8 items-center justify-center rounded-full transition focus:outline-none focus:ring-2 focus:ring-accent/50 ${
+                            calendarDisabled
+                              ? 'cursor-not-allowed border border-border/60 text-secondary'
+                              : 'border border-accent/50 text-accent hover:bg-accent/10'
+                          }`}
+                          aria-label="Agendar en Calendar"
+                        >
+                          <CalendarIcon size={14} />
+                        </button>
+                      </div>
                     </div>
                     <div>{renderStatusBadge(project.status)}</div>
                   </div>
@@ -465,28 +466,7 @@ const orderedProjects = useMemo(() => {
                       })()}
                     </td>
                     <td className="px-6 py-5">{renderStatusBadge(project.status)}</td>
-                    <td className="px-6 py-5 text-sm text-secondary">
-                      <div className="flex items-center gap-2">
-                        <span>{formatDate(project.startDate)}</span>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            if (!calendarLink) return;
-                            window.open(calendarLink, '_blank', 'noopener');
-                          }}
-                          disabled={calendarDisabled}
-                          className={`flex h-8 w-8 items-center justify-center rounded-full transition focus:outline-none focus:ring-2 focus:ring-accent/50 ${
-                            calendarDisabled
-                              ? 'cursor-not-allowed border border-border/60 text-secondary'
-                              : 'border border-accent/50 text-accent hover:bg-accent/10'
-                          }`}
-                          aria-label="Agendar inicio en Calendar"
-                        >
-                          <CalendarIcon size={14} />
-                        </button>
-                      </div>
-                    </td>
+                    <td className="px-6 py-5 text-sm text-secondary">{formatDate(project.startDate)}</td>
                     <td className="px-6 py-5 text-sm text-secondary">
                       <div className="flex items-center gap-2">
                         <span>{formatDate(project.deadline)}</span>
