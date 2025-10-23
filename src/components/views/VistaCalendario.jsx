@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import useStore from '../../hooks/useStore';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
@@ -30,6 +30,38 @@ const PROJECT_EVENT_PILLS = {
   edicion: 'bg-emerald-400/15 text-emerald-100 border-emerald-300/40',
   entrega: 'bg-lime-400/15 text-lime-100 border-lime-300/40',
   duracion: 'bg-slate-800/60 text-secondary border-border/60',
+};
+
+const TYPE_BADGES = {
+  grabacion: {
+    label: 'Grabación',
+    className: 'bg-blue-500/10 text-blue-200 border border-blue-400/40',
+  },
+  edicion: {
+    label: 'Edición',
+    className: 'bg-emerald-500/10 text-emerald-200 border border-emerald-400/40',
+  },
+};
+
+const getProjectTypeBadge = (project) => {
+  if (!project) return { label: 'Sin tipo', className: 'bg-slate-700/50 text-secondary border border-border/60' };
+
+  const rawStage =
+    project.stage || project.properties?.stage || (project.fechaGrabacion ? 'grabacion' : '');
+  const rawType = project.type || project.properties?.registrationType || '';
+
+  const normalizedStage = rawStage?.toString().trim().toLowerCase();
+  const normalizedType = rawType?.toString().trim().toLowerCase();
+
+  if (normalizedStage && TYPE_BADGES[normalizedStage]) {
+    return TYPE_BADGES[normalizedStage];
+  }
+  if (normalizedType && TYPE_BADGES[normalizedType]) {
+    return TYPE_BADGES[normalizedType];
+  }
+
+  const label = rawType || rawStage || 'Sin tipo';
+  return { label, className: 'bg-slate-700/50 text-secondary border border-border/60' };
 };
 
 const getClientDetailBadgeClass = (client) => {
@@ -287,80 +319,104 @@ const VistaCalendario = () => {
 
   const selectedDayDate = useMemo(() => (selectedDayKey ? parseISO(selectedDayKey) : null), [selectedDayKey]);
 
+  const buildEventSummary = useCallback((item, dayDate) => {
+    if (!dayDate) return null;
+
+    if (item.type === 'task') {
+      const { task, project, range, memberName } = item;
+      const startLabel = format(range.start, 'HH:mm');
+      const endLabel = format(range.end, 'HH:mm');
+      const managersLabel = project?.managers?.length
+        ? project.managers.join(', ')
+        : memberName;
+
+      return {
+        id: `task-${task.id}-${dayDate.toISOString()}`,
+        sortTime: range.start.getTime(),
+        type: 'edicion',
+        title: `Edición de ${task.projectName || project?.name || 'proyecto'}`,
+        description: task.descripcion,
+        eventLabel: 'Edición',
+        timeLabel: `${startLabel} - ${endLabel}`,
+        manager: managersLabel,
+        colorClass: EDITING_TASK_PILL,
+        project,
+        client: project?.client || '',
+        status: project?.status || '',
+        typeMeta: getProjectTypeBadge(project),
+        date: dayDate,
+      };
+    }
+
+    const { project, range, memberName } = item;
+    if (!project || !range) return null;
+    const eventType = getProjectEventTypeForDay(project, range, dayDate);
+    const eventLabel = getProjectEventLabel(eventType);
+    const slot = new Date(dayDate);
+    if (eventType === 'grabacion') {
+      slot.setHours(8, 0, 0, 0);
+    } else if (eventType === 'entrega') {
+      slot.setHours(18, 0, 0, 0);
+    } else {
+      slot.setHours(12, 0, 0, 0);
+    }
+
+    let scheduleLabel = null;
+    if (eventType === 'grabacion' && project.fechaGrabacion) {
+      scheduleLabel = `Grabación: ${project.fechaGrabacion}`;
+    } else if (eventType === 'entrega' && project.deadline) {
+      scheduleLabel = `Entrega: ${project.deadline}`;
+    } else if (project.startDate || project.deadline) {
+      scheduleLabel = `${project.startDate || 'Sin inicio'} → ${project.deadline || 'Sin entrega'}`;
+    }
+
+    const managersLabel = project.managers?.length
+      ? project.managers.join(', ')
+      : memberName;
+
+    return {
+      id: project.id ? `${project.id}-${eventType}-${dayDate.toISOString()}` : `${project.name}-${eventType}-${dayDate.toISOString()}`,
+      sortTime: slot.getTime(),
+      type: eventType,
+      title: project.name,
+      description: project.description,
+      eventLabel,
+      timeLabel: scheduleLabel,
+      manager: managersLabel,
+      colorClass: PROJECT_EVENT_PILLS[eventType] || PROJECT_EVENT_PILLS.duracion,
+      project,
+      client: project.client,
+      status: project.status,
+      typeMeta: getProjectTypeBadge(project),
+      date: dayDate,
+    };
+  }, []);
+
   const selectedDayDetails = useMemo(() => {
     if (!selectedDayKey) return [];
     const items = calendarItemsByDay.get(selectedDayKey);
     if (!items || items.length === 0) return [];
     const dayDate = selectedDayDate;
     return items
-      .map((item) => {
-        if (item.type === 'task') {
-          const { task, project } = item;
-          const startLabel = format(item.range.start, 'HH:mm');
-          const endLabel = format(item.range.end, 'HH:mm');
-          const managersLabel = project?.managers?.length
-            ? project.managers.join(', ')
-            : item.memberName;
-          return {
-            id: task.id,
-            sortTime: item.range.start.getTime(),
-            type: 'edicion',
-            title: `Edición de ${task.projectName || project?.name || 'proyecto'}`,
-            description: task.descripcion,
-            eventLabel: 'Edición',
-            timeLabel: `${startLabel} - ${endLabel}`,
-            manager: managersLabel,
-            colorClass: EDITING_TASK_PILL,
-            project,
-            client: project?.client,
-            status: project?.status,
-            projectType: project?.type,
-          };
-        }
-
-        const { project, range, memberName } = item;
-        const eventType = getProjectEventTypeForDay(project, range, dayDate);
-        const label = getProjectEventLabel(eventType);
-        const slot = new Date(dayDate);
-        if (eventType === 'grabacion') {
-          slot.setHours(8, 0, 0, 0);
-        } else if (eventType === 'entrega') {
-          slot.setHours(18, 0, 0, 0);
-        } else {
-          slot.setHours(12, 0, 0, 0);
-        }
-
-        let scheduleLabel = null;
-        if (eventType === 'grabacion' && project.fechaGrabacion) {
-          scheduleLabel = `Grabación: ${project.fechaGrabacion}`;
-        } else if (eventType === 'entrega' && project.deadline) {
-          scheduleLabel = `Entrega: ${project.deadline}`;
-        } else if (project.startDate || project.deadline) {
-          scheduleLabel = `${project.startDate || 'Sin inicio'} → ${project.deadline || 'Sin entrega'}`;
-        }
-
-        const managersLabel = project.managers?.length
-          ? project.managers.join(', ')
-          : memberName;
-
-        return {
-          id: project.id || `${project.name}-${eventType}`,
-          sortTime: slot.getTime(),
-          type: eventType,
-          title: project.name,
-          description: project.description,
-          eventLabel: label,
-          timeLabel: scheduleLabel,
-          manager: managersLabel,
-          colorClass: PROJECT_EVENT_PILLS[eventType] || PROJECT_EVENT_PILLS.duracion,
-          project,
-          client: project.client,
-          status: project.status,
-          projectType: project.type,
-        };
-      })
+      .map((item) => buildEventSummary(item, dayDate))
+      .filter(Boolean)
       .sort((a, b) => a.sortTime - b.sortTime);
-  }, [calendarItemsByDay, selectedDayKey, selectedDayDate]);
+  }, [calendarItemsByDay, selectedDayKey, selectedDayDate, buildEventSummary]);
+
+  const mobileEvents = useMemo(() => {
+    const events = [];
+    calendarItemsByDay.forEach((items, key) => {
+      const dayDate = parseISO(key);
+      if (!isSameMonth(dayDate, currentMonth)) return;
+      items.forEach((item) => {
+        const detail = buildEventSummary(item, dayDate);
+        if (detail) {
+          events.push(detail);
+        }
+      });
+    });
+    return events.sort((a, b) => a.sortTime - b.sortTime);
+  }, [calendarItemsByDay, currentMonth, buildEventSummary]);
 
   return (
     <div className="p-6">
@@ -414,7 +470,81 @@ const VistaCalendario = () => {
         })}
       </div>
 
-      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-2xl border border-border bg-border/40">
+      <div className="sm:hidden">
+        {mobileEvents.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-border/60 bg-slate-900/70 p-4 text-center text-sm text-secondary">
+            No hay actividades programadas este mes.
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {mobileEvents.map((event) => (
+              <div
+                key={`${event.id}-${event.sortTime}`}
+                className="space-y-3 rounded-3xl border border-border/60 bg-slate-900/70 p-4 shadow-[0_14px_36px_rgba(2,6,23,0.4)]"
+              >
+                <p className="text-sm font-medium uppercase tracking-wide text-secondary/70">
+                  {format(event.date, "EEEE d 'de' MMMM", { locale: es })}
+                </p>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-semibold text-primary">{event.title}</h3>
+                  {event.typeMeta && (
+                    <span
+                      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${event.typeMeta.className}`}
+                    >
+                      {event.typeMeta.label}
+                    </span>
+                  )}
+                </div>
+                {event.eventLabel && (
+                  <span className="inline-block rounded-full border border-border/60 px-3 py-1 text-xs uppercase tracking-wide text-secondary">
+                    {event.eventLabel}
+                  </span>
+                )}
+                <div className="space-y-2 text-sm text-secondary">
+                  {event.timeLabel && (
+                    <p>
+                      <span className="text-secondary/70">Horario: </span>
+                      <span className="text-primary">{event.timeLabel}</span>
+                    </p>
+                  )}
+                  {event.manager && (
+                    <p>
+                      <span className="text-secondary/70">Responsable: </span>
+                      <span className="text-primary">{event.manager}</span>
+                    </p>
+                  )}
+                  {event.status && (
+                    <p>
+                      <span className="text-secondary/70">Estado: </span>
+                      <span className="text-primary">{event.status}</span>
+                    </p>
+                  )}
+                  {event.client && (
+                    <p>
+                      <span className="text-secondary/70">Cliente: </span>
+                      <span className="text-primary">{event.client}</span>
+                    </p>
+                  )}
+                  {event.description && (
+                    <p className="text-secondary/80">{event.description}</p>
+                  )}
+                </div>
+                {event.project && (
+                  <button
+                    type="button"
+                    onClick={() => openModal(event.project)}
+                    className="w-full rounded-2xl border border-accent/60 px-4 py-3 text-sm font-semibold text-accent transition hover:border-accent/80 hover:text-accent"
+                  >
+                    Ver proyecto
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="hidden grid-cols-7 gap-px overflow-hidden rounded-2xl border border-border bg-border/40 sm:grid">
         {WEEKDAYS.map((weekday) => (
           <div
             key={weekday}
@@ -462,6 +592,7 @@ const VistaCalendario = () => {
                     const startLabel = format(range.start, 'HH:mm');
                     const endLabel = format(range.end, 'HH:mm');
                     const title = `Edición de ${task.projectName || project?.name || 'proyecto'}`;
+                    const typeMeta = getProjectTypeBadge(project);
 
                     return (
                       <button
@@ -475,7 +606,16 @@ const VistaCalendario = () => {
                         }}
                         className={`group rounded-md border px-2 py-1 text-left text-xs shadow-sm transition-all duration-200 ease-[var(--ease-ios-out)] hover:shadow-lg hover:-translate-y-0.5 ${EDITING_TASK_PILL}`}>
                         <div className="flex items-center justify-between gap-2">
-                          <span className="truncate font-semibold">{title}</span>
+                          <div className="min-w-0">
+                            <span className="truncate font-semibold">{title}</span>
+                            {typeMeta && (
+                              <span
+                                className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${typeMeta.className}`}
+                              >
+                                {typeMeta.label}
+                              </span>
+                            )}
+                          </div>
                           <span className="whitespace-nowrap text-[10px] opacity-75">
                             {startLabel} - {endLabel}
                           </span>
@@ -494,6 +634,7 @@ const VistaCalendario = () => {
                   const eventType = getProjectEventTypeForDay(project, range, day);
                   const pillClass = PROJECT_EVENT_PILLS[eventType] || PROJECT_EVENT_PILLS.duracion;
                   const eventLabel = getProjectEventLabel(eventType);
+                  const typeMeta = getProjectTypeBadge(project);
 
                   return (
                     <button
@@ -505,7 +646,16 @@ const VistaCalendario = () => {
                       }}
                       className={`group rounded-md border px-2 py-1 text-left text-xs shadow-sm transition-all duration-200 ease-[var(--ease-ios-out)] hover:shadow-lg hover:-translate-y-0.5 ${pillClass}`}>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="truncate font-semibold">{project.name}</span>
+                        <div className="min-w-0">
+                          <span className="truncate font-semibold">{project.name}</span>
+                          {typeMeta && (
+                            <span
+                              className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${typeMeta.className}`}
+                            >
+                              {typeMeta.label}
+                            </span>
+                          )}
+                        </div>
                         <span className="whitespace-nowrap text-[10px] opacity-75">
                           {memberName}
                         </span>
@@ -555,7 +705,7 @@ const VistaCalendario = () => {
             <div className="mt-4 flex flex-col gap-3">
               {selectedDayDetails.map((item) => (
                 <div
-                  key={item.id}
+                  key={`${item.id}-${item.sortTime}`}
                   className="rounded-2xl border border-border/60 bg-slate-900/60 p-4 transition hover:border-accent/60 hover:bg-slate-900/40">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-[200px] max-w-full">
@@ -569,6 +719,13 @@ const VistaCalendario = () => {
                         )}
                       </div>
                       <h4 className="mt-2 text-lg font-semibold text-primary">{item.title}</h4>
+                      {item.typeMeta && (
+                        <span
+                          className={`mt-2 inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${item.typeMeta.className}`}
+                        >
+                          {item.typeMeta.label}
+                        </span>
+                      )}
                     </div>
                     <div className="text-right text-xs text-secondary">
                       {item.manager && (
@@ -592,11 +749,6 @@ const VistaCalendario = () => {
                         <span className={getClientDetailBadgeClass(item.client)}>{item.client}</span>
                       </div>
                     )}
-                    {item.projectType && (
-                      <span className="rounded-full bg-slate-900/50 px-3 py-1 text-[11px] uppercase tracking-wide text-secondary">
-                        {item.projectType}
-                      </span>
-                    )}
                   </div>
                   {item.description && (
                     <p className="mt-3 text-sm text-secondary">{item.description}</p>
@@ -606,7 +758,7 @@ const VistaCalendario = () => {
                       <button
                         type="button"
                         onClick={() => openModal(item.project)}
-                        className="rounded-full border border-accent/60 px-3 py-1 text-xs font-medium text-accent transition hover:border-accent/80 hover:text-accent">
+                        className="w-full rounded-2xl border border-accent/60 px-4 py-3 text-sm font-semibold text-accent transition hover:border-accent/80 hover:text-accent sm:w-auto sm:rounded-full sm:px-3 sm:py-1 sm:text-xs">
                         Ver proyecto
                       </button>
                     </div>

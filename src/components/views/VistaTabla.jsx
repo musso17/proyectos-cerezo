@@ -68,6 +68,37 @@ const formatDate = (value) => {
   }
 };
 
+const TYPE_BADGES = {
+  grabacion: {
+    label: 'Grabación',
+    className: 'bg-blue-500/10 text-blue-200 border border-blue-400/40',
+  },
+  edicion: {
+    label: 'Edición',
+    className: 'bg-emerald-500/10 text-emerald-200 border border-emerald-400/40',
+  },
+};
+
+const getProjectTypeBadge = (project) => {
+  if (!project) return { label: 'Sin tipo', className: 'bg-slate-700/50 text-secondary border border-border/60' };
+
+  const rawStage =
+    project.stage || project.properties?.stage || (project.fechaGrabacion ? 'grabacion' : '');
+  const rawType = project.type || project.properties?.registrationType || '';
+
+  const normalizedStage = rawStage?.toString().trim().toLowerCase();
+  const normalizedType = rawType?.toString().trim().toLowerCase();
+
+  if (normalizedStage && TYPE_BADGES[normalizedStage]) {
+    return TYPE_BADGES[normalizedStage];
+  }
+  if (normalizedType && TYPE_BADGES[normalizedType]) {
+    return TYPE_BADGES[normalizedType];
+  }
+
+  return { label: rawType || rawStage || 'Sin tipo', className: 'bg-slate-700/50 text-secondary border border-border/60' };
+};
+
 const renderStatusBadge = (status) => {
   const key = status && statusStyles[status] ? status : 'Pendiente';
   const { badge, dot } = statusStyles[key] || statusStyles.Pendiente;
@@ -185,10 +216,19 @@ const orderedProjects = useMemo(() => {
     }
   };
 
+  const renderTypeBadge = (project, extraClasses = '') => {
+    const meta = getProjectTypeBadge(project);
+    return (
+      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${meta.className} ${extraClasses}`}>
+        {meta.label}
+      </span>
+    );
+  };
+
   return (
     <div className="soft-scroll flex h-full flex-col gap-4 overflow-auto">
-      <div className="glass-panel flex flex-wrap items-end gap-4 rounded-3xl px-6 py-4 text-xs text-secondary">
-        <div className="flex flex-col">
+      <div className="glass-panel flex flex-wrap items-end gap-4 rounded-3xl px-4 py-4 text-xs text-secondary sm:px-6">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:gap-0">
           <label className="mb-1 font-medium uppercase tracking-wide text-secondary">Tipo</label>
           <select
             value={filters.type}
@@ -203,7 +243,7 @@ const orderedProjects = useMemo(() => {
           </select>
         </div>
 
-        <div className="flex flex-col">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:gap-0">
           <label className="mb-1 font-medium uppercase tracking-wide text-secondary">Encargado</label>
           <select
             value={filters.manager}
@@ -218,7 +258,7 @@ const orderedProjects = useMemo(() => {
           </select>
         </div>
 
-        <div className="flex flex-col">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:gap-0">
           <label className="mb-1 font-medium uppercase tracking-wide text-secondary">Estado</label>
           <select
             value={filters.status}
@@ -233,7 +273,7 @@ const orderedProjects = useMemo(() => {
           </select>
         </div>
 
-        <div className="flex flex-col">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:gap-0">
           <label className="mb-1 font-medium uppercase tracking-wide text-secondary">Cliente</label>
           <select
             value={filters.client}
@@ -251,14 +291,120 @@ const orderedProjects = useMemo(() => {
         <button
           type="button"
           onClick={handleResetFilters}
-          className="ml-auto inline-flex items-center rounded-2xl border border-accent/60 bg-emerald-500/20 px-4 py-2 text-sm font-medium text-emerald-100 transition hover:-translate-y-0.5 hover:bg-emerald-500/30"
+          className="w-full rounded-2xl border border-accent/60 bg-emerald-500/20 px-4 py-2 text-sm font-medium text-emerald-100 transition hover:-translate-y-0.5 hover:bg-emerald-500/30 sm:ml-auto sm:w-auto"
         >
           Limpiar filtros
         </button>
       </div>
 
+      <div className="flex flex-col gap-4 sm:hidden">
+        {searchFilteredProjects.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-border/60 bg-slate-900/60 p-6 text-center text-sm text-secondary">
+            No hay proyectos para mostrar.
+          </div>
+        ) : (
+          searchFilteredProjects.map((project, index) => {
+            const managers = getProjectManagers(project);
+            const managerLabel = managers.length > 0 ? managers.join(', ') : 'Sin asignar';
+            const calendarLink = generarLinkGoogleCalendar({
+              contenido: project.name || 'Proyecto',
+              detalle: project.description || '',
+              fechaInicio: project.startDate || '',
+              fechaFin: project.deadline || '',
+              encargado: managerLabel,
+              cliente: project.client || '',
+            });
+            const calendarDisabled = !calendarLink;
+
+            return (
+              <div
+                key={project.id || index}
+                className="space-y-4 rounded-3xl border border-border/60 bg-slate-900/70 p-5 shadow-[0_14px_42px_rgba(2,6,23,0.38)] transition hover:border-accent/40"
+                onClick={() => openModal(project)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openModal(project);
+                  }
+                }}
+              >
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-semibold text-primary">
+                      {project.name || 'Sin título'}
+                    </h3>
+                    {renderTypeBadge(project, 'w-fit')}
+                  </div>
+                  <div className="space-y-2 text-sm text-secondary">
+                    <p>
+                      <span className="text-secondary/70">Responsable: </span>
+                      <span className="text-primary">{managerLabel}</span>
+                    </p>
+                    <p>
+                      <span className="text-secondary/70">Cliente: </span>
+                      <span className="text-primary">{project.client || 'Sin cliente'}</span>
+                    </p>
+                    <div className="grid gap-y-1 text-sm">
+                      <span className="text-secondary/70">
+                        Inicio:{' '}
+                        <span className="text-primary">{formatDate(project.startDate)}</span>
+                      </span>
+                      <span className="text-secondary/70">
+                        Entrega:{' '}
+                        <span className="text-primary">{formatDate(project.deadline)}</span>
+                      </span>
+                    </div>
+                    <div>{renderStatusBadge(project.status)}</div>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openModal(project);
+                    }}
+                    className="w-full rounded-2xl border border-accent/70 bg-emerald-500/20 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:border-accent hover:bg-emerald-500/30"
+                  >
+                    Ver detalles
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (!calendarLink) return;
+                      window.open(calendarLink, '_blank', 'noopener');
+                    }}
+                    disabled={calendarDisabled}
+                    className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                      calendarDisabled
+                        ? 'cursor-not-allowed border border-border/60 bg-slate-800/60 text-secondary'
+                        : 'border border-accent/50 bg-emerald-500/20 text-emerald-100 hover:border-accent hover:bg-emerald-500/30'
+                    }`}
+                  >
+                    Agendar en Calendar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleDelete(project, event);
+                    }}
+                    className="w-full rounded-2xl border border-red-500/60 bg-red-600/20 px-4 py-3 text-sm font-semibold text-red-200 transition hover:-translate-y-0.5 hover:bg-red-600/30"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
       <div className="glass-panel overflow-hidden rounded-3xl">
-        <table className="w-full border-collapse text-sm text-secondary">
+        <table className="hidden w-full border-collapse text-sm text-secondary sm:table">
           <thead>
             <tr className="bg-white/5 text-xs uppercase tracking-wide text-secondary">
               {['Proyecto', 'Encargado', 'Estado', 'Inicio', 'Entrega', 'Cliente', 'Acciones'].map((header) => (
@@ -285,9 +431,9 @@ const orderedProjects = useMemo(() => {
                   >
                     <td className="px-6 py-5 text-sm font-semibold text-primary">
                       {project.name || 'Sin título'}
-                      <p className="mt-1 text-[11px] uppercase tracking-wide text-accent/90">
-                        {getStageLabel(project)}
-                      </p>
+                      <div className="mt-2">
+                        {renderTypeBadge(project)}
+                      </div>
                       <div className="mt-3">
                         {(() => {
                           const calendarioUrl = generarLinkGoogleCalendar({
@@ -367,13 +513,6 @@ const orderedProjects = useMemo(() => {
 };
 
 export default VistaTabla;
-
-function getStageLabel(project) {
-  const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
-  if (stage === 'grabacion') return 'Grabación';
-  if (stage === 'edicion') return 'Edición';
-  return 'Sin asignar';
-}
 
 function getProjectManagers(project) {
   if (Array.isArray(project.managers)) {
