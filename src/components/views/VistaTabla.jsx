@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from 'react';
-import { Edit2, Trash2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Edit2, Trash2 } from 'lucide-react';
 import useStore from '../../hooks/useStore';
 import { filterProjects } from '../../utils/filterProjects';
 import { getClientBadgeClass } from '../../utils/clientStyles';
@@ -98,6 +98,11 @@ const getProjectTypeBadge = (project) => {
   return { label: rawType || rawStage || 'Sin tipo', className: 'bg-slate-700/50 text-secondary border border-border/60' };
 };
 
+const isCompletedProject = (project) => {
+  const status = project?.status || '';
+  return status.toString().trim().toLowerCase() === 'completado';
+};
+
 const renderStatusBadge = (status) => {
   const key = status && statusStyles[status] ? status : 'Pendiente';
   const { badge, dot } = statusStyles[key] || statusStyles.Pendiente;
@@ -125,13 +130,18 @@ const VistaTabla = () => {
     client: 'Todos',
   });
 
+  const activeProjects = useMemo(
+    () => projects.filter((project) => !isCompletedProject(project)),
+    [projects]
+  );
+
 const orderedProjects = useMemo(() => {
-    return [...projects].sort((a, b) => {
+    return [...activeProjects].sort((a, b) => {
       const aDate = a.startDate ? new Date(a.startDate).getTime() : Number.POSITIVE_INFINITY;
       const bDate = b.startDate ? new Date(b.startDate).getTime() : Number.POSITIVE_INFINITY;
       return aDate - bDate;
     });
-  }, [projects]);
+  }, [activeProjects]);
 
   const filterOptions = useMemo(() => {
     const typeSet = new Set();
@@ -139,7 +149,7 @@ const orderedProjects = useMemo(() => {
     const statusSet = new Set();
     const clientSet = new Set();
 
-    projects.forEach((project) => {
+    activeProjects.forEach((project) => {
       typeSet.add(getLabel(project.type, 'Sin tipo'));
       const managers = getProjectManagers(project);
       if (managers.length === 0) {
@@ -159,7 +169,7 @@ const orderedProjects = useMemo(() => {
       statuses: toSortedArray(statusSet),
       clients: toSortedArray(clientSet),
     };
-  }, [projects]);
+  }, [activeProjects]);
 
   const filteredProjects = useMemo(() => {
     return orderedProjects.filter((project) => {
@@ -345,34 +355,35 @@ const orderedProjects = useMemo(() => {
                       <span className="text-secondary/70">Cliente: </span>
                       <span className="text-primary">{project.client || 'Sin cliente'}</span>
                     </p>
-                    <div className="grid gap-y-3 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="text-secondary/70">
-                          Inicio:{' '}
-                          <span className="text-primary">{formatDate(project.startDate)}</span>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            if (!calendarLink) return;
-                            window.open(calendarLink, '_blank', 'noopener');
-                          }}
-                          disabled={calendarDisabled}
-                          className={`flex h-8 w-8 items-center justify-center rounded-full text-xs transition focus:outline-none focus:ring-2 focus:ring-accent/50 ${
-                            calendarDisabled
-                              ? 'cursor-not-allowed border border-border/60 text-secondary'
-                              : 'border border-accent/50 text-accent hover:bg-accent/10'
-                          }`}
-                          aria-label="Agendar en Calendar"
-                        >
-                          📅
-                        </button>
-                      </div>
-                      <span className="text-secondary/70">
-                        Entrega:{' '}
-                        <span className="text-primary">{formatDate(project.deadline)}</span>
-                      </span>
+                    <div className="space-y-2 text-sm">
+                      {[
+                        { label: 'Inicio', value: formatDate(project.startDate) },
+                        { label: 'Entrega', value: formatDate(project.deadline) },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="flex items-center justify-between gap-3">
+                          <span className="text-secondary/70">
+                            {label}:{' '}
+                            <span className="text-primary">{value}</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (!calendarLink) return;
+                              window.open(calendarLink, '_blank', 'noopener');
+                            }}
+                            disabled={calendarDisabled}
+                            className={`flex h-8 w-8 items-center justify-center rounded-full transition focus:outline-none focus:ring-2 focus:ring-accent/50 ${
+                              calendarDisabled
+                                ? 'cursor-not-allowed border border-border/60 text-secondary'
+                                : 'border border-accent/50 text-accent hover:bg-accent/10'
+                            }`}
+                            aria-label={`Agendar ${label.toLowerCase()} en Calendar`}
+                          >
+                            <CalendarIcon size={14} />
+                          </button>
+                        </div>
+                      ))}
                     </div>
                     <div>{renderStatusBadge(project.status)}</div>
                   </div>
@@ -425,6 +436,16 @@ const orderedProjects = useMemo(() => {
               </tr>
             ) : (
               searchFilteredProjects.map((project, index) => {
+                const calendarLink = generarLinkGoogleCalendar({
+                  contenido: project.name || 'Proyecto',
+                  detalle: project.description || '',
+                  fechaInicio: project.startDate || '',
+                  fechaFin: project.deadline || '',
+                  encargado: project.manager || '',
+                  cliente: project.client || '',
+                });
+                const calendarDisabled = !calendarLink;
+
                 return (
                   <tr
                     key={project.id || index}
@@ -433,40 +454,8 @@ const orderedProjects = useMemo(() => {
                   >
                     <td className="px-6 py-5 text-sm font-semibold text-primary">
                       {project.name || 'Sin título'}
-                      <div className="mt-2 flex items-start justify-between gap-2">
+                      <div className="mt-2">
                         {renderTypeBadge(project)}
-                        {(() => {
-                          const calendarioUrl = generarLinkGoogleCalendar({
-                            contenido: project.name || 'Proyecto',
-                            detalle: project.description || '',
-                            fechaInicio: project.startDate || '',
-                            fechaFin: project.deadline || '',
-                            encargado: project.manager || '',
-                            cliente: project.client || '',
-                          });
-
-                          const disabled = !calendarioUrl;
-
-                          return (
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                if (!calendarioUrl) return;
-                                window.open(calendarioUrl, '_blank', 'noopener');
-                              }}
-                              disabled={disabled}
-                              className={`flex h-8 w-8 items-center justify-center rounded-full text-xs transition focus:outline-none focus:ring-2 focus:ring-accent/50 ${
-                                disabled
-                                  ? 'cursor-not-allowed border border-border/60 text-secondary'
-                                  : 'border border-accent/50 text-accent hover:bg-accent/10'
-                              }`}
-                              aria-label="Agendar en Calendar"
-                            >
-                              📅
-                            </button>
-                          );
-                        })()}
                       </div>
                     </td>
                     <td className="px-6 py-5 text-sm text-secondary">
@@ -476,8 +465,50 @@ const orderedProjects = useMemo(() => {
                       })()}
                     </td>
                     <td className="px-6 py-5">{renderStatusBadge(project.status)}</td>
-                    <td className="px-6 py-5 text-sm text-secondary">{formatDate(project.startDate)}</td>
-                    <td className="px-6 py-5 text-sm text-secondary">{formatDate(project.deadline)}</td>
+                    <td className="px-6 py-5 text-sm text-secondary">
+                      <div className="flex items-center gap-2">
+                        <span>{formatDate(project.startDate)}</span>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (!calendarLink) return;
+                            window.open(calendarLink, '_blank', 'noopener');
+                          }}
+                          disabled={calendarDisabled}
+                          className={`flex h-8 w-8 items-center justify-center rounded-full transition focus:outline-none focus:ring-2 focus:ring-accent/50 ${
+                            calendarDisabled
+                              ? 'cursor-not-allowed border border-border/60 text-secondary'
+                              : 'border border-accent/50 text-accent hover:bg-accent/10'
+                          }`}
+                          aria-label="Agendar inicio en Calendar"
+                        >
+                          <CalendarIcon size={14} />
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 text-sm text-secondary">
+                      <div className="flex items-center gap-2">
+                        <span>{formatDate(project.deadline)}</span>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (!calendarLink) return;
+                            window.open(calendarLink, '_blank', 'noopener');
+                          }}
+                          disabled={calendarDisabled}
+                          className={`flex h-8 w-8 items-center justify-center rounded-full transition focus:outline-none focus:ring-2 focus:ring-accent/50 ${
+                            calendarDisabled
+                              ? 'cursor-not-allowed border border-border/60 text-secondary'
+                              : 'border border-accent/50 text-accent hover:bg-accent/10'
+                          }`}
+                          aria-label="Agendar entrega en Calendar"
+                        >
+                          <CalendarIcon size={14} />
+                        </button>
+                      </div>
+                    </td>
                     <td className="px-6 py-5">
                       {(() => {
                         const clientLabel = project.client || 'Sin cliente';

@@ -195,9 +195,13 @@ const VistaCalendario = () => {
     return days;
   }, [currentMonth]);
 
+  const activeProjects = useMemo(() => {
+    return projects.filter((project) => (project?.status || '').toString().trim().toLowerCase() !== 'completado');
+  }, [projects]);
+
   const filteredProjects = useMemo(
-    () => filterProjects(projects, searchTerm),
-    [projects, searchTerm]
+    () => filterProjects(activeProjects, searchTerm),
+    [activeProjects, searchTerm]
   );
 
   const processedProjects = useMemo(
