@@ -1,8 +1,8 @@
 "use client";
 
-import React, { Fragment, useState, useEffect } from 'react';
+import React, { Fragment, useState, useEffect, useRef } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { X, Plus, Trash2, Calendar } from 'lucide-react';
+import { X, Plus, Trash2, Calendar, ChevronDown } from 'lucide-react';
 import useStore from '../../hooks/useStore';
 import { generarLinkGoogleCalendar } from '../../utils/calendar';
 
@@ -27,6 +27,8 @@ const ModalDetalles = () => {
   const deleteProject = useStore((state) => state.deleteProject);
   const teamMembers = useStore((state) => state.teamMembers);
   const [editedProject, setEditedProject] = useState(null);
+  const [isManagerDropdownOpen, setIsManagerDropdownOpen] = useState(false);
+  const managerDropdownRef = useRef(null);
 
   useEffect(() => {
     if (selectedProject) {
@@ -102,12 +104,37 @@ const ModalDetalles = () => {
         },
         resources: existingResources,
       });
+      setIsManagerDropdownOpen(false);
     } else {
       setEditedProject(null);
+      setIsManagerDropdownOpen(false);
     }
   }, [selectedProject, teamMembers]);
 
+  useEffect(() => {
+    if (!isModalOpen) {
+      setIsManagerDropdownOpen(false);
+    }
+  }, [isModalOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (managerDropdownRef.current && !managerDropdownRef.current.contains(event.target)) {
+        setIsManagerDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   if (!editedProject) return null;
+
+  const selectedManagers = Array.isArray(editedProject.managers) ? editedProject.managers : [];
+  const availableManagers = Array.isArray(teamMembers)
+    ? teamMembers.filter((member) => !selectedManagers.includes(member))
+    : [];
 
   const isRecordingStage = (editedProject.stage || '').toLowerCase() === STAGES.GRABACION;
 
@@ -192,14 +219,33 @@ const ModalDetalles = () => {
     }));
   };
 
-  const handleManagersChange = (event) => {
-    const selectedManagers = Array.from(event.target.selectedOptions).map((option) => option.value);
-    setEditedProject((prev) => ({
-      ...prev,
-      managers: selectedManagers,
-      manager: selectedManagers[0] || '',
-      properties: { ...prev.properties, managers: selectedManagers },
-    }));
+  const handleManagerSelect = (manager) => {
+    setEditedProject((prev) => {
+      if (!prev) return prev;
+      const currentManagers = Array.isArray(prev.managers) ? prev.managers : [];
+      if (currentManagers.includes(manager)) return prev;
+      const nextManagers = [...currentManagers, manager];
+      return {
+        ...prev,
+        managers: nextManagers,
+        manager: nextManagers[0] || '',
+        properties: { ...(prev.properties || {}), managers: nextManagers },
+      };
+    });
+  };
+
+  const handleManagerRemove = (manager) => {
+    setEditedProject((prev) => {
+      if (!prev) return prev;
+      const currentManagers = Array.isArray(prev.managers) ? prev.managers : [];
+      const nextManagers = currentManagers.filter((item) => item !== manager);
+      return {
+        ...prev,
+        managers: nextManagers,
+        manager: nextManagers[0] || '',
+        properties: { ...(prev.properties || {}), managers: nextManagers },
+      };
+    });
   };
 
   const handleTeamChange = (event) => {
@@ -239,14 +285,6 @@ const ModalDetalles = () => {
     setEditedProject((prev) => ({
       ...prev,
       properties: { ...prev.properties, [key]: value },
-    }));
-  };
-
-  const handleAddProperty = () => {
-    const newKey = `Propiedad ${Object.keys(editedProject.properties).length + 1}`;
-    setEditedProject((prev) => ({
-      ...prev,
-      properties: { ...prev.properties, [newKey]: '' },
     }));
   };
 
@@ -486,24 +524,68 @@ const ModalDetalles = () => {
 
                     <div>
                       <label className="text-sm font-medium text-secondary">Responsables</label>
-                      <select
-                        multiple
-                        value={editedProject.managers || []}
-                        onChange={handleManagersChange}
-                        className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-900/70 px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
-                      >
-                        {teamMembers && teamMembers.length > 0 ? (
-                          teamMembers.map((member) => (
-                            <option key={member} value={member}>
-                              {member}
-                            </option>
-                          ))
-                        ) : (
-                          <option value="">Sin integrantes definidos</option>
+                      <div ref={managerDropdownRef} className="relative mt-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsManagerDropdownOpen((prev) => !prev)}
+                          className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border/60 bg-slate-900/70 px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+                        >
+                          <div className="flex w-full flex-wrap items-center gap-2 text-left">
+                            {selectedManagers.length > 0 ? (
+                              selectedManagers.map((manager) => (
+                                <span
+                                  key={manager}
+                                  className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent"
+                                >
+                                  {manager}
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      handleManagerRemove(manager);
+                                    }}
+                                    className="text-accent/80 transition hover:text-accent"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-secondary">Selecciona responsables</span>
+                            )}
+                          </div>
+                          <ChevronDown
+                            size={16}
+                            className={`ml-auto shrink-0 text-secondary transition ${
+                              isManagerDropdownOpen ? 'rotate-180 text-accent' : ''
+                            }`}
+                          />
+                        </button>
+                        {isManagerDropdownOpen && (
+                          <div className="absolute left-0 right-0 z-30 mt-2 max-h-48 overflow-y-auto rounded-2xl border border-border/60 bg-slate-900/90 p-2 text-sm shadow-xl backdrop-blur-md">
+                            {availableManagers.length > 0 ? (
+                              availableManagers.map((manager) => (
+                                <button
+                                  key={manager}
+                                  type="button"
+                                  onClick={() => handleManagerSelect(manager)}
+                                  className="flex w-full items-center rounded-xl px-3 py-2 text-left text-primary transition hover:bg-slate-800/80"
+                                >
+                                  {manager}
+                                </button>
+                              ))
+                            ) : (
+                              <p className="px-3 py-2 text-xs text-secondary/80">
+                                {teamMembers && teamMembers.length > 0
+                                  ? 'No quedan responsables por asignar.'
+                                  : 'Sin integrantes disponibles.'}
+                              </p>
+                            )}
+                          </div>
                         )}
-                      </select>
+                      </div>
                       <p className="mt-1 text-[11px] text-secondary/70">
-                        Selecciona uno o varios integrantes (Ctrl o Cmd para múltiple).
+                        Selecciona responsables desde la lista y elimínalos tocando la etiqueta.
                       </p>
                     </div>
                   </div>
@@ -722,14 +804,6 @@ const ModalDetalles = () => {
                           </div>
                         ))}
                     </div>
-                    <button
-                      onClick={handleAddProperty}
-                      type="button"
-                      className="mt-4 inline-flex items-center gap-2 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-accent transition hover:border-accent/50 hover:text-accent"
-                    >
-                      <Plus size={16} />
-                      Añadir propiedad
-                    </button>
                   </div>
                 </div>
 
