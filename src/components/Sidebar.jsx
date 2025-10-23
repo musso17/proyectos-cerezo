@@ -9,6 +9,7 @@ const Sidebar = ({ variant = 'desktop', className, onNavigate }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const currentView = useStore((state) => state.currentView);
   const setCurrentView = useStore((state) => state.setCurrentView);
+  const allowedViews = useStore((state) => state.allowedViews);
 
   useEffect(() => {
     if (variant === 'mobile') {
@@ -62,12 +63,14 @@ const Sidebar = ({ variant = 'desktop', className, onNavigate }) => {
 
       <nav className={clsx('flex-1', variant === 'desktop' ? 'px-3' : 'px-1')}> 
         <ul className="flex flex-col gap-2">
-          {navItems.map((item) => {
-            const isActive = currentView === item.id;
-            return (
-              <li key={item.id} title={item.label}>
-                <button
-                  type="button"
+          {navItems
+            .filter((item) => allowedViews.includes(item.id))
+            .map((item) => {
+              const isActive = currentView === item.id;
+              return (
+                <li key={item.id} title={item.label}>
+                  <button
+                    type="button"
                   onClick={() => handleNavigate(item.id)}
                   className={`group relative flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
                     isActive

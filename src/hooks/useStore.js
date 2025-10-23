@@ -5,6 +5,22 @@ import { TEAM_MEMBERS } from '../constants/team';
 import { generarTareasEdicionDesdeProyectos } from '../utils/editingTasks';
 
 const LOCAL_STORAGE_KEY = 'cerezo-projects';
+const DEFAULT_ALLOWED_VIEWS = ['Table', 'Calendar', 'Timeline', 'Gallery'];
+const FRANCISCO_EMAIL = 'francisco@carbonomkt.com';
+
+const isFranciscoUser = (user) => user?.email?.toString().trim().toLowerCase() === FRANCISCO_EMAIL;
+
+const normalizeClientValue = (value) => value?.toString().trim().toLowerCase() || '';
+
+const filterProjectsForUser = (projects, user) => {
+  if (!isFranciscoUser(user)) return projects;
+  return projects.filter((project) => {
+    const client = normalizeClientValue(
+      project.client || project.cliente || project.properties?.client || project.properties?.cliente
+    );
+    return client === 'carbono';
+  });
+};
 
 const normalizeStatus = (status) => {
   if (!status) return 'Pendiente';
@@ -365,6 +381,8 @@ const useStore = create((set, get) => ({
   projects: [],
   loading: true,
   error: null,
+  currentUser: null,
+  allowedViews: DEFAULT_ALLOWED_VIEWS,
   currentView: 'Table',
   isModalOpen: false,
   selectedProject: null,
@@ -373,7 +391,12 @@ const useStore = create((set, get) => ({
   sidebarOpen: false,
   editingTasks: [],
 
-  setCurrentView: (view) => set({ currentView: view }),
+  setCurrentView: (view) =>
+    set((state) => {
+      const allowed = state.allowedViews || DEFAULT_ALLOWED_VIEWS;
+      const nextView = allowed.includes(view) ? view : allowed[0] || state.currentView;
+      return { currentView: nextView };
+    }),
   openModal: (project) => set({ isModalOpen: true, selectedProject: project }),
   closeModal: () => set({ isModalOpen: false, selectedProject: null }),
   setSearchTerm: (term) => set({ searchTerm: term }),
@@ -386,9 +409,10 @@ const useStore = create((set, get) => ({
 
     if (!supabaseClient) {
       const localProjects = readLocalProjects();
+      const filteredProjects = filterProjectsForUser(localProjects, get().currentUser);
       set({
-        projects: localProjects,
-        editingTasks: buildEditingTasks(localProjects),
+        projects: filteredProjects,
+        editingTasks: buildEditingTasks(filteredProjects),
         loading: false,
       });
       return;
@@ -407,14 +431,16 @@ const useStore = create((set, get) => ({
         return tsB - tsA;
       });
       persistLocalProjects(projects);
-      set({ projects, editingTasks: buildEditingTasks(projects) });
+      const filteredProjects = filterProjectsForUser(projects, get().currentUser);
+      set({ projects: filteredProjects, editingTasks: buildEditingTasks(filteredProjects) });
     } catch (error) {
       console.error('Error fetching projects:', error);
       const localProjects = readLocalProjects();
+      const filteredProjects = filterProjectsForUser(localProjects, get().currentUser);
       set({
         error: 'Error fetching projects',
-        projects: localProjects,
-        editingTasks: buildEditingTasks(localProjects),
+        projects: filteredProjects,
+        editingTasks: buildEditingTasks(filteredProjects),
       });
     } finally {
       set({ loading: false });
@@ -459,7 +485,8 @@ const useStore = create((set, get) => ({
           return startB - startA;
         });
         persistLocalProjects(projects);
-        return { projects, editingTasks: buildEditingTasks(projects) };
+        const filteredProjects = filterProjectsForUser(projects, state.currentUser);
+        return { projects: filteredProjects, editingTasks: buildEditingTasks(filteredProjects) };
       });
       set({ loading: false });
       return;
@@ -483,7 +510,8 @@ const useStore = create((set, get) => ({
             return startB - startA;
           });
           persistLocalProjects(projects);
-          return { projects, editingTasks: buildEditingTasks(projects) };
+          const filteredProjects = filterProjectsForUser(projects, state.currentUser);
+          return { projects: filteredProjects, editingTasks: buildEditingTasks(filteredProjects) };
         });
 
         if (wantsAutoEditing && !hasGeneratedEditingProject(get().projects, normalized.id)) {
@@ -515,7 +543,8 @@ const useStore = create((set, get) => ({
             return startB - startA;
           });
         persistLocalProjects(projects);
-        return { projects, editingTasks: buildEditingTasks(projects) };
+        const filteredProjects = filterProjectsForUser(projects, state.currentUser);
+        return { projects: filteredProjects, editingTasks: buildEditingTasks(filteredProjects) };
       });
       set({ loading: false });
       return;
@@ -544,7 +573,8 @@ const useStore = create((set, get) => ({
             return startB - startA;
           });
         persistLocalProjects(projects);
-        return { projects, editingTasks: buildEditingTasks(projects) };
+        const filteredProjects = filterProjectsForUser(projects, state.currentUser);
+        return { projects: filteredProjects, editingTasks: buildEditingTasks(filteredProjects) };
       });
     } catch (error) {
       set({ error: 'Error updating project' });
@@ -561,7 +591,8 @@ const useStore = create((set, get) => ({
       set((state) => {
         const projects = state.projects.filter((p) => p.id !== id);
         persistLocalProjects(projects);
-        return { projects, editingTasks: buildEditingTasks(projects) };
+        const filteredProjects = filterProjectsForUser(projects, state.currentUser);
+        return { projects: filteredProjects, editingTasks: buildEditingTasks(filteredProjects) };
       });
       set({ loading: false });
       return;
@@ -574,7 +605,8 @@ const useStore = create((set, get) => ({
       set((state) => {
         const projects = state.projects.filter((p) => p.id !== id);
         persistLocalProjects(projects);
-        return { projects, editingTasks: buildEditingTasks(projects) };
+        const filteredProjects = filterProjectsForUser(projects, state.currentUser);
+        return { projects: filteredProjects, editingTasks: buildEditingTasks(filteredProjects) };
       });
     } catch (error) {
       set({ error: 'Error deleting project' });
@@ -591,8 +623,23 @@ const useStore = create((set, get) => ({
       return startB - startA;
     });
     persistLocalProjects(normalized);
-    set({ projects: normalized, editingTasks: buildEditingTasks(normalized) });
+    const filteredProjects = filterProjectsForUser(normalized, get().currentUser);
+    set({ projects: filteredProjects, editingTasks: buildEditingTasks(filteredProjects) });
   },
+  setCurrentUser: (user) =>
+    set((state) => {
+      const allowedViews = isFranciscoUser(user) ? ['Table', 'Calendar', 'Gallery'] : DEFAULT_ALLOWED_VIEWS;
+      const nextView = allowedViews.includes(state.currentView) ? state.currentView : allowedViews[0];
+      const currentProjects = state.projects && state.projects.length > 0 ? state.projects : readLocalProjects();
+      const filteredProjects = filterProjectsForUser(currentProjects, user);
+      return {
+        currentUser: user,
+        allowedViews,
+        currentView: nextView,
+        projects: filteredProjects,
+        editingTasks: buildEditingTasks(filteredProjects),
+      };
+    }),
 }));
 
 if (supabaseClient) {

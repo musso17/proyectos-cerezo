@@ -10,15 +10,22 @@ import ViewRenderer from '../components/ViewRenderer';
 import Loader from '../components/common/Loader';
 import AuthGate from '../components/AuthGate';
 
-const HomeContent = () => {
+const HomeContent = ({ session }) => {
   const fetchProjects = useStore((state) => state.fetchProjects);
   const loading = useStore((state) => state.loading);
   const sidebarOpen = useStore((state) => state.sidebarOpen);
   const closeSidebar = useStore((state) => state.closeSidebar);
+  const setCurrentUser = useStore((state) => state.setCurrentUser);
 
   useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
+    setCurrentUser(session?.user || null);
+  }, [session, setCurrentUser]);
+
+  useEffect(() => {
+    if (session) {
+      fetchProjects();
+    }
+  }, [session, fetchProjects]);
 
   return (
     <main className="relative flex flex-1 flex-col gap-4 px-2 pb-16 pt-4 md:px-6 lg:flex-row lg:gap-6 lg:pb-12 lg:pt-6">
@@ -53,7 +60,7 @@ const HomeContent = () => {
 
 const HomePage = () => (
   <AuthGate>
-    <HomeContent />
+    {(session) => <HomeContent session={session} />}
   </AuthGate>
 );
 
