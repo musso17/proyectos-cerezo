@@ -46,8 +46,7 @@ const TYPE_BADGES = {
 const getProjectTypeBadge = (project) => {
   if (!project) return { label: 'Sin tipo', className: 'bg-slate-700/50 text-secondary border border-border/60' };
 
-  const rawStage =
-    project.stage || project.properties?.stage || (project.fechaGrabacion ? 'grabacion' : '');
+  const rawStage = project.stage || project.properties?.stage || '';
   const rawType = project.type || project.properties?.registrationType || '';
 
   const normalizedStage = rawStage?.toString().trim().toLowerCase();
