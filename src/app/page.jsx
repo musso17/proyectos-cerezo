@@ -8,8 +8,9 @@ import ModalDetalles from '../components/modals/ModalDetalles';
 import useStore from '../hooks/useStore';
 import ViewRenderer from '../components/ViewRenderer';
 import Loader from '../components/common/Loader';
+import AuthGate from '../components/AuthGate';
 
-const HomePage = () => {
+const HomeContent = () => {
   const fetchProjects = useStore((state) => state.fetchProjects);
   const loading = useStore((state) => state.loading);
   const sidebarOpen = useStore((state) => state.sidebarOpen);
@@ -49,5 +50,11 @@ const HomePage = () => {
     </main>
   );
 };
+
+const HomePage = () => (
+  <AuthGate>
+    <HomeContent />
+  </AuthGate>
+);
 
 export default HomePage;
