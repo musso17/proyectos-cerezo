@@ -11,10 +11,6 @@ import {
   Tooltip as RechartsTooltip,
   AreaChart,
   Area,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
 } from 'recharts';
 import {
   Activity,
@@ -39,8 +35,6 @@ import {
 import { es } from 'date-fns/locale';
 import useStore from '../../hooks/useStore';
 
-const PIE_COLORS = ['#34d399', '#60a5fa', '#facc15', '#f472b6', '#38bdf8', '#c084fc', '#f97316'];
-
 const VistaDashboard = () => {
   const projects = useStore((state) => state.projects || []);
 
@@ -52,10 +46,9 @@ const VistaDashboard = () => {
     activeStatusData,
     clientsData,
     recordingsByWeek,
-    typeDistribution,
     editingAverageByType,
-    spotsUnder48h,
-    totalSpotsCompleted,
+    projectsUnder48h,
+    totalProjectsCompleted,
     lateEvents,
     upcomingEvents,
     managerLoad,
@@ -98,25 +91,25 @@ const VistaDashboard = () => {
         <MetricCard
           title="Completados este mes"
           value={completedThisMonth}
-          description="Basado en fecha de entrega o de inicio"
+          description="Proyectos completados durante el mes actual"
           icon={GaugeCircle}
           accent="text-fuchsia-300 bg-fuchsia-500/15 border-fuchsia-400/30"
         />
         <MetricCard
           title="Tiempo promedio de entrega"
           value={avgDeliveryDays !== null ? `${avgDeliveryDays} días` : 'Sin datos'}
-          description="Días entre grabación y entrega"
+          description="Días entre inicio del proyecto y su finalización"
           icon={Clock}
           accent="text-cyan-300 bg-cyan-500/15 border-cyan-400/30"
         />
         <MetricCard
-          title="Spots editados &lt; 48h"
+          title="Proyectos editados &lt; 48h"
           value={
-            totalSpotsCompleted > 0
-              ? `${spotsUnder48h} / ${totalSpotsCompleted}`
+            totalProjectsCompleted > 0
+              ? `${projectsUnder48h} / ${totalProjectsCompleted}`
               : 'Sin entregas'
           }
-          description="Entregas rápidas sobre spots completados"
+          description="Proyectos completados en menos de 2 días desde su inicio"
           icon={Activity}
           accent="text-rose-300 bg-rose-500/15 border-rose-400/30"
         />
@@ -214,51 +207,9 @@ const VistaDashboard = () => {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-        <div className="glass-panel col-span-1 flex flex-col gap-4 rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all xl:col-span-2">
-          <Header title="Distribución por tipo de proyecto" subtitle="Participación sobre el total de proyectos" />
-          <div className="flex h-full flex-col items-center justify-center">
-            {typeDistribution.length > 0 ? (
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie
-                    data={typeDistribution}
-                    dataKey="total"
-                    nameKey="type"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={4}
-                  >
-                    {typeDistribution.map((entry, index) => (
-                      <Cell key={entry.type} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Legend
-                    verticalAlign="bottom"
-                    height={80}
-                    wrapperStyle={{ color: '#cbd5f5' }}
-                  />
-                  <RechartsTooltip
-                    contentStyle={{
-                      backgroundColor: '#0f172a',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(148,163,184,0.25)',
-                    }}
-                    formatter={(value, _, { payload }) => [
-                      `${value} proyectos`,
-                      payload.type,
-                    ]}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyState message="Sin tipos definidos" />
-            )}
-          </div>
-        </div>
-
-        <div className="glass-panel col-span-1 flex flex-col gap-4 rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all xl:col-span-3">
-          <Header title="Promedio de días de edición por tipo" subtitle="Basado en grabaciones con fecha de entrega" />
+      <section className="grid grid-cols-1 gap-4">
+        <div className="glass-panel flex flex-col gap-4 rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all">
+          <Header title="Promedio de días de edición por tipo" subtitle="Cálculo entre la fecha de inicio y de finalización" />
           <ChartContainer>
             {editingAverageByType.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -443,14 +394,13 @@ const buildDashboardData = (projects) => {
   const statusCount = new Map();
   const activeStatusCount = new Map();
   const clientCount = new Map();
-  const typeCount = new Map();
   const editingDurationsByType = new Map();
   const recordingByWeek = new Map();
   const managerLoad = new Map();
   let totalDeliveryDays = 0;
   let deliverySamples = 0;
-  let spotsUnder48h = 0;
-  let totalSpotsCompleted = 0;
+  let projectsUnder48h = 0;
+  let totalProjectsCompleted = 0;
   let lateEvents = 0;
   const upcomingEvents = [];
 
@@ -465,6 +415,8 @@ const buildDashboardData = (projects) => {
       managers,
       recordingDate,
       deadlineDate,
+      startDate,
+      completionDate,
       referenceCompletionDate,
       displayName,
     } = extractProjectInfo(project);
@@ -485,10 +437,9 @@ const buildDashboardData = (projects) => {
     }
 
     clientCount.set(clientLabel, (clientCount.get(clientLabel) || 0) + 1);
-    typeCount.set(typeLabel, (typeCount.get(typeLabel) || 0) + 1);
 
-    if (recordingDate && deadlineDate) {
-      const days = Math.max(differenceInCalendarDays(deadlineDate, recordingDate), 0);
+    if (isCompleted && startDate && completionDate) {
+      const days = Math.max(differenceInCalendarDays(completionDate, startDate), 0);
       totalDeliveryDays += days;
       deliverySamples += 1;
 
@@ -497,10 +448,8 @@ const buildDashboardData = (projects) => {
       bucket.count += 1;
       editingDurationsByType.set(typeLabel, bucket);
 
-      if (typeLabel.toLowerCase().includes('spot') && isCompleted) {
-        totalSpotsCompleted += 1;
-        if (days <= 2) spotsUnder48h += 1;
-      }
+      totalProjectsCompleted += 1;
+      if (days <= 2) projectsUnder48h += 1;
     }
 
     if (recordingDate) {
@@ -558,10 +507,6 @@ const buildDashboardData = (projects) => {
     .sort((a, b) => b.total - a.total)
     .slice(0, 8);
 
-  const typeDistribution = Array.from(typeCount.entries())
-    .map(([type, total]) => ({ type, total }))
-    .sort((a, b) => b.total - a.total);
-
   const editingAverageByType = Array.from(editingDurationsByType.entries())
     .map(([type, { total, count }]) => ({
       type,
@@ -598,10 +543,9 @@ const buildDashboardData = (projects) => {
     activeStatusData,
     clientsData,
     recordingsByWeek,
-    typeDistribution,
     editingAverageByType,
-    spotsUnder48h,
-    totalSpotsCompleted,
+    projectsUnder48h,
+    totalProjectsCompleted,
     lateEvents,
     upcomingEvents: upcoming,
     managerLoad: managerLoadData,
@@ -633,7 +577,24 @@ const extractProjectInfo = (project) => {
   const deadlineDate = parseProjectDate(
     project.deadline || project.endDate || project.end_date || project.fecha_entrega || project.properties?.deadline
   );
-  const referenceCompletionDate = deadlineDate || parseProjectDate(project.startDate);
+  const startDate = parseProjectDate(
+    project.startDate ||
+      project.start_date ||
+      project.fecha_inicio ||
+      project.properties?.startDate ||
+      project.properties?.fecha_inicio
+  );
+  const completionDate = parseProjectDate(
+    project.completedAt ||
+      project.completed_at ||
+      project.fechaEntrega ||
+      project.fecha_entrega ||
+      project.properties?.completedAt ||
+      project.properties?.completed_at ||
+      project.properties?.fechaEntrega ||
+      project.properties?.fecha_entrega
+  );
+  const referenceCompletionDate = completionDate || deadlineDate || startDate;
   const managers = getProjectManagers(project);
   const displayName =
     buildLabel(project.name || project.projectName || project.titulo || project.title, '').length > 0
@@ -650,6 +611,8 @@ const extractProjectInfo = (project) => {
     managers,
     recordingDate,
     deadlineDate,
+    startDate,
+    completionDate,
     referenceCompletionDate,
     displayName,
   };
@@ -708,4 +671,3 @@ const getProjectManagers = (project) => {
     .map((manager) => manager.trim())
     .filter(Boolean);
 };
-
