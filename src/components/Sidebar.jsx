@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import clsx from 'clsx';
-import { ChevronLeft, Menu, List, Calendar, GanttChart, LayoutGrid } from 'lucide-react';
+import { ChevronLeft, Menu, List, Calendar, GanttChart, LayoutGrid, LayoutDashboard } from 'lucide-react';
 import useStore from '../hooks/useStore';
 
 const Sidebar = ({ variant = 'desktop', className, onNavigate }) => {
@@ -18,6 +18,7 @@ const Sidebar = ({ variant = 'desktop', className, onNavigate }) => {
   }, [variant]);
 
   const navItems = [
+    { id: 'Dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'Table', icon: List, label: 'Table' },
     { id: 'Calendar', icon: Calendar, label: 'Calendar' },
     { id: 'Timeline', icon: GanttChart, label: 'Timeline' },

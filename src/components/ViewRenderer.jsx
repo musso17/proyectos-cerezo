@@ -2,6 +2,7 @@
 
 import React, { useMemo } from 'react';
 import useStore from '../hooks/useStore';
+import VistaDashboard from './views/VistaDashboard';
 import VistaTabla from './views/VistaTabla';
 import VistaGaleria from './views/VistaGaleria';
 import VistaCalendario from './views/VistaCalendario';
@@ -12,6 +13,8 @@ const ViewRenderer = () => {
 
   const renderedView = useMemo(() => {
     switch (currentView) {
+      case 'Dashboard':
+        return <VistaDashboard />;
       case 'Table':
         return <VistaTabla />;
       case 'Calendar':

@@ -5,7 +5,7 @@ import { TEAM_MEMBERS } from '../constants/team';
 import { generarTareasEdicionDesdeProyectos } from '../utils/editingTasks';
 
 const LOCAL_STORAGE_KEY = 'cerezo-projects';
-const DEFAULT_ALLOWED_VIEWS = ['Table', 'Calendar', 'Timeline', 'Gallery'];
+const DEFAULT_ALLOWED_VIEWS = ['Dashboard', 'Table', 'Calendar', 'Timeline', 'Gallery'];
 const FRANCISCO_EMAIL = 'francisco@carbonomkt.com';
 
 const isFranciscoUser = (user) => user?.email?.toString().trim().toLowerCase() === FRANCISCO_EMAIL;
@@ -383,7 +383,7 @@ const useStore = create((set, get) => ({
   error: null,
   currentUser: null,
   allowedViews: DEFAULT_ALLOWED_VIEWS,
-  currentView: 'Table',
+  currentView: 'Dashboard',
   isModalOpen: false,
   selectedProject: null,
   teamMembers: TEAM_MEMBERS,
@@ -628,7 +628,9 @@ const useStore = create((set, get) => ({
   },
   setCurrentUser: (user) =>
     set((state) => {
-      const allowedViews = isFranciscoUser(user) ? ['Table', 'Calendar', 'Gallery'] : DEFAULT_ALLOWED_VIEWS;
+      const allowedViews = isFranciscoUser(user)
+        ? ['Dashboard', 'Table', 'Calendar', 'Gallery']
+        : DEFAULT_ALLOWED_VIEWS;
       const nextView = allowedViews.includes(state.currentView) ? state.currentView : allowedViews[0];
       const currentProjects = state.projects && state.projects.length > 0 ? state.projects : readLocalProjects();
       const filteredProjects = filterProjectsForUser(currentProjects, user);
