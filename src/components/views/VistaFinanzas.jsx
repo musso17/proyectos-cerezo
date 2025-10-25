@@ -387,7 +387,7 @@ export default function VistaFinanzas() {
                     <div className="grid grid-cols-3 gap-4 text-sm">
                       <div>
                         <p className="text-gray-400">Ingreso editable</p>
-                        <input type="number" value={editingProjectData?.ingreso ?? 0} onChange={(e) => setEditingProjectData({...editingProjectData, ingreso: Number(e.target.value)})} className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full" />
+                        <input type="number" value={editingProjectData?.ingreso ?? 0} onChange={(e) => setEditingProjectData({...editingProjectData, ingreso: Number(e.target.value)})} disabled={editingProjectData?.tipoCliente === 'retainer'} className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full disabled:bg-slate-800 disabled:text-gray-400" />
                       </div>
                       <div>
                         <p className="text-gray-400">Costos totales</p>
@@ -402,25 +402,25 @@ export default function VistaFinanzas() {
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <p className="text-xs text-gray-400">Grabación</p>
-                        <input type="number" value={editingProjectData?.costos?.grabacion ?? 0} onChange={(e) => setEditingProjectData({...editingProjectData, costos: {...editingProjectData.costos, grabacion: Number(e.target.value)}})} className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full" />
+                        <input type="number" value={editingProjectData?.costos?.grabacion ?? 0} onChange={(e) => setEditingProjectData({...editingProjectData, costos: {...editingProjectData.costos, grabacion: Number(e.target.value)}})} className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full"  />
                       </div>
                       <div>
                         <p className="text-xs text-gray-400">Edición</p>
-                        <input type="number" value={editingProjectData?.costos?.edicion ?? 0} onChange={(e) => setEditingProjectData({...editingProjectData, costos: {...editingProjectData.costos, edicion: Number(e.target.value)}})} className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full" />
+                        <input type="number" value={editingProjectData?.costos?.edicion ?? 0} onChange={(e) => setEditingProjectData({...editingProjectData, costos: {...editingProjectData.costos, edicion: Number(e.target.value)}})} className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full"  />
                       </div>
                       <div>
                         <p className="text-xs text-gray-400">Freelancers</p>
-                        <input type="number" value={editingProjectData?.costos?.freelancers ?? 0} onChange={(e) => setEditingProjectData({...editingProjectData, costos: {...editingProjectData.costos, freelancers: Number(e.target.value)}})} className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full" />
+                        <input type="number" value={editingProjectData?.costos?.freelancers ?? 0} onChange={(e) => setEditingProjectData({...editingProjectData, costos: {...editingProjectData.costos, freelancers: Number(e.target.value)}})} className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full"  />
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-3 mt-2">
                       <div>
                         <p className="text-xs text-gray-400">Movilidad</p>
-                        <input type="number" value={editingProjectData?.costos?.movilidad ?? 0} onChange={(e) => setEditingProjectData({...editingProjectData, costos: {...editingProjectData.costos, movilidad: Number(e.target.value)}})} className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full" />
+                        <input type="number" value={editingProjectData?.costos?.movilidad ?? 0} onChange={(e) => setEditingProjectData({...editingProjectData, costos: {...editingProjectData.costos, movilidad: Number(e.target.value)}})} className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full"  />
                       </div>
                       <div>
                         <p className="text-xs text-gray-400">Equipos</p>
-                        <input type="number" value={editingProjectData?.costos?.equipos ?? 0} onChange={(e) => setEditingProjectData({...editingProjectData, costos: {...editingProjectData.costos, equipos: Number(e.target.value)}})} className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full" />
+                        <input type="number" value={editingProjectData?.costos?.equipos ?? 0} onChange={(e) => setEditingProjectData({...editingProjectData, costos: {...editingProjectData.costos, equipos: Number(e.target.value)}})} className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full"  />
                       </div>
                       <div className="flex items-end gap-2">
                         <button onClick={cancelEditProject} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg">Cancelar</button>
