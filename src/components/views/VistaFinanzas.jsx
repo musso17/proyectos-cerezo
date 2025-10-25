@@ -29,6 +29,7 @@ export default function VistaFinanzas() {
   const importRetainersFromProjects = useStore((s) => s.importRetainersFromProjects);
   const fetchRetainers = useStore((s) => s.fetchRetainers);
   const updateProject = useStore((s) => s.updateProject);
+  const fetchProjects = useStore((s) => s.fetchProjects);
 
   useEffect(() => {
     fetchRetainers && fetchRetainers();
@@ -353,7 +354,18 @@ export default function VistaFinanzas() {
         <div className="bg-slate-800 rounded-xl p-6 shadow-2xl border border-purple-500/30">
           <h2 className="text-2xl font-bold text-white mb-4">Rentabilidad por Proyecto</h2>
           <div className="space-y-3">
-            {proyectosEnriquecidos.filter(p => p.tipoCliente === 'variable').map(p => (
+            {(() => {
+              if (proyectosEnriquecidos.length === 0) {
+                return (
+                  <div className="bg-slate-700/40 rounded-lg p-6 text-center">
+                    <p className="text-gray-300 mb-3">No hay proyectos para mostrar.</p>
+                    <div className="flex items-center justify-center gap-3">
+                      <button onClick={() => fetchProjects && fetchProjects()} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded">Recargar proyectos</button>
+                    </div>
+                  </div>
+                );
+              }
+              return proyectosEnriquecidos.map(p => (
               <div key={p.id} className="bg-slate-700/50 rounded-lg p-4 hover:bg-slate-700 transition">
                 <div className="flex justify-between items-start mb-2">
                   <div>
@@ -424,7 +436,8 @@ export default function VistaFinanzas() {
                   </div>
                 )}
               </div>
-            ))}
+              ));
+            })()}
           </div>
         </div>
 
