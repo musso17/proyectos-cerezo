@@ -47,8 +47,14 @@ export default function VistaFinanzas() {
   const [retainers, setRetainers] = useState(defaultRetainers);
   const [proyectos, setProyectos] = useState(defaultProjects);
 
-  useEffect(() => setRetainers(defaultRetainers), [defaultRetainers]);
-  useEffect(() => setProyectos(defaultProjects), [defaultProjects]);
+  // keep local UI state in sync with the global store so changes from other views reflect here
+  useEffect(() => {
+    setRetainers(storeRetainers && storeRetainers.length ? storeRetainers : defaultRetainers);
+  }, [storeRetainers, defaultRetainers]);
+
+  useEffect(() => {
+    setProyectos(storeProjects && storeProjects.length ? storeProjects : defaultProjects);
+  }, [storeProjects, defaultProjects]);
 
   const [mostrarFormProyecto, setMostrarFormProyecto] = useState(false);
   const [mostrarFormRetainer, setMostrarFormRetainer] = useState(false);
