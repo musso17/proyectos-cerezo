@@ -127,18 +127,33 @@ const VistaFinanzas = () => {
 
   const monthlyBilling = useMemo(() => {
     const map = new Map();
+    // Build set of tags for retainers to exclude those projects from variable income
+    const retainerTags = new Set((retainers || []).map((r) => (r.tag || r.client || '').toString().trim().toLowerCase()));
     financialEnriched.forEach((p) => {
+      const clientTag = (p.properties?.tag || p.tag || p.client || '').toString().trim().toLowerCase();
+      if (retainerTags.has(clientTag)) return; // skip retained projects
       const date = p.date || p.startDate || p.properties?.startDate || p.created_at || null;
       if (!date) return;
       const monthKey = format(new Date(date), 'yyyy-MM');
       map.set(monthKey, (map.get(monthKey) || 0) + (p.income || 0));
     });
+
+    // Add fixed retainers into monthly billing for the current month key
+    const currentKey = format(new Date(), 'yyyy-MM');
+    if ((retainers || []).length > 0) {
+      const fixed = computeFixedRetainersForMonth();
+      map.set(currentKey, (map.get(currentKey) || 0) + fixed);
+    }
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [financialEnriched]);
+  }, [financialEnriched, retainers]);
 
   const clientsRanking = useMemo(() => {
     const map = new Map();
+    const retainerTags = new Set((retainers || []).map((r) => (r.tag || r.client || '').toString().trim().toLowerCase()));
+    // Aggregate variable project income excluding retainers
     financialEnriched.forEach((p) => {
+      const clientTag = (p.properties?.tag || p.tag || p.client || '').toString().trim().toLowerCase();
+      if (retainerTags.has(clientTag)) return;
       const key = (p.client || 'Sin cliente').toString();
       const entry = map.get(key) || { total: 0, count: 0, marginSum: 0, contract: p.contract || false };
       entry.total += p.income || 0;
@@ -147,13 +162,25 @@ const VistaFinanzas = () => {
       if (p.contract) entry.contract = true;
       map.set(key, entry);
     });
+
+    // Include retainers as clients with fixed totals
+    (retainers || []).forEach((r) => {
+      const key = r.client || r.tag || 'Sin cliente';
+      const existing = map.get(key) || { total: 0, count: 0, marginSum: 0, contract: false };
+      existing.total += Number(r.monthly || 0);
+      existing.count += 0;
+      existing.marginSum += 0;
+      map.set(key, existing);
+    });
+
     return Array.from(map.entries())
       .map(([client, v]) => ({ client, total: v.total, projects: v.count, avgMargin: v.count ? v.marginSum / v.count : 0, contract: v.contract }))
       .sort((a, b) => b.total - a.total);
-  }, [financialEnriched]);
+  }, [financialEnriched, retainers]);
 
   const kpis = useMemo(() => {
-    const revenue = financialEnriched.reduce((s, p) => s + (p.income || 0), 0);
+  const variableRevenue = financialEnriched.reduce((s, p) => s + (p.income || 0), 0);
+  const revenue = variableRevenue + Number(fixedRetainersThisMonth || 0);
     const totalCost = financialEnriched.reduce((s, p) => s + (p.costs?.totalCost || 0), 0);
     const margin = revenue > 0 ? (revenue - totalCost) / revenue : 0;
     const clientsActive = new Set(financialEnriched.map((p) => p.client)).size;
@@ -365,7 +392,14 @@ const VistaFinanzas = () => {
                     <span className={`inline-block h-3 w-16 rounded-full ${p.margin > 0.4 ? 'bg-emerald-400' : p.margin > 0.2 ? 'bg-amber-400' : 'bg-rose-400'}`} />
                   </div>
                   <div className="mt-3 flex items-center justify-end gap-2">
-                    <button onClick={() => openFinanceEdit(p)} className="rounded-full bg-slate-800/60 px-3 py-1 text-xs">Agregar datos financieros</button>
+                    {(() => {
+                      const retainerTags = new Set((retainers || []).map((r) => (r.tag || r.client || '').toString().trim().toLowerCase()));
+                      const clientTag = (p.properties?.tag || p.tag || p.client || '').toString().trim().toLowerCase();
+                      if (retainerTags.has(clientTag)) {
+                        return <span className="text-xs text-secondary">Incluido en Retainer</span>;
+                      }
+                      return <button onClick={() => openFinanceEdit(p)} className="rounded-full bg-slate-800/60 px-3 py-1 text-xs">Agregar datos financieros</button>;
+                    })()}
                   </div>
                 </div>
               </div>
