@@ -19,8 +19,11 @@ const isCarbonoTag = (p) => {
 
 export default function VistaFinanzas() {
   // Prefer data from store; fall back to small local examples if empty
-  const storeProjects = useStore((s) => s.projects) || [];
-  const storeRetainers = useStore((s) => s.retainers) || [];
+  // stabilize store values with useMemo to avoid changing reference each render
+  const rawStoreProjects = useStore((s) => s.projects);
+  const rawStoreRetainers = useStore((s) => s.retainers);
+  const storeProjects = useMemo(() => (rawStoreProjects || []), [rawStoreProjects]);
+  const storeRetainers = useMemo(() => (rawStoreRetainers || []), [rawStoreRetainers]);
   const addProject = useStore((s) => s.addProject);
   const saveRetainer = useStore((s) => s.saveRetainer);
   const importRetainersFromProjects = useStore((s) => s.importRetainersFromProjects);
@@ -49,11 +52,11 @@ export default function VistaFinanzas() {
 
   // keep local UI state in sync with the global store so changes from other views reflect here
   useEffect(() => {
-    setRetainers(storeRetainers && storeRetainers.length ? storeRetainers : defaultRetainers);
+    setRetainers(storeRetainers.length ? storeRetainers : defaultRetainers);
   }, [storeRetainers, defaultRetainers]);
 
   useEffect(() => {
-    setProyectos(storeProjects && storeProjects.length ? storeProjects : defaultProjects);
+    setProyectos(storeProjects.length ? storeProjects : defaultProjects);
   }, [storeProjects, defaultProjects]);
 
   const [mostrarFormProyecto, setMostrarFormProyecto] = useState(false);
