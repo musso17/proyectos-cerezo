@@ -77,9 +77,16 @@ export default function VistaFinanzas() {
   }), [proyectos, retainers]);
 
   const contadorRetainers = useMemo(() => {
-    const mesActual = proyectosEnriquecidos.length ? proyectosEnriquecidos[0].fecha : '2025-02';
+    const mesActual = new Date().toISOString().slice(0,7); // 'YYYY-MM'
+    const normalize = (v) => (v || '').toString().trim().toLowerCase();
     return retainers.filter(r => r.activo).map(r => {
-      const proyectosDelMes = proyectosEnriquecidos.filter(p => (p.etiqueta || p.cliente || '').toString().toLowerCase() === (r.etiqueta || r.cliente || '').toString().toLowerCase() && p.fecha === mesActual).length;
+      const keyR = normalize(r.etiqueta || r.cliente);
+      const proyectosDelMes = proyectosEnriquecidos.filter(p => {
+        // count only projects classified as retainer (ej. etiqueta 'carbono')
+        if (p.tipoCliente !== 'retainer') return false;
+        const keyP = normalize(p.etiqueta || p.cliente || p.client);
+        return keyP === keyR && p.fecha === mesActual;
+      }).length;
       return { ...r, proyectosRealizados: proyectosDelMes, cumplimiento: (proyectosDelMes / Math.max(1, r.proyectosMensuales || 1)) * 100, proyectosPendientes: Math.max(0, (r.proyectosMensuales || 0) - proyectosDelMes) };
     });
   }, [proyectosEnriquecidos, retainers]);
@@ -337,20 +344,76 @@ export default function VistaFinanzas() {
         <div className="bg-slate-800 rounded-xl p-6 shadow-2xl border border-purple-500/30">
           <h2 className="text-2xl font-bold text-white mb-4">Rentabilidad por Proyecto</h2>
           <div className="space-y-3">
-            {proyectosEnriquecidos.map(p => (
+            {proyectosEnriquecidos.filter(p => p.tipoCliente === 'variable').map(p => (
               <div key={p.id} className="bg-slate-700/50 rounded-lg p-4 hover:bg-slate-700 transition">
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <h3 className="text-lg font-semibold text-white">{p.nombre || p.name}</h3>
                     <p className="text-sm text-gray-400">{p.cliente} {p.tipoCliente === 'retainer' && '(Retainer)'} • {p.fecha}</p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${p.porcentajeMargen > 40 ? 'bg-green-500/20 text-green-400' : p.porcentajeMargen > 20 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>{p.porcentajeMargen.toFixed(1)}%</span>
+                  <div className="flex items-center gap-3">
+                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${p.porcentajeMargen > 40 ? 'bg-green-500/20 text-green-400' : p.porcentajeMargen > 20 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>{p.porcentajeMargen.toFixed(1)}%</span>
+                    {/* Edit controls only for variable projects */}
+                    {editingProjectId !== p.id && (
+                      <button onClick={() => startEditProject(p)} className="text-white/80 hover:text-white ml-2"><Edit2 size={16} /></button>
+                    )}
+                  </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div><p className="text-gray-400">Ingreso</p><p className="text-white font-semibold">{currency(p.ingreso)}</p></div>
-                  <div><p className="text-gray-400">Costos</p><p className="text-white font-semibold">{currency(p.costoTotal)}</p></div>
-                  <div><p className="text-gray-400">Margen</p><p className="text-green-400 font-semibold">{currency(p.margen)}</p></div>
-                </div>
+
+                {/* Show editable fields when this project is being edited */}
+                {editingProjectId === p.id ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-400">Ingreso editable</p>
+                        <input type="number" value={editingProjectData?.ingreso ?? 0} onChange={(e) => setEditingProjectData({...editingProjectData, ingreso: Number(e.target.value)})} className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full" />
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Costos totales</p>
+                        <input type="number" value={Object.values(editingProjectData?.costos || {}).reduce((s, v) => s + Number(v || 0), 0)} disabled className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full" />
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Margen</p>
+                        <p className="text-green-400 font-semibold">{currency((editingProjectData?.ingreso || 0) - Object.values(editingProjectData?.costos || {}).reduce((s, v) => s + Number(v || 0), 0))}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <p className="text-xs text-gray-400">Grabación</p>
+                        <input type="number" value={editingProjectData?.costos?.grabacion ?? 0} onChange={(e) => setEditingProjectData({...editingProjectData, costos: {...editingProjectData.costos, grabacion: Number(e.target.value)}})} className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">Edición</p>
+                        <input type="number" value={editingProjectData?.costos?.edicion ?? 0} onChange={(e) => setEditingProjectData({...editingProjectData, costos: {...editingProjectData.costos, edicion: Number(e.target.value)}})} className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">Freelancers</p>
+                        <input type="number" value={editingProjectData?.costos?.freelancers ?? 0} onChange={(e) => setEditingProjectData({...editingProjectData, costos: {...editingProjectData.costos, freelancers: Number(e.target.value)}})} className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 mt-2">
+                      <div>
+                        <p className="text-xs text-gray-400">Movilidad</p>
+                        <input type="number" value={editingProjectData?.costos?.movilidad ?? 0} onChange={(e) => setEditingProjectData({...editingProjectData, costos: {...editingProjectData.costos, movilidad: Number(e.target.value)}})} className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">Equipos</p>
+                        <input type="number" value={editingProjectData?.costos?.equipos ?? 0} onChange={(e) => setEditingProjectData({...editingProjectData, costos: {...editingProjectData.costos, equipos: Number(e.target.value)}})} className="bg-slate-700 text-white px-3 py-2 rounded-lg w-full" />
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <button onClick={cancelEditProject} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg">Cancelar</button>
+                        <button onClick={saveEditedProject} className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2"><Save size={16} /> Guardar</button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div><p className="text-gray-400">Ingreso</p><p className="text-white font-semibold">{currency(p.ingreso)}</p></div>
+                    <div><p className="text-gray-400">Costos</p><p className="text-white font-semibold">{currency(p.costoTotal)}</p></div>
+                    <div><p className="text-gray-400">Margen</p><p className="text-green-400 font-semibold">{currency(p.margen)}</p></div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
