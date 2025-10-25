@@ -33,6 +33,7 @@ import {
   startOfWeek,
 } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { normalizeString } from '../../utils/normalize';
 import useStore from '../../hooks/useStore';
 
 const VistaDashboard = () => {
@@ -436,7 +437,11 @@ const buildDashboardData = (projects) => {
       completedThisMonth += 1;
     }
 
-    clientCount.set(clientLabel, (clientCount.get(clientLabel) || 0) + 1);
+  // Use normalized key to avoid duplicates due to case/accents (e.g., Fuso vs FUSO)
+  const clientKey = normalizeString(clientLabel || 'Sin cliente');
+  const existing = clientCount.get(clientKey) || { label: clientLabel, total: 0 };
+  existing.total += 1;
+  clientCount.set(clientKey, existing);
 
     if (isCompleted && startDate && completionDate) {
       const days = Math.max(differenceInCalendarDays(completionDate, startDate), 0);
@@ -506,7 +511,7 @@ const buildDashboardData = (projects) => {
     .sort((a, b) => b.total - a.total);
 
   const clientsData = Array.from(clientCount.entries())
-    .map(([client, total]) => ({ client, total }))
+    .map(([key, { label, total }]) => ({ client: label || 'Sin cliente', total }))
     .sort((a, b) => b.total - a.total)
     .slice(0, 8);
 
