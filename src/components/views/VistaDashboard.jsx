@@ -438,10 +438,12 @@ const buildDashboardData = (projects) => {
     }
 
   // Use normalized key to avoid duplicates due to case/accents (e.g., Fuso vs FUSO)
-  const clientKey = normalizeString(clientLabel || 'Sin cliente');
-  const existing = clientCount.get(clientKey) || { label: clientLabel, total: 0 };
-  existing.total += 1;
-  clientCount.set(clientKey, existing);
+    const clientKey = normalizeString(clientLabel || 'Sin cliente');
+    const existing = clientCount.get(clientKey) || { total: 0 };
+    existing.total += 1;
+    // Use the capitalized version of the key as the consistent label.
+    existing.label = clientKey.charAt(0).toUpperCase() + clientKey.slice(1);
+    clientCount.set(clientKey, existing);
 
     if (isCompleted && startDate && completionDate) {
       const days = Math.max(differenceInCalendarDays(completionDate, startDate), 0);
