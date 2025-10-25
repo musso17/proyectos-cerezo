@@ -4,37 +4,26 @@ import React, { useMemo, useState } from 'react';
 import { Calendar as CalendarIcon, Edit2, Trash2 } from 'lucide-react';
 import useStore from '../../hooks/useStore';
 import { filterProjects } from '../../utils/filterProjects';
+import { ALLOWED_STATUSES } from '../../utils/statusHelpers';
 import { getClientBadgeClass } from '../../utils/clientStyles';
 import { generarLinkGoogleCalendar } from '../../utils/calendar';
 
 const statusStyles = {
-  Completado: {
-    badge: 'border-emerald-400/40 bg-emerald-500/20 text-emerald-100',
-    dot: 'bg-emerald-300',
-  },
-  Finalizado: {
-    badge: 'border-emerald-400/40 bg-emerald-500/20 text-emerald-100',
-    dot: 'bg-emerald-300',
-  },
-  'En curso': {
-    badge: 'border-amber-400/40 bg-amber-500/20 text-amber-100',
-    dot: 'bg-amber-300',
+  Programado: {
+    badge: 'border-slate-500/40 bg-slate-700/30 text-slate-200',
+    dot: 'bg-slate-300',
   },
   'En progreso': {
     badge: 'border-amber-400/40 bg-amber-500/20 text-amber-100',
     dot: 'bg-amber-300',
   },
-  Pendiente: {
-    badge: 'border-slate-500/40 bg-slate-700/30 text-slate-200',
-    dot: 'bg-slate-300',
-  },
   'En revisión': {
     badge: 'border-purple-400/40 bg-purple-600/20 text-purple-100',
     dot: 'bg-purple-300',
   },
-  Cancelado: {
-    badge: 'border-red-500/40 bg-red-600/20 text-red-100',
-    dot: 'bg-red-400',
+  Completado: {
+    badge: 'border-emerald-400/40 bg-emerald-500/20 text-emerald-100',
+    dot: 'bg-emerald-300',
   },
 };
 
@@ -104,9 +93,9 @@ const isCompletedProject = (project) => {
 };
 
 const renderStatusBadge = (status) => {
-  const key = status && statusStyles[status] ? status : 'Pendiente';
-  const { badge, dot } = statusStyles[key] || statusStyles.Pendiente;
-  const label = status || 'Pendiente';
+  const key = status && statusStyles[status] ? status : 'Programado';
+  const { badge, dot } = statusStyles[key] || statusStyles.Programado;
+  const label = status || 'Programado';
   return (
     <span
       className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${badge}`}
@@ -158,7 +147,7 @@ const orderedProjects = useMemo(() => {
       } else {
         managers.forEach((manager) => managerSet.add(getLabel(manager, 'Sin asignar')));
       }
-      statusSet.add(getLabel(project.status, 'Pendiente'));
+  statusSet.add(getLabel(project.status, 'Programado'));
       clientSet.add(getLabel(project.client, 'Sin cliente'));
     });
 
@@ -175,7 +164,7 @@ const orderedProjects = useMemo(() => {
   const filteredProjects = useMemo(() => {
     return orderedProjects.filter((project) => {
       const typeLabel = getLabel(project.type, 'Sin tipo');
-      const statusLabel = getLabel(project.status, 'Pendiente');
+  const statusLabel = getLabel(project.status, 'Programado');
       const clientLabel = getLabel(project.client, 'Sin cliente');
 
       if (filters.type !== 'Todos' && filters.type !== typeLabel) return false;
@@ -467,24 +456,26 @@ const orderedProjects = useMemo(() => {
                       })()}
                     </td>
                     <td className="px-6 py-5">
-                      <select
-                        value={project.status || 'Pendiente'}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          const nextStatus = e.target.value;
-                          if (nextStatus === project.status) return;
-                          // merge and update project
-                          updateProject({ ...project, status: nextStatus });
-                        }}
-                        className="rounded-2xl border border-border/60 bg-slate-900/70 px-3 py-2 text-sm text-primary focus:border-accent focus:outline-none"
-                      >
-                        {Object.keys(statusStyles).map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="flex items-center gap-3">
+                        <span className={`h-2.5 w-2.5 rounded-full ${statusStyles[project.status || 'Programado']?.dot || 'bg-slate-300'}`} />
+                        <select
+                          value={project.status || 'Programado'}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            const nextStatus = e.target.value;
+                            if (nextStatus === project.status) return;
+                            updateProject({ ...project, status: nextStatus });
+                          }}
+                          className="rounded-2xl border border-border/60 bg-slate-900/70 px-3 py-2 text-sm text-primary focus:border-accent focus:outline-none"
+                        >
+                          {ALLOWED_STATUSES.map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </td>
                     <td className="px-6 py-5 text-sm text-secondary">{formatDate(project.startDate)}</td>
                     <td className="px-6 py-5 text-sm text-secondary">

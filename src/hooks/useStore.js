@@ -3,6 +3,7 @@ import { addDays, parseISO, isValid, format } from 'date-fns';
 import { supabase } from '../config/supabase';
 import { TEAM_MEMBERS } from '../constants/team';
 import { generarTareasEdicionDesdeProyectos } from '../utils/editingTasks';
+import { normalizeStatus, ALLOWED_STATUSES } from '../utils/statusHelpers';
 
 const LOCAL_STORAGE_KEY = 'cerezo-projects';
 const DEFAULT_ALLOWED_VIEWS = ['Dashboard', 'Table', 'Calendar', 'Timeline', 'Gallery'];
@@ -10,7 +11,9 @@ const FRANCISCO_EMAIL = 'francisco@carbonomkt.com';
 
 const isFranciscoUser = (user) => user?.email?.toString().trim().toLowerCase() === FRANCISCO_EMAIL;
 
-const normalizeClientValue = (value) => value?.toString().trim().toLowerCase() || '';
+import { normalizeString } from '../utils/normalize';
+
+const normalizeClientValue = (value) => normalizeString(value || '');
 
 const filterProjectsForUser = (projects, user) => {
   if (!isFranciscoUser(user)) return projects;
@@ -22,16 +25,7 @@ const filterProjectsForUser = (projects, user) => {
   });
 };
 
-const normalizeStatus = (status) => {
-  if (!status) return 'Pendiente';
-  const value = status.toString().trim().toLowerCase();
-  if (value === 'finalizado' || value === 'finalizada' || value === 'terminado') return 'Completado';
-  if (value === 'en curso' || value === 'en progreso' || value === 'progreso') return 'En progreso';
-  if (value === 'revision' || value === 'en revisión') return 'En revisión';
-  if (value === 'cancelado' || value === 'cancelada') return 'Cancelado';
-  if (value === 'pendiente') return 'Pendiente';
-  return status;
-};
+// status normalization handled by src/utils/statusHelpers
 
 const normalizeManagers = (value) => {
   if (Array.isArray(value)) {
@@ -349,7 +343,7 @@ const createEditingProjectFromRecording = (project) => {
     client: project.client,
     manager: managers[0] || '',
     managers,
-    status: 'Pendiente',
+  status: 'Programado',
     type: 'edicion',
     registrationType,
     startDate: formatDateOnly(startDate),

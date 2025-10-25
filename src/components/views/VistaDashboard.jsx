@@ -557,7 +557,7 @@ const buildDashboardData = (projects) => {
 
 const extractProjectInfo = (project) => {
   const id = project.id || project.uuid || project._id || project.slug || String(Math.random());
-  const statusLabel = buildLabel(project.status, 'Pendiente');
+  const statusLabel = buildLabel(project.status, 'Programado');
   const isCompleted = statusLabel.toLowerCase() === 'completado';
   const rawStage =
     project.stage ||

@@ -99,7 +99,7 @@ const VistaGaleria = () => {
   const completedProjects = useMemo(() => {
     return filteredProjects.filter((project) => {
       const statusLabel = project.status?.toString().trim().toLowerCase() || '';
-      return statusLabel === 'completado' || statusLabel === 'finalizado';
+      return statusLabel === 'completado';
     });
   }, [filteredProjects]);
 

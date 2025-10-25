@@ -1,5 +1,7 @@
+import { normalizeString } from './normalize';
+
 export const filterProjects = (projects, term) => {
-  const normalized = term?.toString().trim().toLowerCase();
+  const normalized = normalizeString(term || '');
   if (!normalized) return projects;
 
   return projects.filter((project) => {
@@ -22,6 +24,6 @@ export const filterProjects = (projects, term) => {
 
     return haystack
       .filter(Boolean)
-      .some((value) => value.toString().toLowerCase().includes(normalized));
+      .some((value) => normalizeString(value).includes(normalized));
   });
 };

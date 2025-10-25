@@ -12,12 +12,14 @@ const palette = [
 const clientColorMap = new Map();
 let paletteIndex = 0;
 
+import { normalizeString } from './normalize';
+
 export const getClientStyles = (client) => {
-  if (!client || client.trim().length === 0) {
+  if (!client || client.toString().trim().length === 0) {
     return palette[palette.length - 1];
   }
 
-  const key = client.trim().toLowerCase();
+  const key = normalizeString(client);
 
   if (clientColorMap.has(key)) {
     return clientColorMap.get(key);

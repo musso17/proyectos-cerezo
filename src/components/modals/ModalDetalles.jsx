@@ -90,7 +90,7 @@ const ModalDetalles = () => {
         recordingLocation,
         recordingDescription,
         type: registrationType || selectedProject.type || '',
-        status: selectedProject.status || 'Pendiente',
+  status: selectedProject.status || 'Programado',
         properties: {
           ...properties,
           resources: existingResources,
@@ -520,15 +520,14 @@ const ModalDetalles = () => {
                       <label className="text-sm font-medium text-secondary">Estado</label>
                       <select
                         name="status"
-                        value={editedProject.status || 'Pendiente'}
+                        value={editedProject.status || 'Programado'}
                         onChange={handleInputChange}
                         className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-900/70 px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
                       >
-                        <option value="Pendiente">Pendiente</option>
+                        <option value="Programado">Programado</option>
                         <option value="En progreso">En progreso</option>
                         <option value="En revisión">En revisión</option>
                         <option value="Completado">Completado</option>
-                        <option value="Cancelado">Cancelado</option>
                       </select>
                     </div>
 
