@@ -407,6 +407,7 @@ const useStore = create((set, get) => ({
   sidebarOpen: false,
   editingTasks: [],
 
+  lastUpdate: null, // Añadir para notificar actualizaciones en tiempo real
   setCurrentView: (view) =>
     set((state) => {
       const allowed = state.allowedViews || DEFAULT_ALLOWED_VIEWS;
@@ -746,25 +747,38 @@ if (supabaseClient) {
     .channel('projects')
     .on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'projects' },
+      { event: 'INSERT', schema: 'public', table: 'projects' },
       (payload) => {
-        const { projects, setProjects } = useStore.getState();
-
-        if (payload.eventType === 'INSERT') {
-          const exists = projects.some((p) => p.id === payload.new.id);
-          const updatedProjects = exists
-            ? projects.map((p) => (p.id === payload.new.id ? payload.new : p))
-            : [...projects, payload.new];
-          setProjects(updatedProjects);
-        } else if (payload.eventType === 'UPDATE') {
-          const updatedProjects = projects.map((p) =>
-            p.id === payload.new.id ? payload.new : p
-          );
-          setProjects(updatedProjects);
-        } else if (payload.eventType === 'DELETE') {
-          const updatedProjects = projects.filter((p) => p.id !== payload.old.id);
-          setProjects(updatedProjects);
-        }
+        console.log('Realtime: Nuevo proyecto recibido', payload.new);
+        const { fetchProjects } = useStore.getState();
+        fetchProjects(); // Vuelve a cargar todos para mantener la consistencia
+        set({ lastUpdate: Date.now() });
+      }
+    )
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'projects' },
+      (payload) => {
+        console.log('Realtime: Proyecto actualizado', payload.new);
+        const { fetchProjects } = useStore.getState();
+        fetchProjects();
+        set({ lastUpdate: Date.now() });
+      }
+    )
+    .on(
+      'postgres_changes',
+      { event: 'DELETE', schema: 'public', table: 'projects' },
+      (payload) => {
+        console.log('Realtime: Proyecto eliminado', payload.old.id);
+        const { fetchProjects } = useStore.getState();
+        fetchProjects();
+        set({ lastUpdate: Date.now() });
+      }
+    )
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'retainers' }, () => {
+        console.log('Realtime: Cambio en retainers detectado');
+        useStore.getState().fetchRetainers();
+        set({ lastUpdate: Date.now() });
       }
     )
     .subscribe();

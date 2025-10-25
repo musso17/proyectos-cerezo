@@ -55,8 +55,8 @@ src/
 
 ## ☁️ Deploy
 Vercel detecta el proyecto como Next.js automáticamente. Asegúrate de definir:
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
+- `NEXT_SUPABASE_URL`
+- `NEXT_SUPABASE_ANON_KEY`
 
 ## 🖥️ Diseño
 Los estilos se basan en Tailwind con componentes “glassmorphism”. Ajusta el look&feel editando `src/app/globals.css` o los componentes individuales.
