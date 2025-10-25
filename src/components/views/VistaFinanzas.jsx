@@ -55,6 +55,76 @@ const VistaFinanzas = () => {
 
   const rentByProject = financialEnriched;
 
+  const updateProject = useStore((s) => s.updateProject);
+
+  const [editingProject, setEditingProject] = useState(null);
+  const [financeEdit, setFinanceEdit] = useState({
+    income: '',
+    cost_recording: '',
+    cost_editing: '',
+    cost_freelancers: '',
+    cost_mobility: '',
+    cost_equipment: '',
+    contract: false,
+    contract_total: '',
+    contract_months: '',
+  });
+
+  const openFinanceEdit = (p) => {
+    setEditingProject(p.id || p.name);
+    setFinanceEdit({
+      income: p.income || p.properties?.income || '',
+      cost_recording: p.cost_recording || p.properties?.cost_recording || '',
+      cost_editing: p.cost_editing || p.properties?.cost_editing || '',
+      cost_freelancers: p.cost_freelancers || p.properties?.cost_freelancers || '',
+      cost_mobility: p.cost_mobility || p.properties?.cost_mobility || '',
+      cost_equipment: p.cost_equipment || p.properties?.cost_equipment || '',
+      contract: !!(p.contract || p.properties?.contract),
+      contract_total: p.contract_total || p.properties?.contract_total || '',
+      contract_months: p.contract_months || p.properties?.contract_months || '',
+    });
+  };
+
+  const closeFinanceEdit = () => {
+    setEditingProject(null);
+    setFinanceEdit({
+      income: '',
+      cost_recording: '',
+      cost_editing: '',
+      cost_freelancers: '',
+      cost_mobility: '',
+      cost_equipment: '',
+      contract: false,
+      contract_total: '',
+      contract_months: '',
+    });
+  };
+
+  const handleFinanceChange = (k) => (e) => {
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    setFinanceEdit((s) => ({ ...s, [k]: value }));
+  };
+
+  const saveFinanceForProject = async (p) => {
+    const payload = {
+      ...p,
+      properties: {
+        ...(p.properties || {}),
+        income: Number(financeEdit.income || 0),
+        cost_recording: Number(financeEdit.cost_recording || 0),
+        cost_editing: Number(financeEdit.cost_editing || 0),
+        cost_freelancers: Number(financeEdit.cost_freelancers || 0),
+        cost_mobility: Number(financeEdit.cost_mobility || 0),
+        cost_equipment: Number(financeEdit.cost_equipment || 0),
+        contract: !!financeEdit.contract,
+        contract_total: Number(financeEdit.contract_total || 0),
+        contract_months: Number(financeEdit.contract_months || 0),
+      },
+    };
+    await updateProject(payload);
+    closeFinanceEdit();
+  };
+
   const monthlyBilling = useMemo(() => {
     const map = new Map();
     financialEnriched.forEach((p) => {
@@ -162,11 +232,41 @@ const VistaFinanzas = () => {
                   <div className="mt-2">
                     <span className={`inline-block h-3 w-16 rounded-full ${p.margin > 0.4 ? 'bg-emerald-400' : p.margin > 0.2 ? 'bg-amber-400' : 'bg-rose-400'}`} />
                   </div>
+                  <div className="mt-3 flex items-center justify-end gap-2">
+                    <button onClick={() => openFinanceEdit(p)} className="rounded-full bg-slate-800/60 px-3 py-1 text-xs">Agregar datos financieros</button>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         </div>
+
+        {/* Finance edit modal / inline panel */}
+        {editingProject && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-xl rounded-2xl bg-panel p-6">
+              <h4 className="mb-3 text-lg font-semibold">Editar datos financieros</h4>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <input placeholder="Ingreso" value={financeEdit.income} onChange={handleFinanceChange('income')} className="w-full rounded-2xl bg-slate-900/60 px-3 py-2" />
+                <input placeholder="Costos de grabación" value={financeEdit.cost_recording} onChange={handleFinanceChange('cost_recording')} className="w-full rounded-2xl bg-slate-900/60 px-3 py-2" />
+                <input placeholder="Costos de edición" value={financeEdit.cost_editing} onChange={handleFinanceChange('cost_editing')} className="w-full rounded-2xl bg-slate-900/60 px-3 py-2" />
+                <input placeholder="Freelancers" value={financeEdit.cost_freelancers} onChange={handleFinanceChange('cost_freelancers')} className="w-full rounded-2xl bg-slate-900/60 px-3 py-2" />
+                <input placeholder="Movilidad" value={financeEdit.cost_mobility} onChange={handleFinanceChange('cost_mobility')} className="w-full rounded-2xl bg-slate-900/60 px-3 py-2" />
+                <input placeholder="Equipos" value={financeEdit.cost_equipment} onChange={handleFinanceChange('cost_equipment')} className="w-full rounded-2xl bg-slate-900/60 px-3 py-2" />
+                <label className="inline-flex items-center gap-2"><input type="checkbox" checked={financeEdit.contract} onChange={handleFinanceChange('contract')} /> Cliente con contrato</label>
+                <input placeholder="Contrato total" value={financeEdit.contract_total} onChange={handleFinanceChange('contract_total')} className="w-full rounded-2xl bg-slate-900/60 px-3 py-2" />
+                <input placeholder="Meses de contrato" value={financeEdit.contract_months} onChange={handleFinanceChange('contract_months')} className="w-full rounded-2xl bg-slate-900/60 px-3 py-2" />
+              </div>
+              <div className="mt-4 flex justify-end gap-2">
+                <button className="rounded-full bg-slate-700 px-3 py-1 text-sm" onClick={closeFinanceEdit}>Cancelar</button>
+                <button className="rounded-full bg-emerald-500 px-3 py-1 text-sm" onClick={() => {
+                  const p = projects.find(pr => (pr.id || pr.name) === editingProject);
+                  if (p) saveFinanceForProject(p);
+                }}>Guardar</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="glass-panel p-4">
           <h3 className="text-sm font-semibold">2. Facturación Mensual</h3>
