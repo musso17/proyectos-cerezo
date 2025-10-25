@@ -19,27 +19,26 @@ export default function VistaFinanzas() {
   const {
     projects: rawStoreProjects,
     retainers: rawStoreRetainers,
-    fetchRetainers,
-    fetchProjects,
+    fetchFinancialData, // Usamos la nueva acción centralizada
     addProject,
     saveRetainer,
     updateProject,
     lastUpdate,
+    loading, // Opcional: para mostrar un indicador de carga
   } = useStore(state => ({
     projects: state.projects,
     retainers: state.retainers,
-    fetchRetainers: state.fetchRetainers,
-    fetchProjects: state.fetchProjects,
+    fetchFinancialData: state.fetchFinancialData,
     addProject: state.addProject,
     saveRetainer: state.saveRetainer,
     updateProject: state.updateProject,
     lastUpdate: state.lastUpdate, // Obtener la marca de tiempo del store
+    loading: state.loading,
   }));
 
   useEffect(() => {
-    fetchProjects?.();
-    fetchRetainers?.();
-  }, [fetchProjects, fetchRetainers]);
+    fetchFinancialData?.();
+  }, [fetchFinancialData]);
 
   const retainers = useMemo(() => rawStoreRetainers || [], [rawStoreRetainers]);
   const proyectos = useMemo(() => rawStoreProjects || [], [rawStoreProjects]);
@@ -114,6 +113,13 @@ export default function VistaFinanzas() {
     fetchRetainers?.();
     setMostrarFormRetainer(false);
   }, [nuevoRetainer, saveRetainer, fetchRetainers]);
+
+  // Opcional: Mostrar un indicador de carga mientras los datos se obtienen
+  if (loading && proyectos.length === 0) {
+    return (
+      <div className="flex justify-center items-center min-h-screen text-white bg-slate-900">Cargando finanzas...</div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">

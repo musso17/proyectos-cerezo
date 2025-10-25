@@ -422,6 +422,21 @@ const useStore = create((set, get) => ({
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 
   // Retainers (clientes fijos) helpers
+  fetchFinancialData: async () => {
+    const { fetchProjects, fetchRetainers } = get();
+    // No establecer loading aquí para evitar parpadeos si los datos ya están cacheados.
+    // Lo haremos dentro de las funciones si es necesario.
+    set({ loading: true, error: null });
+    try {
+      // Ejecutar ambas cargas en paralelo para mayor eficiencia
+      await Promise.all([fetchProjects(), fetchRetainers()]);
+    } catch (error) {
+      console.error("Error al cargar datos financieros:", error);
+      set({ error: "No se pudieron cargar los datos financieros." });
+    } finally {
+      set({ loading: false });
+    }
+  },
   fetchRetainers: async () => {
     if (!supabaseClient) {
       const local = readLocalRetainers();
@@ -431,13 +446,13 @@ const useStore = create((set, get) => ({
     try {
       const { data, error } = await supabaseClient.from('retainers').select('*');
       if (error) throw error;
-      const list = Array.isArray(data) ? data : [];
-      persistLocalRetainers(list);
-      set({ retainers: list });
-      return list;
+      const retainers = Array.isArray(data) ? data : [];
+      persistLocalRetainers(retainers);
+      set({ retainers });
+      return retainers;
     } catch (err) {
       console.error('Error fetching retainers:', err);
-      const local = readLocalRetainers();
+      const local = readLocalRetainers(); // Fallback a local
       set({ retainers: local });
       return local;
     }
@@ -503,7 +518,8 @@ const useStore = create((set, get) => ({
   },
 
   fetchProjects: async () => {
-    set({ loading: true, error: null });
+    // Ya no gestiona el estado loading globalmente, lo hará la función contenedora.
+    // set({ loading: true, error: null });
 
     if (!supabaseClient) {
       const localProjects = readLocalProjects();
@@ -511,7 +527,7 @@ const useStore = create((set, get) => ({
       set({
         projects: filteredProjects,
         editingTasks: buildEditingTasks(filteredProjects),
-        loading: false,
+        // loading: false,
       });
       return;
     }
@@ -540,9 +556,10 @@ const useStore = create((set, get) => ({
         projects: filteredProjects,
         editingTasks: buildEditingTasks(filteredProjects),
       });
-    } finally {
-      set({ loading: false });
-    }
+    } // Se elimina el finally para que la función contenedora controle el loading.
+    // finally {
+    //   set({ loading: false });
+    // }
   },
 
   addProject: async (project, options = {}) => {
