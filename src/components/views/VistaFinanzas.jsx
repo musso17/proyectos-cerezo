@@ -145,7 +145,7 @@ const VistaFinanzas = () => {
       map.set(currentKey, (map.get(currentKey) || 0) + fixed);
     }
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [financialEnriched, retainers]);
+  }, [financialEnriched, retainers, computeFixedRetainersForMonth]);
 
   const clientsRanking = useMemo(() => {
     const map = new Map();
@@ -186,39 +186,32 @@ const VistaFinanzas = () => {
     const clientsActive = new Set(financialEnriched.map((p) => p.client)).size;
     const totalProjects = financialEnriched.length;
     return { revenue, totalCost, margin, clientsActive, totalProjects };
-  }, [financialEnriched]);
+  }, [financialEnriched, fixedRetainersThisMonth]);
 
-  // Retainers (Clientes fijos) - stored in localStorage under key 'cerezo-retainers'
-  const RETAINERS_KEY = 'cerezo-retainers';
-  const [retainers, setRetainers] = useState([]);
+  // Retainers are managed in the global store (fetch, save, import). Use store hooks here.
+  const retainers = useStore((s) => s.retainers || []);
+  const fetchRetainers = useStore((s) => s.fetchRetainers);
+  const saveRetainer = useStore((s) => s.saveRetainer);
+  const importRetainersFromProjects = useStore((s) => s.importRetainersFromProjects);
+
   const [editingRetainerIndex, setEditingRetainerIndex] = useState(null);
   const [retainerEdit, setRetainerEdit] = useState({ client: '', monthly: '', startDate: '', endDate: '', tag: '' });
 
   useEffect(() => {
-    try {
-      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(RETAINERS_KEY) : null;
-      if (raw) {
-        setRetainers(JSON.parse(raw));
-      } else {
-        // seed default Carbono entry as requested
-        const seed = [
-          { client: 'Carbono', monthly: 4000, startDate: '2024-01-01', endDate: '', tag: 'carbono' },
-        ];
-        setRetainers(seed);
-        if (typeof window !== 'undefined') window.localStorage.setItem(RETAINERS_KEY, JSON.stringify(seed));
-      }
-    } catch (err) {
-      console.error('Error reading retainers:', err);
-    }
+    // load retainers from store (will fallback to local if supabase not available)
+    fetchRetainers?.();
+    // merge Carbono projects into retainers automatically
+    importRetainersFromProjects?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const saveRetainers = (next) => {
-    setRetainers(next);
-    try {
-      if (typeof window !== 'undefined') window.localStorage.setItem(RETAINERS_KEY, JSON.stringify(next));
-    } catch (err) {
-      console.error('Error saving retainers:', err);
+  const saveRetainers = async (next) => {
+    // Basic validation + persist via store
+    for (const r of next) {
+      const normalized = { ...r, monthly: Number(r.monthly || 0) >= 0 ? Number(r.monthly || 0) : 0 };
+      await saveRetainer?.(normalized);
     }
+    await fetchRetainers?.();
   };
 
   const startOfCurrentMonth = () => {
@@ -226,10 +219,10 @@ const VistaFinanzas = () => {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   };
 
-  const computeFixedRetainersForMonth = (monthDate) => {
+  const computeFixedRetainersForMonth = React.useCallback((monthDate) => {
     const start = monthDate ? new Date(monthDate.getFullYear(), monthDate.getMonth(), 1) : startOfCurrentMonth();
     const end = endOfMonth(start);
-    return retainers.reduce((sum, r) => {
+    return (retainers || []).reduce((sum, r) => {
       try {
         const s = r.startDate ? parseISO(r.startDate) : null;
         const e = r.endDate ? parseISO(r.endDate) : null;
@@ -241,7 +234,7 @@ const VistaFinanzas = () => {
       }
       return sum;
     }, 0);
-  };
+  }, [retainers]);
 
   const fixedRetainersThisMonth = computeFixedRetainersForMonth();
 
@@ -349,10 +342,10 @@ const VistaFinanzas = () => {
                       {editingRetainerIndex === idx ? (
                         <div className="flex gap-2">
                           <button className="rounded-full bg-slate-700 px-3 py-1 text-sm" onClick={() => { setEditingRetainerIndex(null); setRetainerEdit({ client: '', monthly: '', startDate: '', endDate: '', tag: '' }); }}>Cancelar</button>
-                          <button className="rounded-full bg-emerald-500 px-3 py-1 text-sm" onClick={() => {
+                          <button className="rounded-full bg-emerald-500 px-3 py-1 text-sm" onClick={async () => {
                             const next = [...retainers];
                             next[idx] = { client: retainerEdit.client || next[idx].client, monthly: Number(retainerEdit.monthly || 0), startDate: retainerEdit.startDate || next[idx].startDate, endDate: retainerEdit.endDate || next[idx].endDate, tag: retainerEdit.tag || next[idx].tag };
-                            saveRetainers(next);
+                            await saveRetainers(next);
                             setEditingRetainerIndex(null);
                             setRetainerEdit({ client: '', monthly: '', startDate: '', endDate: '', tag: '' });
                           }}>Guardar</button>

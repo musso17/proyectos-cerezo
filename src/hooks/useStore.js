@@ -6,6 +6,7 @@ import { generarTareasEdicionDesdeProyectos } from '../utils/editingTasks';
 import { normalizeStatus, ALLOWED_STATUSES } from '../utils/statusHelpers';
 
 const LOCAL_STORAGE_KEY = 'cerezo-projects';
+const RETAINERS_KEY = 'cerezo-retainers';
 const DEFAULT_ALLOWED_VIEWS = ['Dashboard', 'Table', 'Calendar', 'Timeline', 'Gallery', 'Finanzas'];
 const FRANCISCO_EMAIL = 'francisco@carbonomkt.com';
 
@@ -261,6 +262,26 @@ const readLocalProjects = () => {
   }
 };
 
+const readLocalRetainers = () => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = window.localStorage.getItem(RETAINERS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error('Error reading local retainers:', error);
+    return [];
+  }
+};
+
+const persistLocalRetainers = (retainers) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(RETAINERS_KEY, JSON.stringify(retainers));
+  } catch (error) {
+    console.error('Error persisting local retainers:', error);
+  }
+};
+
 const persistLocalProjects = (projects) => {
   if (typeof window === 'undefined') return;
   try {
@@ -375,6 +396,7 @@ const useStore = create((set, get) => ({
   projects: [],
   loading: true,
   error: null,
+  retainers: [],
   currentUser: null,
   allowedViews: DEFAULT_ALLOWED_VIEWS,
   currentView: 'Dashboard',
@@ -397,6 +419,87 @@ const useStore = create((set, get) => ({
   openSidebar: () => set({ sidebarOpen: true }),
   closeSidebar: () => set({ sidebarOpen: false }),
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+
+  // Retainers (clientes fijos) helpers
+  fetchRetainers: async () => {
+    if (!supabaseClient) {
+      const local = readLocalRetainers();
+      set({ retainers: local });
+      return local;
+    }
+    try {
+      const { data, error } = await supabaseClient.from('retainers').select('*');
+      if (error) throw error;
+      const list = Array.isArray(data) ? data : [];
+      persistLocalRetainers(list);
+      set({ retainers: list });
+      return list;
+    } catch (err) {
+      console.error('Error fetching retainers:', err);
+      const local = readLocalRetainers();
+      set({ retainers: local });
+      return local;
+    }
+  },
+
+  saveRetainer: async (retainer) => {
+    // retainer must have at least client and monthly
+    const next = { ...retainer };
+    if (!supabaseClient) {
+      set((state) => {
+        const list = state.retainers || readLocalRetainers();
+        const idx = list.findIndex((r) => (r.client || '').toString().trim().toLowerCase() === (next.client || '').toString().trim().toLowerCase());
+        if (idx >= 0) list[idx] = { ...list[idx], ...next };
+        else list.push(next);
+        persistLocalRetainers(list);
+        return { retainers: list };
+      });
+      return;
+    }
+    try {
+      const payload = { ...next };
+      // upsert by client
+      const { data, error } = await supabaseClient.from('retainers').upsert(payload, { onConflict: 'client' }).select();
+      if (error) throw error;
+      const list = Array.isArray(data) ? data : [];
+      persistLocalRetainers(list);
+      set({ retainers: list });
+    } catch (err) {
+      console.error('Error saving retainer:', err);
+    }
+  },
+
+  importRetainersFromProjects: async () => {
+    // find projects that look like Carbono retainers and merge
+    const projects = get().projects || [];
+    const projectCandidates = projects.filter((p) => {
+      const client = (p.client || p.properties?.client || '').toString().trim().toLowerCase();
+      return client === 'carbono' || (p.properties && (p.properties.tag || '').toString().trim().toLowerCase() === 'carbono');
+    });
+    if (projectCandidates.length === 0) return [];
+    const existing = get().retainers || readLocalRetainers();
+    const merged = [...existing];
+    projectCandidates.forEach((p) => {
+      const clientName = p.client || p.properties?.client || 'Carbono';
+      const idx = merged.findIndex((r) => (r.client || '').toString().trim().toLowerCase() === (clientName || '').toString().trim().toLowerCase());
+      const entry = { client: clientName, monthly: 4000, startDate: '2024-01-01', endDate: '', tag: 'carbono' };
+      if (idx >= 0) merged[idx] = { ...merged[idx], ...entry };
+      else merged.push(entry);
+    });
+    persistLocalRetainers(merged);
+    set({ retainers: merged });
+    // try to push to supabase if available
+    if (supabaseClient) {
+      try {
+        for (const r of merged) {
+          await supabaseClient.from('retainers').upsert(r, { onConflict: 'client' });
+        }
+      } catch (err) {
+        console.error('Error syncing retainers to supabase:', err);
+      }
+    }
+    return merged;
+  },
 
   fetchProjects: async () => {
     set({ loading: true, error: null });
