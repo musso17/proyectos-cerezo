@@ -10,6 +10,13 @@ const currency = (v) => {
   return `S/${formatted}`;
 };
 
+const isCarbonoTag = (p) => {
+  if (!p) return false;
+  const tag = (p.tag || p.etiqueta || p.properties?.tag || '').toString().trim().toLowerCase();
+  const client = (p.client || p.cliente || p.properties?.client || '').toString().trim().toLowerCase();
+  return tag === 'carbono' || client === 'carbono';
+};
+
 export default function VistaFinanzas() {
   // Prefer data from store; fall back to small local examples if empty
   const storeProjects = useStore((s) => s.projects) || [];
@@ -18,6 +25,7 @@ export default function VistaFinanzas() {
   const saveRetainer = useStore((s) => s.saveRetainer);
   const importRetainersFromProjects = useStore((s) => s.importRetainersFromProjects);
   const fetchRetainers = useStore((s) => s.fetchRetainers);
+  const updateProject = useStore((s) => s.updateProject);
 
   useEffect(() => {
     fetchRetainers && fetchRetainers();
@@ -52,17 +60,20 @@ export default function VistaFinanzas() {
   const calcularCostoTotal = (costos) => Object.values(costos || {}).reduce((sum, val) => sum + Number(val || 0), 0);
 
   const proyectosEnriquecidos = useMemo(() => proyectos.map(p => {
+    // determine tipoCliente by checking carbon tag/client
+    const tipoCliente = isCarbonoTag(p) ? 'retainer' : (p.tipoCliente || p.type || (p.etiqueta === 'carbono' ? 'retainer' : 'variable'));
     let ingreso = 0;
-    if (p.tipoCliente === 'retainer') {
-      const ret = retainers.find(r => (r.etiqueta || r.cliente || '').toString().toLowerCase() === (p.etiqueta || p.cliente || '').toString().toLowerCase() && r.activo);
+    if (tipoCliente === 'retainer') {
+      const ret = retainers.find(r => (r.etiqueta || r.cliente || '').toString().toLowerCase() === (p.etiqueta || p.cliente || p.client || '').toString().toLowerCase() && r.activo);
       if (ret) ingreso = Number((ret.pagoMensual || ret.monthly || 0) / Math.max(1, ret.proyectosMensuales || 1));
     } else {
-      ingreso = Number(p.ingreso || 0);
+      ingreso = Number(p.ingreso || p.income || 0);
     }
-    const costoTotal = calcularCostoTotal(p.costos || {});
+    const costosObj = p.costos || p.costos || p.properties?.costos || {};
+    const costoTotal = calcularCostoTotal(costosObj || {});
     const margen = ingreso - costoTotal;
     const porcentajeMargen = ingreso > 0 ? (margen / ingreso) * 100 : 0;
-    return { ...p, ingreso, costoTotal, margen, porcentajeMargen };
+    return { ...p, ingreso, costoTotal, margen, porcentajeMargen, tipoCliente, costosObj };
   }), [proyectos, retainers]);
 
   const contadorRetainers = useMemo(() => {
@@ -134,6 +145,54 @@ export default function VistaFinanzas() {
     if (saveRetainer) { await saveRetainer(editandoRetainer); if (fetchRetainers) await fetchRetainers(); }
     else { setRetainers(prev => prev.map(r => r.id === editandoRetainer.id ? editandoRetainer : r)); }
     setEditandoRetainer(null);
+  };
+
+  // add editing state
+  const [editingProjectId, setEditingProjectId] = useState(null);
+  const [editingProjectData, setEditingProjectData] = useState(null);
+
+  // editing helpers
+  const startEditProject = (p) => {
+    setEditingProjectId(p.id);
+    // prepare editable data (income + costs breakdown)
+    setEditingProjectData({
+      ...p,
+      ingreso: Number(p.ingreso || p.income || 0),
+      costos: { ...(p.costos || p.properties?.costos || {}), grabacion: (p.costos || p.properties?.costos || {}).grabacion || (p.costos || {}).grabacion || 0, edicion: (p.costos || p.properties?.costos || {}).edicion || 0, freelancers: (p.costos || p.properties?.costos || {}).freelancers || 0, movilidad: (p.costos || p.properties?.costos || {}).movilidad || 0, equipos: (p.costos || p.properties?.costos || {}).equipos || 0 }
+    });
+  };
+
+  const cancelEditProject = () => { setEditingProjectId(null); setEditingProjectData(null); };
+
+  const saveEditedProject = async () => {
+    if (!editingProjectData) return;
+    // build payload for updateProject: ensure fields kept consistent with normalizeProject
+    const payload = {
+      ...editingProjectData,
+      ingreso: Number(editingProjectData.ingreso || 0),
+      income: Number(editingProjectData.ingreso || 0),
+      costos: {
+        grabacion: Number(editingProjectData.costos.grabacion || 0),
+        edicion: Number(editingProjectData.costos.edicion || 0),
+        freelancers: Number(editingProjectData.costos.freelancers || 0),
+        movilidad: Number(editingProjectData.costos.movilidad || 0),
+        equipos: Number(editingProjectData.costos.equipos || 0),
+      }
+    };
+
+    try {
+      if (updateProject) {
+        await updateProject(payload);
+        // refresh local set (hook in useStore will update projects via supabase channel or fetch)
+      } else {
+        // fallback local update
+        setProyectos(prev => prev.map(pr => pr.id === payload.id ? { ...pr, ...payload } : pr));
+      }
+    } catch (err) {
+      console.error('Error saving edited project:', err);
+    } finally {
+      cancelEditProject();
+    }
   };
 
   const COLORS = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'];
