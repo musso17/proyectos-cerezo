@@ -135,6 +135,8 @@ const getProjectEventTypeForDay = (project, range, day) => {
   const isDeadlineDay = deadline ? isSameDay(deadline, day) : false;
 
   if (stage === 'edicion') {
+    // If there is no explicit deadline, treat it as an ongoing editing event
+    if (!project.deadline) return 'edicion';
     const durationDays = differenceInCalendarDays(range.end, range.start) + 1;
     if (durationDays <= 1) {
       return 'entrega';
@@ -207,8 +209,18 @@ const VistaCalendario = () => {
   const processedProjects = useMemo(
     () =>
       filteredProjects.map((project) => {
-        const range = getCalendarRange(project);
+        let range = getCalendarRange(project);
         const memberName = ensureMemberName(project.manager);
+
+        // If the project is in editing stage and has no deadline and is not completed,
+        // show it in the calendar as an 'edicion' in progress. Use startDate or today as the date.
+        const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
+        const isCompleted = (project.status || '').toString().trim().toLowerCase() === 'completado';
+        if (!range && stage === 'edicion' && !project.deadline && !isCompleted) {
+          const start = getProjectRecordingDate(project) || parseDate(project.startDate) || startOfDay(new Date());
+          range = { start, end: start };
+        }
+
         return { project, range, memberName };
       }),
     [filteredProjects]
