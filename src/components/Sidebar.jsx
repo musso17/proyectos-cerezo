@@ -21,8 +21,9 @@ const Sidebar = ({ variant = 'desktop', className, onNavigate }) => {
     { id: 'Dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'Table', icon: List, label: 'Table' },
     { id: 'Calendar', icon: Calendar, label: 'Calendar' },
-    { id: 'Timeline', icon: GanttChart, label: 'Timeline' },
-    { id: 'Gallery', icon: LayoutGrid, label: 'Gallery' },
+  { id: 'Timeline', icon: GanttChart, label: 'Timeline' },
+  { id: 'Gallery', icon: LayoutGrid, label: 'Gallery' },
+  { id: 'Finanzas', icon: LayoutGrid, label: 'Finanzas' },
   ];
 
   const containerClasses = clsx(

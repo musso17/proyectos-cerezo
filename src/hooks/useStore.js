@@ -6,7 +6,7 @@ import { generarTareasEdicionDesdeProyectos } from '../utils/editingTasks';
 import { normalizeStatus, ALLOWED_STATUSES } from '../utils/statusHelpers';
 
 const LOCAL_STORAGE_KEY = 'cerezo-projects';
-const DEFAULT_ALLOWED_VIEWS = ['Dashboard', 'Table', 'Calendar', 'Timeline', 'Gallery'];
+const DEFAULT_ALLOWED_VIEWS = ['Dashboard', 'Table', 'Calendar', 'Timeline', 'Gallery', 'Finanzas'];
 const FRANCISCO_EMAIL = 'francisco@carbonomkt.com';
 
 const isFranciscoUser = (user) => user?.email?.toString().trim().toLowerCase() === FRANCISCO_EMAIL;
