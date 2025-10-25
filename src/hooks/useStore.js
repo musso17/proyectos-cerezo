@@ -423,16 +423,15 @@ const useStore = create((set, get) => ({
 
   // Retainers (clientes fijos) helpers
   fetchFinancialData: async () => {
-    const { fetchProjects, fetchRetainers } = get();
-    // No establecer loading aquí para evitar parpadeos si los datos ya están cacheados.
-    // Lo haremos dentro de las funciones si es necesario.
+    // Esta función ahora se asegura de que AMBOS tipos de datos se carguen.
+    const { fetchProjects, fetchRetainers, projects, retainers } = get();
     set({ loading: true, error: null });
     try {
       // Ejecutar ambas cargas en paralelo para mayor eficiencia
       await Promise.all([fetchProjects(), fetchRetainers()]);
     } catch (error) {
       console.error("Error al cargar datos financieros:", error);
-      set({ error: "No se pudieron cargar los datos financieros." });
+      set({ error: "No se pudieron cargar los datos financieros.", loading: false });
     } finally {
       set({ loading: false });
     }
@@ -518,8 +517,8 @@ const useStore = create((set, get) => ({
   },
 
   fetchProjects: async () => {
-    // Ya no gestiona el estado loading globalmente, lo hará la función contenedora.
-    // set({ loading: true, error: null });
+    // Restauramos el manejo del estado de carga, pero de forma más segura.
+    set({ loading: true, error: null });
 
     if (!supabaseClient) {
       const localProjects = readLocalProjects();
@@ -527,7 +526,7 @@ const useStore = create((set, get) => ({
       set({
         projects: filteredProjects,
         editingTasks: buildEditingTasks(filteredProjects),
-        // loading: false,
+        loading: false, // Aseguramos que loading se ponga en false
       });
       return;
     }
@@ -547,7 +546,7 @@ const useStore = create((set, get) => ({
       persistLocalProjects(projects);
       const filteredProjects = filterProjectsForUser(projects, get().currentUser);
       set({ projects: filteredProjects, editingTasks: buildEditingTasks(filteredProjects) });
-    } catch (error) {
+    } catch (error) { // En caso de error, también desactivamos el loading.
       console.error('Error fetching projects:', error);
       const localProjects = readLocalProjects();
       const filteredProjects = filterProjectsForUser(localProjects, get().currentUser);
@@ -556,10 +555,10 @@ const useStore = create((set, get) => ({
         projects: filteredProjects,
         editingTasks: buildEditingTasks(filteredProjects),
       });
-    } // Se elimina el finally para que la función contenedora controle el loading.
-    // finally {
-    //   set({ loading: false });
-    // }
+    } finally {
+      // El finally se ejecuta siempre, asegurando que el loading no se quede atascado.
+      set({ loading: false });
+    }
   },
 
   addProject: async (project, options = {}) => {
