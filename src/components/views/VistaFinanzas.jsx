@@ -110,9 +110,9 @@ export default function VistaFinanzas() {
     if (!nuevoRetainer.cliente || !nuevoRetainer.pagoMensual || !nuevoRetainer.proyectosMensuales) return;
     const retainer = { id: Date.now(), cliente: nuevoRetainer.cliente, pagoMensual: Number(nuevoRetainer.pagoMensual), proyectosMensuales: Number(nuevoRetainer.proyectosMensuales), etiqueta: nuevoRetainer.etiqueta || nuevoRetainer.cliente.toLowerCase().replace(/\s+/g, ''), activo: true };
     await saveRetainer?.(retainer);
-    fetchRetainers?.();
+    // fetchRetainers?.(); // Eliminado: saveRetainer ya actualiza el estado y la suscripción en tiempo real maneja los cambios.
     setMostrarFormRetainer(false);
-  }, [nuevoRetainer, saveRetainer, fetchRetainers]);
+  }, [nuevoRetainer, saveRetainer]);
 
   // Opcional: Mostrar un indicador de carga mientras los datos se obtienen
   if (loading && proyectos.length === 0) {
