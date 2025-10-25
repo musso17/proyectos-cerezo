@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import useStore from '../../hooks/useStore';
-import { format } from 'date-fns';
+import { format, parseISO, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 // Financial dashboard for authorized user
@@ -161,6 +161,63 @@ const VistaFinanzas = () => {
     return { revenue, totalCost, margin, clientsActive, totalProjects };
   }, [financialEnriched]);
 
+  // Retainers (Clientes fijos) - stored in localStorage under key 'cerezo-retainers'
+  const RETAINERS_KEY = 'cerezo-retainers';
+  const [retainers, setRetainers] = useState([]);
+  const [editingRetainerIndex, setEditingRetainerIndex] = useState(null);
+  const [retainerEdit, setRetainerEdit] = useState({ client: '', monthly: '', startDate: '', endDate: '', tag: '' });
+
+  useEffect(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(RETAINERS_KEY) : null;
+      if (raw) {
+        setRetainers(JSON.parse(raw));
+      } else {
+        // seed default Carbono entry as requested
+        const seed = [
+          { client: 'Carbono', monthly: 4000, startDate: '2024-01-01', endDate: '', tag: 'carbono' },
+        ];
+        setRetainers(seed);
+        if (typeof window !== 'undefined') window.localStorage.setItem(RETAINERS_KEY, JSON.stringify(seed));
+      }
+    } catch (err) {
+      console.error('Error reading retainers:', err);
+    }
+  }, []);
+
+  const saveRetainers = (next) => {
+    setRetainers(next);
+    try {
+      if (typeof window !== 'undefined') window.localStorage.setItem(RETAINERS_KEY, JSON.stringify(next));
+    } catch (err) {
+      console.error('Error saving retainers:', err);
+    }
+  };
+
+  const startOfCurrentMonth = () => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  };
+
+  const computeFixedRetainersForMonth = (monthDate) => {
+    const start = monthDate ? new Date(monthDate.getFullYear(), monthDate.getMonth(), 1) : startOfCurrentMonth();
+    const end = endOfMonth(start);
+    return retainers.reduce((sum, r) => {
+      try {
+        const s = r.startDate ? parseISO(r.startDate) : null;
+        const e = r.endDate ? parseISO(r.endDate) : null;
+        const started = s ? s.getTime() <= start.getTime() : true;
+        const notEnded = e ? e.getTime() >= end.getTime() : true; // include open-ended
+        if (started && notEnded) return sum + Number(r.monthly || 0);
+      } catch (err) {
+        // ignore parse errors
+      }
+      return sum;
+    }, 0);
+  };
+
+  const fixedRetainersThisMonth = computeFixedRetainersForMonth();
+
   const handleInput = (k) => (e) => setForm((prev) => ({ ...prev, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
 
   const handleAdd = () => {
@@ -212,6 +269,81 @@ const VistaFinanzas = () => {
         <div className="glass-panel p-4">
           <p className="text-xs text-secondary">Proyectos totales</p>
           <p className="mt-2 text-2xl font-semibold">{kpis.totalProjects}</p>
+        </div>
+      </section>
+
+      <section className="mt-6 grid grid-cols-1 gap-4">
+        <div className="glass-panel p-4">
+          <h3 className="text-sm font-semibold">Retainers (Clientes fijos)</h3>
+          <p className="text-xs text-secondary">Tabla editable de ingresos mensuales fijos. Modifica Carbono según indicación.</p>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-secondary">
+                  <th className="py-2">Cliente</th>
+                  <th className="py-2">Ingreso Mensual Fijo (S/)</th>
+                  <th className="py-2">Fecha de Inicio</th>
+                  <th className="py-2">Fecha de Fin</th>
+                  <th className="py-2">Etiqueta Asociada</th>
+                  <th className="py-2">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {retainers.map((r, idx) => (
+                  <tr key={r.client + idx} className="align-top border-t border-border/40">
+                    <td className="py-2">{r.client}</td>
+                    <td className="py-2">
+                      {editingRetainerIndex === idx ? (
+                        <input value={retainerEdit.monthly} onChange={(e) => setRetainerEdit((s) => ({ ...s, monthly: e.target.value }))} className="rounded-2xl bg-slate-900/60 px-2 py-1" />
+                      ) : (
+                        <strong>S/ {Number(r.monthly || 0).toLocaleString()}</strong>
+                      )}
+                    </td>
+                    <td className="py-2">
+                      {editingRetainerIndex === idx ? (
+                        <input type="date" value={retainerEdit.startDate} onChange={(e) => setRetainerEdit((s) => ({ ...s, startDate: e.target.value }))} className="rounded-2xl bg-slate-900/60 px-2 py-1" />
+                      ) : (
+                        r.startDate ? format(new Date(r.startDate), 'dd/MM/yyyy') : ''
+                      )}
+                    </td>
+                    <td className="py-2">
+                      {editingRetainerIndex === idx ? (
+                        <input type="date" value={retainerEdit.endDate} onChange={(e) => setRetainerEdit((s) => ({ ...s, endDate: e.target.value }))} className="rounded-2xl bg-slate-900/60 px-2 py-1" />
+                      ) : (
+                        r.endDate ? format(new Date(r.endDate), 'dd/MM/yyyy') : ''
+                      )}
+                    </td>
+                    <td className="py-2">{editingRetainerIndex === idx ? (
+                      <input value={retainerEdit.tag} onChange={(e) => setRetainerEdit((s) => ({ ...s, tag: e.target.value }))} className="rounded-2xl bg-slate-900/60 px-2 py-1" />
+                    ) : (
+                      r.tag || ''
+                    )}</td>
+                    <td className="py-2">
+                      {editingRetainerIndex === idx ? (
+                        <div className="flex gap-2">
+                          <button className="rounded-full bg-slate-700 px-3 py-1 text-sm" onClick={() => { setEditingRetainerIndex(null); setRetainerEdit({ client: '', monthly: '', startDate: '', endDate: '', tag: '' }); }}>Cancelar</button>
+                          <button className="rounded-full bg-emerald-500 px-3 py-1 text-sm" onClick={() => {
+                            const next = [...retainers];
+                            next[idx] = { client: retainerEdit.client || next[idx].client, monthly: Number(retainerEdit.monthly || 0), startDate: retainerEdit.startDate || next[idx].startDate, endDate: retainerEdit.endDate || next[idx].endDate, tag: retainerEdit.tag || next[idx].tag };
+                            saveRetainers(next);
+                            setEditingRetainerIndex(null);
+                            setRetainerEdit({ client: '', monthly: '', startDate: '', endDate: '', tag: '' });
+                          }}>Guardar</button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button className="rounded-full bg-slate-800/60 px-3 py-1 text-sm" onClick={() => { setEditingRetainerIndex(idx); setRetainerEdit({ client: r.client, monthly: String(r.monthly || ''), startDate: r.startDate || '', endDate: r.endDate || '', tag: r.tag || '' }); }}>Editar</button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-3">
+            <p className="text-xs text-secondary">Ingresos Fijos (este mes): <strong>{currency(fixedRetainersThisMonth)}</strong></p>
+          </div>
         </div>
       </section>
 
