@@ -120,6 +120,7 @@ const renderStatusBadge = (status) => {
 const VistaTabla = () => {
   const projects = useStore((state) => state.projects);
   const openModal = useStore((state) => state.openModal);
+  const updateProject = useStore((state) => state.updateProject);
   const deleteProject = useStore((state) => state.deleteProject);
   const searchTerm = useStore((state) => state.searchTerm);
 
@@ -465,7 +466,26 @@ const orderedProjects = useMemo(() => {
                         return managers.length > 0 ? managers.join(', ') : 'Sin asignar';
                       })()}
                     </td>
-                    <td className="px-6 py-5">{renderStatusBadge(project.status)}</td>
+                    <td className="px-6 py-5">
+                      <select
+                        value={project.status || 'Pendiente'}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          const nextStatus = e.target.value;
+                          if (nextStatus === project.status) return;
+                          // merge and update project
+                          updateProject({ ...project, status: nextStatus });
+                        }}
+                        className="rounded-2xl border border-border/60 bg-slate-900/70 px-3 py-2 text-sm text-primary focus:border-accent focus:outline-none"
+                      >
+                        {Object.keys(statusStyles).map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="px-6 py-5 text-sm text-secondary">{formatDate(project.startDate)}</td>
                     <td className="px-6 py-5 text-sm text-secondary">
                       <div className="flex items-center gap-2">

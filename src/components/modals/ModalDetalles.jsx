@@ -338,7 +338,17 @@ const ModalDetalles = () => {
         ? recordingDate || editedProject.startDate || ''
         : editedProject.startDate || '';
 
-    const deadline = editedProject.deadline || (stage === STAGES.GRABACION ? startDate : editedProject.deadline);
+    // Only allow missing deadline for editing stage. For recording stage, default to startDate.
+    // For other stages, try to keep existing deadline or fallback to startDate if missing.
+    let deadline = editedProject.deadline || '';
+    if (stage === STAGES.GRABACION) {
+      deadline = recordingDate || startDate || '';
+    } else if (stage === STAGES.EDICION) {
+      // allow empty deadline until project is completed
+      deadline = editedProject.deadline || '';
+    } else {
+      deadline = editedProject.deadline || startDate || '';
+    }
 
     const updatedProperties = {
       ...editedProject.properties,

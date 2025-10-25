@@ -459,7 +459,10 @@ const buildDashboardData = (projects) => {
       recordingByWeek.set(key, current + 1);
     }
 
-    if (!isCompleted) {
+    // Manager load should only consider projects that are actively being worked on
+    // We include only projects whose status is 'En progreso' or 'En revisión' (normalized labels)
+    const considerForLoad = ['En progreso', 'En revisión'];
+    if (considerForLoad.includes(statusLabel)) {
       const assignedManagers = managers.length > 0 ? managers : ['Sin asignar'];
       assignedManagers.forEach((manager) => {
         managerLoad.set(manager, (managerLoad.get(manager) || 0) + 1);
