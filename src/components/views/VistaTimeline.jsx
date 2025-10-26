@@ -155,135 +155,141 @@ const VistaTimeline = () => {
   );
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Clock className="text-accent" size={28} />
-          <div>
-            <h2 className="text-2xl font-bold text-primary">Disponibilidad por responsable</h2>
-            <p className="text-sm text-secondary/80">Visualiza grabaciones y ediciones programadas.</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setViewMode('week')}
-            className={`rounded-full border px-3 py-1 text-sm transition ${
-              viewMode === 'week'
-                ? 'border-accent bg-accent/20 text-primary'
-                : 'border-border bg-slate-900/50 text-secondary hover:border-accent/40 hover:text-primary'
-            }`}
-          >
-            Semana
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('month')}
-            className={`rounded-full border px-3 py-1 text-sm transition ${
-              viewMode === 'month'
-                ? 'border-accent bg-accent/20 text-primary'
-                : 'border-border bg-slate-900/50 text-secondary hover:border-accent/40 hover:text-primary'
-            }`}
-          >
-            Mes
-          </button>
-        </div>
+    <>
+      <div className="md:hidden text-center p-8">
+        <p className="text-lg font-semibold">Vista no disponible</p>
+        <p className="text-slate-400">La vista de línea de tiempo no está optimizada para dispositivos móviles. Por favor, usa una pantalla más grande.</p>
       </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border/60 bg-slate-900/60 px-4 py-3">
-        <div className="flex items-center gap-3 text-sm text-secondary">
-          <CalendarIcon size={16} />
-          <span className="text-primary font-medium">{timelineTitle}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handlePrevious}
-            className="rounded-full border border-border/60 bg-slate-900 p-2 text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={handleToday}
-            className="rounded-full border border-border/60 bg-slate-900 px-4 py-1 text-xs font-medium text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
-          >
-            Hoy
-          </button>
-          <button
-            type="button"
-            onClick={handleNext}
-            className="rounded-full border border-border/60 bg-slate-900 p-2 text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
-          >
-            <ChevronRight size={16} />
-          </button>
-        </div>
-      </div>
-
-      {visibleDates.length === 0 || memberOrder.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-border/60 bg-slate-900/60 p-6 text-center text-sm text-secondary">
-          No hay proyectos con fechas asignadas en el periodo seleccionado.
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <div className="min-w-[1000px] rounded-3xl border border-border/60 bg-slate-950/70">
-            <div
-              className="grid text-xs uppercase tracking-wide text-secondary"
-              style={{ gridTemplateColumns }}
-            >
-              <div className="sticky left-0 z-10 border-b border-border/60 bg-slate-950/80 px-4 py-3 text-left text-[11px] font-semibold text-secondary/80">
-                Responsable
-              </div>
-              {visibleDates.map((date) => (
-                <div
-                  key={date.toISOString()}
-                  className="border-b border-border/60 px-2 py-3 text-center text-[11px] font-semibold text-secondary"
-                >
-                  <span className="block text-sm text-primary">{format(date, 'd')}</span>
-                  <span className="text-[10px] text-secondary/70">{format(date, 'EEE', { locale: es })}</span>
-                </div>
-              ))}
-
-              {assignmentsByManager.map((row) => {
-                const palette = TEAM_STYLES[row.manager] || TEAM_STYLES.default;
-                return (
-                  <React.Fragment key={row.manager}>
-                    <div
-                      className={`sticky left-0 z-10 border-b border-border/60 bg-slate-950/90 px-4 py-3 text-sm font-semibold text-primary ${palette.badge || ''}`}
-                    >
-                      {row.manager || 'Sin responsable'}
-                    </div>
-                    {row.dates.map((cell) => (
-                      <div
-                        key={cell.key}
-                        className="border-b border-l border-border/50 px-1 py-2"
-                      >
-                        <div className="flex flex-col gap-1">
-                          {cell.items.map(({ project, stage }) => {
-                            const style = STAGE_STYLES[stage] || 'bg-slate-700/70 border border-slate-600/60 text-slate-100';
-                            return (
-                              <button
-                                key={`${project.id}-${cell.key}`}
-                                type="button"
-                                onClick={() => openModal(project)}
-                                className={`line-clamp-2 rounded-xl px-2 py-1 text-[11px] font-medium transition hover:-translate-y-0.5 hover:shadow-lg ${style}`}
-                                title={project.name}
-                              >
-                                {project.name || 'Proyecto sin título'}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </React.Fragment>
-                );
-              })}
+      <div className="hidden md:block space-y-6 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Clock className="text-accent" size={28} />
+            <div>
+              <h2 className="text-2xl font-bold text-primary">Disponibilidad por responsable</h2>
+              <p className="text-sm text-secondary/80">Visualiza grabaciones y ediciones programadas.</p>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setViewMode('week')}
+              className={`rounded-full border px-3 py-1 text-sm transition ${
+                viewMode === 'week'
+                  ? 'border-accent bg-accent/20 text-primary'
+                  : 'border-border bg-slate-900/50 text-secondary hover:border-accent/40 hover:text-primary'
+              }`}
+            >
+              Semana
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('month')}
+              className={`rounded-full border px-3 py-1 text-sm transition ${
+                viewMode === 'month'
+                  ? 'border-accent bg-accent/20 text-primary'
+                  : 'border-border bg-slate-900/50 text-secondary hover:border-accent/40 hover:text-primary'
+              }`}
+            >
+              Mes
+            </button>
+          </div>
         </div>
-      )}
-    </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border/60 bg-slate-900/60 px-4 py-3">
+          <div className="flex items-center gap-3 text-sm text-secondary">
+            <CalendarIcon size={16} />
+            <span className="text-primary font-medium">{timelineTitle}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePrevious}
+              className="rounded-full border border-border/60 bg-slate-900 p-2 text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={handleToday}
+              className="rounded-full border border-border/60 bg-slate-900 px-4 py-1 text-xs font-medium text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
+            >
+              Hoy
+            </button>
+            <button
+              type="button"
+              onClick={handleNext}
+              className="rounded-full border border-border/60 bg-slate-900 p-2 text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+
+        {visibleDates.length === 0 || memberOrder.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-border/60 bg-slate-900/60 p-6 text-center text-sm text-secondary">
+            No hay proyectos con fechas asignadas en el periodo seleccionado.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <div className="min-w-[1000px] rounded-3xl border border-border/60 bg-slate-950/70">
+              <div
+                className="grid text-xs uppercase tracking-wide text-secondary"
+                style={{ gridTemplateColumns }}
+              >
+                <div className="sticky left-0 z-20 border-b border-border/60 bg-slate-900 px-4 py-3 text-left text-[11px] font-semibold text-secondary/80">
+                  Responsable
+                </div>
+                {visibleDates.map((date) => (
+                  <div
+                    key={date.toISOString()}
+                    className="border-b border-border/60 px-2 py-3 text-center text-[11px] font-semibold text-secondary"
+                  >
+                    <span className="block text-sm text-primary">{format(date, 'd')}</span>
+                    <span className="text-[10px] text-secondary/70">{format(date, 'EEE', { locale: es })}</span>
+                  </div>
+                ))}
+
+                {assignmentsByManager.map((row) => {
+                  const palette = TEAM_STYLES[row.manager] || TEAM_STYLES.default;
+                  return (
+                    <React.Fragment key={row.manager}>
+                      <div
+                        className={`sticky left-0 z-20 border-b border-border/60 bg-slate-900 px-4 py-3 text-sm font-semibold text-primary ${palette.pill || ''}`}
+                      >
+                        {row.manager || 'Sin responsable'}
+                      </div>
+                      {row.dates.map((cell) => (
+                        <div
+                          key={cell.key}
+                          className="border-b border-l border-border/50 px-1 py-2"
+                        >
+                          <div className="flex flex-col gap-1">
+                            {cell.items.map(({ project, stage }) => {
+                              const style = STAGE_STYLES[stage] || 'bg-slate-700/70 border border-slate-600/60 text-slate-100';
+                              return (
+                                <button
+                                  key={`${project.id}-${cell.key}`}
+                                  type="button"
+                                  onClick={() => openModal(project)}
+                                  className={`line-clamp-2 rounded-xl px-2 py-1 text-[11px] font-medium transition hover:-translate-y-0.5 hover:shadow-lg ${style}`}
+                                  title={project.name}
+                                >
+                                  {project.name || 'Proyecto sin título'}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 

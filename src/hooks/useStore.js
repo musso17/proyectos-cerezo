@@ -7,10 +7,12 @@ import { normalizeStatus, ALLOWED_STATUSES } from '../utils/statusHelpers';
 
 const LOCAL_STORAGE_KEY = 'cerezo-projects';
 const RETAINERS_KEY = 'cerezo-retainers';
-const DEFAULT_ALLOWED_VIEWS = ['Dashboard', 'Table', 'Calendar', 'Timeline', 'Gallery', 'Finanzas'];
+const DEFAULT_ALLOWED_VIEWS = ['Table', 'Calendar', 'Timeline', 'Gallery'];
 const FRANCISCO_EMAIL = 'francisco@carbonomkt.com';
+const CEO_EMAIL = 'hola@cerezoperu.com';
 
 const isFranciscoUser = (user) => user?.email?.toString().trim().toLowerCase() === FRANCISCO_EMAIL;
+const isCeoUser = (user) => user?.email?.toString().trim().toLowerCase() === CEO_EMAIL;
 
 import { normalizeString } from '../utils/normalize';
 
@@ -422,20 +424,46 @@ const useStore = create((set, get) => ({
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 
   // Retainers (clientes fijos) helpers
+  // ACCIÓN ORQUESTADORA PARA VISTA FINANZAS
   fetchFinancialData: async () => {
-    // Esta función ahora se asegura de que AMBOS tipos de datos se carguen.
-    const { fetchProjects, fetchRetainers, projects, retainers } = get();
+    // Esta función es la ÚNICA responsable de su ciclo de carga.
+    const { _fetchProjects, _fetchRetainers } = get();
     set({ loading: true, error: null });
     try {
       // Ejecutar ambas cargas en paralelo para mayor eficiencia
-      await Promise.all([fetchProjects(), fetchRetainers()]);
+      await Promise.all([_fetchProjects(), _fetchRetainers()]);
     } catch (error) {
       console.error("Error al cargar datos financieros:", error);
       set({ error: "No se pudieron cargar los datos financieros.", loading: false });
     } finally {
+      // Se asegura de que loading sea false solo cuando AMBAS promesas terminan.
       set({ loading: false });
     }
   },
+
+  // FUNCIÓN INTERNA: Solo obtiene datos, no gestiona 'loading'.
+  _fetchRetainers: async () => {
+    if (!supabaseClient) {
+      const local = readLocalRetainers();
+      set({ retainers: local });
+      return local;
+    }
+    try {
+      const { data, error } = await supabaseClient.from('retainers').select('*');
+      if (error) throw error;
+      const retainers = Array.isArray(data) ? data : [];
+      persistLocalRetainers(retainers);
+      set({ retainers });
+      return retainers;
+    } catch (err) {
+      console.error('Error fetching retainers:', err);
+      const local = readLocalRetainers(); // Fallback a local
+      set({ retainers: local });
+      return local;
+    }
+  },
+
+  // DEPRECATED: Se mantiene por si alguna parte del código aún la usa, pero ahora llama a la interna.
   fetchRetainers: async () => {
     if (!supabaseClient) {
       const local = readLocalRetainers();
@@ -457,7 +485,7 @@ const useStore = create((set, get) => ({
     }
   },
 
-  saveRetainer: async (retainer) => {
+  saveRetainer: async (retainer) => { // saveRetainer no necesita gestionar loading
     // retainer must have at least client and monthly
     const next = { ...retainer };
     if (!supabaseClient) {
@@ -476,9 +504,10 @@ const useStore = create((set, get) => ({
       // upsert by client
       const { data, error } = await supabaseClient.from('retainers').upsert(payload, { onConflict: 'client' }).select();
       if (error) throw error;
-      const list = Array.isArray(data) ? data : [];
-      persistLocalRetainers(list);
-      set({ retainers: list });
+      // La suscripción en tiempo real se encargará de actualizar el estado.
+      // Para una respuesta más inmediata, podemos llamar a _fetchRetainers.
+      const { _fetchRetainers } = get();
+      await _fetchRetainers();
     } catch (err) {
       console.error('Error saving retainer:', err);
     }
@@ -516,9 +545,21 @@ const useStore = create((set, get) => ({
     return merged;
   },
 
+  // ACCIÓN ORQUESTADORA PARA VISTAS NORMALES
   fetchProjects: async () => {
-    // Restauramos el manejo del estado de carga, pero de forma más segura.
     set({ loading: true, error: null });
+    try {
+      await get()._fetchProjects();
+    } catch (error) {
+      // El error ya se maneja dentro de _fetchProjects
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  // FUNCIÓN INTERNA: Solo obtiene datos, no gestiona 'loading'.
+  _fetchProjects: async () => {
+    // set({ loading: true, error: null }); // Se elimina el control de loading
 
     if (!supabaseClient) {
       const localProjects = readLocalProjects();
@@ -526,7 +567,6 @@ const useStore = create((set, get) => ({
       set({
         projects: filteredProjects,
         editingTasks: buildEditingTasks(filteredProjects),
-        loading: false, // Aseguramos que loading se ponga en false
       });
       return;
     }
@@ -546,7 +586,7 @@ const useStore = create((set, get) => ({
       persistLocalProjects(projects);
       const filteredProjects = filterProjectsForUser(projects, get().currentUser);
       set({ projects: filteredProjects, editingTasks: buildEditingTasks(filteredProjects) });
-    } catch (error) { // En caso de error, también desactivamos el loading.
+    } catch (error) {
       console.error('Error fetching projects:', error);
       const localProjects = readLocalProjects();
       const filteredProjects = filterProjectsForUser(localProjects, get().currentUser);
@@ -555,10 +595,7 @@ const useStore = create((set, get) => ({
         projects: filteredProjects,
         editingTasks: buildEditingTasks(filteredProjects),
       });
-    } finally {
-      // El finally se ejecuta siempre, asegurando que el loading no se quede atascado.
-      set({ loading: false });
-    }
+    } // Se elimina el 'finally'
   },
 
   addProject: async (project, options = {}) => {
@@ -742,9 +779,15 @@ const useStore = create((set, get) => ({
   },
   setCurrentUser: (user) =>
     set((state) => {
-      const allowedViews = isFranciscoUser(user)
-        ? ['Dashboard', 'Table', 'Calendar', 'Gallery']
-        : DEFAULT_ALLOWED_VIEWS;
+      let allowedViews;
+      if (isFranciscoUser(user)) {
+        allowedViews = ['Dashboard', 'Table', 'Calendar', 'Gallery'];
+      } else if (isCeoUser(user)) {
+        allowedViews = ['Dashboard', ...DEFAULT_ALLOWED_VIEWS];
+      } else {
+        allowedViews = DEFAULT_ALLOWED_VIEWS.filter(v => v !== 'Dashboard');
+      }
+
       const nextView = allowedViews.includes(state.currentView) ? state.currentView : allowedViews[0];
       const currentProjects = state.projects && state.projects.length > 0 ? state.projects : readLocalProjects();
       const filteredProjects = filterProjectsForUser(currentProjects, user);

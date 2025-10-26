@@ -22,6 +22,7 @@ import {
   Users,
   AlertTriangle,
   GaugeCircle,
+  Briefcase,
 } from 'lucide-react';
 import {
   differenceInCalendarDays,
@@ -41,7 +42,6 @@ const VistaDashboard = () => {
 
   const {
     totals,
-    completedThisMonth,
     avgDeliveryDays,
     statusData,
     activeStatusData,
@@ -51,12 +51,49 @@ const VistaDashboard = () => {
     projectsUnder48h,
     totalProjectsCompleted,
     lateEvents,
-    upcomingEvents,
     managerLoad,
   } = useMemo(() => buildDashboardData(projects), [projects]);
 
+  const { carbonoProjectsThisMonth, variableProjectsCount } = useMemo(() => {
+    const currentMonth = format(new Date(), 'yyyy-MM');
+    const carbonoProjects = projects.filter(p => {
+      const isCarbono = (p.properties?.tag === 'carbono') || (p.client?.toLowerCase() === 'carbono') || (p.cliente?.toLowerCase() === 'carbono');
+      const projectDate = p.startDate ? format(parseISO(p.startDate), 'yyyy-MM') : null;
+      return isCarbono && projectDate === currentMonth;
+    });
+    const variableProjects = projects.filter(p => !p.properties?.tag || p.properties.tag !== 'carbono');
+    return {
+      carbonoProjectsThisMonth: carbonoProjects.length,
+      variableProjectsCount: variableProjects.length
+    };
+  }, [projects]);
+
   return (
     <div className="space-y-6">
+      {carbonoProjectsThisMonth > 6 && (
+        <div className="bg-red-500/15 border border-red-400/30 text-red-300 p-4 rounded-lg flex items-center gap-3">
+          <AlertTriangle />
+          <span>
+            <strong>Alerta:</strong> Se han agendado más de 6 proyectos de Carbono para este mes.
+          </span>
+        </div>
+      )}
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-2">
+        <MetricCard
+          title="Proyectos Carbono (Mes)"
+          value={`${carbonoProjectsThisMonth} / 6`}
+          description="Proyectos mensuales con Carbono"
+          icon={Briefcase}
+          accent="text-purple-300 bg-purple-500/15 border-purple-400/30"
+        />
+        <MetricCard
+          title="Clientes Variables"
+          value={variableProjectsCount}
+          description="Proyectos fuera del retainer de Carbono"
+          icon={Users}
+          accent="text-indigo-300 bg-indigo-500/15 border-indigo-400/30"
+        />
+      </section>
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           title="Proyectos activos"
@@ -88,14 +125,7 @@ const VistaDashboard = () => {
         />
       </section>
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <MetricCard
-          title="Completados este mes"
-          value={completedThisMonth}
-          description="Proyectos completados durante el mes actual"
-          icon={GaugeCircle}
-          accent="text-fuchsia-300 bg-fuchsia-500/15 border-fuchsia-400/30"
-        />
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-2">
         <MetricCard
           title="Tiempo promedio de entrega"
           value={avgDeliveryDays !== null ? `${avgDeliveryDays} días` : 'Sin datos'}
@@ -104,7 +134,7 @@ const VistaDashboard = () => {
           accent="text-cyan-300 bg-cyan-500/15 border-cyan-400/30"
         />
         <MetricCard
-          title="Proyectos editados &lt; 48h"
+          title="Proyectos editados < 48h"
           value={
             totalProjectsCompleted > 0
               ? `${projectsUnder48h} / ${totalProjectsCompleted}`
@@ -116,34 +146,8 @@ const VistaDashboard = () => {
         />
       </section>
 
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-        <div className="glass-panel col-span-1 flex flex-col gap-4 rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all">
-          <Header title="Proyectos activos por estado" subtitle="Incluye únicamente proyectos no entregados" />
-          <ChartContainer>
-            {activeStatusData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={activeStatusData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                  <XAxis dataKey="status" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                  <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                  <RechartsTooltip
-                    contentStyle={{
-                      backgroundColor: '#0f172a',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(148,163,184,0.25)',
-                    }}
-                    formatter={(value) => [`${value} proyectos`, 'Total']}
-                  />
-                  <Bar dataKey="total" fill="#34d399" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyState message="No hay datos para mostrar" />
-            )}
-          </ChartContainer>
-        </div>
-
-        <div className="glass-panel col-span-1 flex flex-col gap-4 rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all xl:col-span-2">
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <div className="glass-panel col-span-1 flex flex-col gap-4 rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all xl:col-span-1">
           <Header title="Proyectos por cliente" subtitle="Clientes con proyectos registrados" />
           <ChartContainer>
             {clientsData.length > 0 ? (
@@ -208,8 +212,8 @@ const VistaDashboard = () => {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-4">
-        <div className="glass-panel flex flex-col gap-4 rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all">
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <div className="glass-panel col-span-1 flex flex-col gap-4 rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all">
           <Header title="Promedio de días de edición por tipo" subtitle="Cálculo entre la fecha de inicio y de finalización" />
           <ChartContainer>
             {editingAverageByType.length > 0 ? (
@@ -234,42 +238,6 @@ const VistaDashboard = () => {
             )}
           </ChartContainer>
         </div>
-      </section>
-
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-        <div className="glass-panel col-span-1 flex flex-col gap-3 rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all xl:col-span-3">
-          <Header title="Calendario de próximas grabaciones y entregas" subtitle="Eventos en los próximos 30 días" />
-          {upcomingEvents.length > 0 ? (
-            <ul className="divide-y divide-slate-800/60">
-              {upcomingEvents.map(({ id, date, label, project, description }) => (
-                <li key={`${id}-${label}`} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-border/60 bg-slate-900 text-secondary">
-                      <CalendarDays size={20} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-primary">
-                        {project}
-                      </p>
-                      <p className="text-xs text-secondary/80">{description}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 sm:flex-col sm:items-end">
-                    <span className="rounded-full border border-border/60 bg-slate-900 px-3 py-1 text-xs font-medium text-secondary">
-                      {label}
-                    </span>
-                    <span className="text-sm font-medium text-accent">
-                      {format(date, "d 'de' MMMM, HH:mm'h'", { locale: es })}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyState message="No hay eventos próximos en las próximas semanas" />
-          )}
-        </div>
-
         <div className="glass-panel col-span-1 flex flex-col gap-4 rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all">
           <Header title="Semáforo de carga por persona" subtitle="Proyectos activos asignados" />
           {managerLoad.length > 0 ? (
@@ -294,6 +262,31 @@ const VistaDashboard = () => {
             <AlertTriangle size={14} className="text-amber-300" />
             <span>Verifica la carga semanal para redistribuir si es necesario.</span>
           </div>
+        </div>
+        <div className="glass-panel col-span-1 flex flex-col gap-4 rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all">
+          <Header title="Proyectos activos por estado" subtitle="Incluye únicamente proyectos no entregados" />
+          <ChartContainer>
+            {activeStatusData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={activeStatusData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                  <XAxis dataKey="status" tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                  <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                  <RechartsTooltip
+                    contentStyle={{
+                      backgroundColor: '#0f172a',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(148,163,184,0.25)',
+                    }}
+                    formatter={(value) => [`${value} proyectos`, 'Total']}
+                  />
+                  <Bar dataKey="total" fill="#34d399" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState message="No hay datos para mostrar" />
+            )}
+          </ChartContainer>
         </div>
       </section>
 
