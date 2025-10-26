@@ -622,18 +622,6 @@ const ModalDetalles = () => {
                         placeholder="Nombre1, Nombre2, Nombre3"
                       />
                     </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-secondary">Notas rápidas</label>
-                      <textarea
-                        name="notes"
-                        value={editedProject.notes || ''}
-                        onChange={handleInputChange}
-                        rows={3}
-                        className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-900/70 px-4 py-2 text-sm text-primary placeholder:text-secondary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
-                        placeholder="Ideas, riesgos o recordatorios breves"
-                      />
-                    </div>
                   </div>
 
                   <div className="md:col-span-2 space-y-6">
@@ -705,33 +693,35 @@ const ModalDetalles = () => {
                       </div>
                     )}
 
-                    <div>
-                      <h3 className="text-sm font-semibold uppercase tracking-wide text-secondary">
-                        Planificación
-                      </h3>
-                      <div className="mt-3 grid gap-4 md:grid-cols-2">
-                        <div>
-                          <label className="text-sm font-medium text-secondary">Fecha de inicio</label>
-                          <input
-                            type="date"
-                            name="startDate"
-                            value={editedProject.startDate || ''}
-                            onChange={handleInputChange}
-                            className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-900/70 px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-secondary">Fecha de entrega</label>
-                          <input
-                            type="date"
-                            name="deadline"
-                            value={editedProject.deadline || ''}
-                            onChange={handleInputChange}
-                            className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-900/70 px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
-                          />
+                    {!isRecordingStage && (
+                      <div>
+                        <h3 className="text-sm font-semibold uppercase tracking-wide text-secondary">
+                          Planificación
+                        </h3>
+                        <div className="mt-3 grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label className="text-sm font-medium text-secondary">Fecha de inicio</label>
+                            <input
+                              type="date"
+                              name="startDate"
+                              value={editedProject.startDate || ''}
+                              onChange={handleInputChange}
+                              className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-900/70 px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-secondary">Fecha de entrega</label>
+                            <input
+                              type="date"
+                              name="deadline"
+                              value={editedProject.deadline || ''}
+                              onChange={handleInputChange}
+                              className="mt-2 w-full rounded-2xl border border-border/60 bg-slate-900/70 px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
 
                     <div>
                       <label className="text-sm font-medium text-secondary">Recursos compartidos</label>
