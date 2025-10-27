@@ -15,11 +15,34 @@ const INGRESO_PROVISIONAL_PROYECTO = 2500; // Placeholder
 const VistaFinanzasCEO = () => {
   const projects = useStore((state) => state.projects);
   const updateProject = useStore((state) => state.updateProject);
+  const [montosProyectos, setMontosProyectos] = useState({});
 
-  const handleMontoChange = (project, nuevoMonto) => {
+  const proyectosVariables = useMemo(() => 
+    projects.filter(p => 
+      (p.client?.toLowerCase() !== 'carbono' && p.cliente?.toLowerCase() !== 'carbono')
+    )
+  , [projects]);
+
+  useEffect(() => {
+    const initialMontos = {};
+    proyectosVariables.forEach(p => {
+        initialMontos[p.id] = p.income || INGRESO_PROVISIONAL_PROYECTO;
+    });
+    setMontosProyectos(prev => ({ ...initialMontos, ...prev }));
+  }, [projects, proyectosVariables]);
+
+  const handleMontoChange = (projectId, nuevoMonto) => {
+    setMontosProyectos(prevMontos => ({
+        ...prevMontos,
+        [projectId]: nuevoMonto
+    }));
+  };
+
+  const handleSaveMonto = (project) => {
+    const newIncome = parseFloat(montosProyectos[project.id]) || 0;
     const updatedProject = {
         ...project,
-        income: parseFloat(nuevoMonto) || 0
+        income: newIncome
     };
     updateProject(updatedProject);
   };
@@ -39,16 +62,12 @@ const VistaFinanzasCEO = () => {
       }
     });
 
-    const proyectosVariables = projects.filter(p => 
-      (p.client?.toLowerCase() !== 'carbono' && p.cliente?.toLowerCase() !== 'carbono')
-    );
-
     // Lógica para contar proyectos de Carbono únicos por nombre
     const nombresProyectosCarbono = new Set(proyectosCarbono.map(p => p.name));
     const proyectosCarbonoRealizados = nombresProyectosCarbono.size;
 
     const ingresosVariables = proyectosVariables.reduce((sum, p) => {
-        return sum + (p.income || INGRESO_PROVISIONAL_PROYECTO);
+        return sum + (parseFloat(montosProyectos[p.id]) || 0);
     }, 0);
 
     const ingresosTotales = RETAINER_FIJO_MENSUAL + ingresosVariables;
@@ -71,7 +90,7 @@ const VistaFinanzasCEO = () => {
       utilidadNeta,
       distribucion,
     };
-  }, [projects]);
+  }, [projects, montosProyectos, proyectosVariables]);
 
   const datosGrafico = [
     {
@@ -189,7 +208,13 @@ const VistaFinanzasCEO = () => {
                       <td className="p-3 font-medium">{p.client || p.cliente}</td>
                       <td className="p-3 font-medium">{p.name}</td>
                       <td className="p-3">
-                        <EditableAmount project={p} onSave={handleMontoChange} />
+                        <input 
+                          type="number"
+                          value={montosProyectos[p.id] || ''}
+                          onChange={(e) => handleMontoChange(p.id, e.target.value)}
+                          onBlur={() => handleSaveMonto(p)}
+                          className="bg-slate-700 rounded-md p-1 w-28 text-right"
+                        />
                       </td>
                       <td className="p-3">
                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(p.status)}`}>
@@ -217,28 +242,6 @@ const VistaFinanzasCEO = () => {
     </div>
   );
 };
-
-const EditableAmount = ({ project, onSave }) => {
-    const [amount, setAmount] = useState(project.income || INGRESO_PROVISIONAL_PROYECTO);
-
-    useEffect(() => {
-        setAmount(project.income || INGRESO_PROVISIONAL_PROYECTO);
-    }, [project.income]);
-
-    const handleBlur = () => {
-        onSave(project, amount);
-    };
-
-    return (
-        <input 
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            onBlur={handleBlur}
-            className="bg-slate-700 rounded-md p-1 w-28 text-right"
-        />
-    );
-}
 
 const KpiCard = ({ icon, title, value, subValue, color }) => {
   const colors = {
@@ -284,3 +287,4 @@ const SocioCard = ({ socio, rol, porcentaje, monto, color }) => {
 }
 
 export default VistaFinanzasCEO;
+
