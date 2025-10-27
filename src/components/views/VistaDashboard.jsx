@@ -58,16 +58,18 @@ const VistaDashboard = () => {
   } = useMemo(() => buildDashboardData(projects), [projects]);
 
   const { carbonoProjectsThisMonth, variableProjectsCount } = useMemo(() => {
-    const currentMonth = format(new Date(), 'yyyy-MM');
-    const carbonoProjects = projects.filter(p => {
-      const isCarbono = (p.properties?.tag === 'carbono') || (p.client?.toLowerCase() === 'carbono') || (p.cliente?.toLowerCase() === 'carbono');
-      const projectDate = p.startDate ? format(parseISO(p.startDate), 'yyyy-MM') : null;
-      return isCarbono && projectDate === currentMonth;
-    });
-    const variableProjects = projects.filter(p => !p.properties?.tag || p.properties.tag !== 'carbono');
+    const now = new Date();
+    const carbonoProjects = projects.filter(p => 
+      (p.client?.toLowerCase() === 'carbono' || p.cliente?.toLowerCase() === 'carbono' || p.properties?.tag === 'carbono') &&
+      p.startDate && isSameMonth(parseISO(p.startDate), now)
+    );
+
+    const variableProjects = projects.filter(p => 
+      !(p.client?.toLowerCase() === 'carbono' || p.cliente?.toLowerCase() === 'carbono' || p.properties?.tag === 'carbono')
+    );
     return {
       carbonoProjectsThisMonth: carbonoProjects.length,
-      variableProjectsCount: variableProjects.length
+      variableProjectsCount: variableProjects.length,
     };
   }, [projects]);
 

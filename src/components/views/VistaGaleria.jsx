@@ -90,10 +90,22 @@ const VistaGaleria = () => {
   const projects = useStore((state) => state.projects);
   const searchTerm = useStore((state) => state.searchTerm);
   const openModal = useStore((state) => state.openModal);
+  const currentUser = useStore((state) => state.currentUser);
+
+  const isFranciscoUser = (user) => user?.email?.toString().trim().toLowerCase() === 'francisco@carbonomkt.com';
+
+  const displayedProjects = useMemo(() => {
+    if (isFranciscoUser(currentUser)) {
+      return projects.filter(p => 
+        (p.client?.toLowerCase() === 'carbono' || p.cliente?.toLowerCase() === 'carbono' || p.properties?.tag === 'carbono')
+      );
+    }
+    return projects;
+  }, [projects, currentUser]);
 
   const filteredProjects = useMemo(
-    () => filterProjects(projects, searchTerm),
-    [projects, searchTerm]
+    () => filterProjects(displayedProjects, searchTerm),
+    [displayedProjects, searchTerm]
   );
 
   const completedProjects = useMemo(() => {

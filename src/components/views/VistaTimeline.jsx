@@ -41,12 +41,24 @@ const VistaTimeline = () => {
   const searchTerm = useStore((state) => state.searchTerm);
   const openModal = useStore((state) => state.openModal);
   const teamMembers = useStore((state) => state.teamMembers);
+  const currentUser = useStore((state) => state.currentUser);
 
   const [viewMode, setViewMode] = useState('month');
   const [currentDate, setCurrentDate] = useState(() => startOfMonth(new Date()));
 
+  const isFranciscoUser = (user) => user?.email?.toString().trim().toLowerCase() === 'francisco@carbonomkt.com';
+
+  const displayedProjects = useMemo(() => {
+    if (isFranciscoUser(currentUser)) {
+      return projects.filter(p => 
+        (p.client?.toLowerCase() === 'carbono' || p.cliente?.toLowerCase() === 'carbono' || p.properties?.tag === 'carbono')
+      );
+    }
+    return projects;
+  }, [projects, currentUser]);
+
   const filteredProjects = useMemo(() => {
-    return filterProjects(projects, searchTerm).filter((project) => {
+    return filterProjects(displayedProjects, searchTerm).filter((project) => {
       const stage = getProjectStage(project);
       return stage === 'grabacion' || stage === 'edicion';
     });

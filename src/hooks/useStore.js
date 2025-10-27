@@ -18,16 +18,6 @@ import { normalizeString } from '../utils/normalize';
 
 const normalizeClientValue = (value) => normalizeString(value || '');
 
-const filterProjectsForUser = (projects, user) => {
-  if (!isFranciscoUser(user)) return projects;
-  return projects.filter((project) => {
-    const client = normalizeClientValue(
-      project.client || project.cliente || project.properties?.client || project.properties?.cliente
-    );
-    return client === 'carbono';
-  });
-};
-
 // status normalization handled by src/utils/statusHelpers
 
 const normalizeManagers = (value) => {
@@ -563,11 +553,9 @@ const useStore = create((set, get) => ({
     // set({ loading: true, error: null }); // Se elimina el control de loading
 
     if (!supabaseClient) {
-      const localProjects = readLocalProjects();
-      const filteredProjects = filterProjectsForUser(localProjects, get().currentUser);
       set({
-        projects: filteredProjects,
-        editingTasks: buildEditingTasks(filteredProjects),
+        projects: readLocalProjects(),
+        editingTasks: buildEditingTasks(readLocalProjects()),
       });
       return;
     }
@@ -585,16 +573,13 @@ const useStore = create((set, get) => ({
         return tsB - tsA;
       });
       persistLocalProjects(projects);
-      const filteredProjects = filterProjectsForUser(projects, get().currentUser);
-      set({ projects: filteredProjects, editingTasks: buildEditingTasks(filteredProjects) });
+      set({ projects, editingTasks: buildEditingTasks(projects) });
     } catch (error) {
       console.error('Error fetching projects:', error);
-      const localProjects = readLocalProjects();
-      const filteredProjects = filterProjectsForUser(localProjects, get().currentUser);
       set({
         error: 'Error fetching projects',
-        projects: filteredProjects,
-        editingTasks: buildEditingTasks(filteredProjects),
+        projects: readLocalProjects(),
+        editingTasks: buildEditingTasks(readLocalProjects()),
       });
     } // Se elimina el 'finally'
   },
@@ -782,7 +767,7 @@ const useStore = create((set, get) => ({
     set((state) => {
       let allowedViews;
       if (isFranciscoUser(user)) {
-        allowedViews = ['Table', 'Calendar', 'Gallery'];
+        allowedViews = ['Table', 'Calendar', 'Timeline', 'Gallery'];
       } else if (isCeoUser(user)) {
         allowedViews = ['Dashboard', ...DEFAULT_ALLOWED_VIEWS, 'Finanzas'];
       } else {
@@ -790,14 +775,10 @@ const useStore = create((set, get) => ({
       }
 
       const nextView = allowedViews.includes(state.currentView) ? state.currentView : allowedViews[0];
-      const currentProjects = state.projects && state.projects.length > 0 ? state.projects : readLocalProjects();
-      const filteredProjects = filterProjectsForUser(currentProjects, user);
       return {
         currentUser: user,
         allowedViews,
         currentView: nextView,
-        projects: filteredProjects,
-        editingTasks: buildEditingTasks(filteredProjects),
       };
     }),
 }));
