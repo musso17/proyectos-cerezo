@@ -232,6 +232,7 @@ const prepareProjectForSupabase = (project) => {
     team: normalizeTeam(project.team),
     properties: nextProperties,
     resources,
+    income: project.income,
   };
 
   if (Object.prototype.hasOwnProperty.call(baseProject, 'managers')) {
