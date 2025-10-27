@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -19,7 +19,6 @@ import {
   CheckCircle2,
   CalendarDays,
   Clock,
-  Users,
   AlertTriangle,
   GaugeCircle,
   Briefcase,
@@ -37,9 +36,13 @@ import { es } from 'date-fns/locale';
 import { normalizeString } from '../../utils/normalize';
 import useStore from '../../hooks/useStore';
 
+import { Users, DollarSign } from 'lucide-react';
+
 const VistaDashboard = () => {
   const projects = useStore((state) => state.projects || []);
-
+  const currentUser = useStore((state) => state.currentUser);
+  const isCeoUser = (user) => user?.email?.toString().trim().toLowerCase() === 'hola@cerezoperu.com';
+  const [activeTab, setActiveTab] = useState('general');
   const {
     totals,
     avgDeliveryDays,
@@ -70,6 +73,7 @@ const VistaDashboard = () => {
 
   return (
     <div className="space-y-6">
+      <>
       {carbonoProjectsThisMonth > 6 && (
         <div className="bg-red-500/15 border border-red-400/30 text-red-300 p-4 rounded-lg flex items-center gap-3">
           <AlertTriangle />
@@ -326,6 +330,7 @@ const VistaDashboard = () => {
           )}
         </div>
       </section>
+      </>
     </div>
   );
 };

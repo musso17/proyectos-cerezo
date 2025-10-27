@@ -7,8 +7,7 @@ import VistaTabla from './views/VistaTabla';
 import VistaGaleria from './views/VistaGaleria';
 import VistaCalendario from './views/VistaCalendario';
 import VistaTimeline from './views/VistaTimeline';
-
-
+import VistaFinanzasCEO from './views/VistaFinanzasCEO';
 
 const ViewRenderer = () => {
   const currentView = useStore((state) => state.currentView);
@@ -25,6 +24,8 @@ const ViewRenderer = () => {
         return <VistaTimeline />;
       case 'Gallery':
         return <VistaGaleria />;
+      case 'Finanzas':
+        return <VistaFinanzasCEO />;
       default:
         return <VistaTabla />;
     }

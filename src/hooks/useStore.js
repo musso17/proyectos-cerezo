@@ -526,7 +526,7 @@ const useStore = create((set, get) => ({
     projectCandidates.forEach((p) => {
       const clientName = p.client || p.properties?.client || 'Carbono';
       const idx = merged.findIndex((r) => (r.client || '').toString().trim().toLowerCase() === (clientName || '').toString().trim().toLowerCase());
-      const entry = { client: clientName, monthly: 4000, startDate: '2024-01-01', endDate: '', tag: 'carbono' };
+      const entry = { client: clientName, monthly: 4000, proyectosMensuales: 6, startDate: '2024-01-01', endDate: '', tag: 'carbono' };
       if (idx >= 0) merged[idx] = { ...merged[idx], ...entry };
       else merged.push(entry);
     });
@@ -781,9 +781,9 @@ const useStore = create((set, get) => ({
     set((state) => {
       let allowedViews;
       if (isFranciscoUser(user)) {
-        allowedViews = ['Dashboard', 'Table', 'Calendar', 'Gallery'];
+        allowedViews = ['Table', 'Calendar', 'Gallery'];
       } else if (isCeoUser(user)) {
-        allowedViews = ['Dashboard', ...DEFAULT_ALLOWED_VIEWS];
+        allowedViews = ['Dashboard', ...DEFAULT_ALLOWED_VIEWS, 'Finanzas'];
       } else {
         allowedViews = DEFAULT_ALLOWED_VIEWS.filter(v => v !== 'Dashboard');
       }
