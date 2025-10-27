@@ -24,12 +24,12 @@ const VistaFinanzasCEO = () => {
   , [projects]);
 
   useEffect(() => {
-    const initialMontos = {};
+    const newMontos = {};
     proyectosVariables.forEach(p => {
-        initialMontos[p.id] = p.income || INGRESO_PROVISIONAL_PROYECTO;
+      newMontos[p.id] = p.income ?? INGRESO_PROVISIONAL_PROYECTO;
     });
-    setMontosProyectos(prev => ({ ...initialMontos, ...prev }));
-  }, [projects, proyectosVariables]);
+    setMontosProyectos(newMontos);
+  }, [proyectosVariables]);
 
   const handleMontoChange = (projectId, nuevoMonto) => {
     setMontosProyectos(prevMontos => ({
