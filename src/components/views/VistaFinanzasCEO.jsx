@@ -11,6 +11,8 @@ const PROYECTOS_INCLUIDOS_RETAINER = 6;
 const TASA_FONDO_OPERATIVO = 0.10;
 const TIPO_CAMBIO_USD = 3.40;
 const INGRESO_PROVISIONAL_PROYECTO = 2500; // Placeholder
+const SALARIO_BASE_POR_PERSONA = 2500;
+const NUMERO_SOCIOS = 3;
 
 const VistaFinanzasCEO = () => {
   const projects = useStore((state) => state.projects);
@@ -71,9 +73,10 @@ const VistaFinanzasCEO = () => {
     }, 0);
 
     const ingresosTotales = RETAINER_FIJO_MENSUAL + ingresosVariables;
+    const costoSalarialTotal = SALARIO_BASE_POR_PERSONA * NUMERO_SOCIOS;
     
     const fondoOperativo = ingresosTotales * TASA_FONDO_OPERATIVO;
-    const utilidadNeta = ingresosTotales - fondoOperativo;
+    const utilidadNeta = ingresosTotales - fondoOperativo - costoSalarialTotal;
 
     const distribucion = {
       marcelo: utilidadNeta * 0.60,
