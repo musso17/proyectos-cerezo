@@ -412,8 +412,8 @@ const VistaCiclos = () => {
   const emptyState = !currentCycle && !isLoading;
 
   return (
-    <div className="space-y-8 px-4 py-6 sm:px-6 lg:px-8">
-      <section className="glass-panel space-y-6 p-6">
+    <div className="space-y-8 px-3 py-6 sm:px-6 lg:px-8">
+      <section className="glass-panel space-y-6 p-4 sm:p-6">
         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-secondary/70">Postproducción</p>
@@ -483,7 +483,7 @@ const VistaCiclos = () => {
         </div>
       </section>
 
-      <section className="glass-panel p-6">
+      <section className="glass-panel p-4 sm:p-6">
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 className="text-lg font-semibold text-primary">Ciclo actual</h3>
@@ -529,11 +529,11 @@ const VistaCiclos = () => {
             </button>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:pb-0 lg:grid-cols-4">
             {boardColumns.map((column) => (
               <div
                 key={column.id}
-                className="flex min-h-[260px] flex-col rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-4"
+                className="flex min-h-[260px] min-w-[260px] flex-col rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-4 snap-start md:min-w-0"
               >
                 <header className="flex flex-col gap-1">
                   <div className="flex items-center justify-between">
@@ -623,7 +623,7 @@ const VistaCiclos = () => {
         ) : null}
       </section>
 
-      <section className="glass-panel p-6">
+      <section className="glass-panel p-4 sm:p-6">
         <header className="mb-4 flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-primary">Historial de ciclos</h3>

@@ -486,7 +486,6 @@ const orderedProjects = useMemo(() => {
                   <div className="space-y-2">
                     <div className="inline-flex items-center gap-2">
                       {renderStatusBadge(getDisplayStatus(project))}
-                      {renderRevisionBadge(project)}
                     </div>
                   </div>
                   </div>
@@ -520,17 +519,18 @@ const orderedProjects = useMemo(() => {
       </div>
 
       <div className="glass-panel overflow-hidden rounded-xl">
-        <table className="hidden w-full border-collapse text-sm text-secondary sm:table">
-          <thead>
-            <tr className="bg-[#F9FAFB] text-xs uppercase tracking-[0.26em] text-secondary/80">
-              {['Proyecto', 'Encargado', 'Estado', 'Inicio', 'Entrega', 'Cliente', 'Acciones'].map((header) => (
-                <th key={header} className="px-6 py-4 text-left font-semibold">
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
+        <div className="overflow-x-auto">
+          <table className="hidden min-w-[720px] border-collapse text-sm text-secondary sm:table">
+            <thead>
+              <tr className="bg-[#F9FAFB] text-xs uppercase tracking-[0.26em] text-secondary/80">
+                {['Proyecto', 'Encargado', 'Estado', 'Inicio', 'Entrega', 'Cliente', 'Acciones'].map((header) => (
+                  <th key={header} className="px-6 py-4 text-left font-semibold">
+                    {header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
             {searchFilteredProjects.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-6 py-12 text-center text-secondary">
@@ -622,7 +622,8 @@ const orderedProjects = useMemo(() => {
               })
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </div>
   );

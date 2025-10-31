@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -24,7 +24,9 @@ import {
   BrainCircuit,
   ChevronRight,
   Zap,
-  EyeOff
+  EyeOff,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import {
   differenceInCalendarDays,
@@ -52,6 +54,7 @@ const selectDashboardState = (state) => ({
   lastAgentRun: state.agent?.lastRunAt || null,
   agentSummary: state.agent?.summary || '',
   agentActions: Array.isArray(state.agent?.suggestions) ? state.agent.suggestions : [],
+  lastUpdate: state.lastUpdate,
   agentError: state.agent?.error || null,
 });
 
@@ -59,12 +62,44 @@ const VistaDashboard = () => {
   // useShallow performs a shallow equality check on the selected state object.
   // This prevents re-renders if the object's properties haven't changed,
   // which is crucial for breaking the render loop.
-  const { projects, revisionCycles, currentUser, runAgent, agentLoading, lastAgentRun, agentSummary, agentActions, agentError } = useStore(useShallow(selectDashboardState));
+  const { projects, revisionCycles, currentUser, runAgent, agentLoading, lastAgentRun, agentSummary, agentActions, agentError, lastUpdate } = useStore(useShallow(selectDashboardState));
   const openModalWithProject = useStore((state) => state.openModalWithProject);
 
   const isCeoUser = (user) => user?.email?.toString().trim().toLowerCase() === 'hola@cerezoperu.com';
   const canViewFinances = isCeoUser(currentUser);
   const [activeView, setActiveView] = useState('resumen');
+  const [dismissedActionIndices, setDismissedActionIndices] = useState(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const stored = window.localStorage.getItem('dismissedAgentActions');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      console.error("Failed to load dismissed actions from localStorage", e);
+      return [];
+    }
+  });
+  const [isAgentSectionExpanded, setIsAgentSectionExpanded] = useState(true);
+  const prevLastAgentRunRef = useRef();
+
+  // Limpia las tarjetas descartadas cuando se ejecuta un nuevo análisis del agente.
+  useEffect(() => {
+    // En el primer render, prevLastAgentRunRef.current es undefined.
+    // Solo actualizamos la referencia y evitamos ejecutar la lógica de limpieza.
+    if (prevLastAgentRunRef.current === undefined) {
+      prevLastAgentRunRef.current = lastAgentRun;
+      return;
+    }
+
+    // Solo limpiar si lastAgentRun ha cambiado a un valor nuevo y diferente.
+    // Esto evita que se limpie en la carga inicial de la página.
+    if (lastAgentRun && prevLastAgentRunRef.current !== lastAgentRun) {
+      setDismissedActionIndices([]);
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem('dismissedAgentActions');
+      }
+    }
+    prevLastAgentRunRef.current = lastAgentRun;
+  }, [lastAgentRun]);
 
   useEffect(() => {
     if (!canViewFinances && activeView === 'finanzas') {
@@ -77,17 +112,33 @@ const VistaDashboard = () => {
 
     const now = Date.now();
     const twentyFourHours = 24 * 60 * 60 * 1000;
-    const shouldRun = !lastAgentRun || now - lastAgentRun > twentyFourHours;
+    
+    // Condición 1: Han pasado más de 24 horas.
+    const shouldRunForTime = !lastAgentRun || now - lastAgentRun > twentyFourHours;
+    // Condición 2: Hubo una actualización de datos desde el último análisis.
+    const shouldRunForDataChange = lastAgentRun && lastUpdate && lastUpdate > lastAgentRun;
 
-    if (shouldRun) {
+    if (shouldRunForTime || shouldRunForDataChange) {
       runAgent();
     }
-  }, [runAgent, lastAgentRun, agentLoading, currentUser]);
+  }, [runAgent, lastAgentRun, agentLoading, currentUser, lastUpdate]);
 
   const handleRunAgent = useCallback(() => {
     if (agentLoading || !runAgent) return;
     runAgent();
   }, [agentLoading, runAgent]);
+
+  const handleDismissAction = (index) => {
+    if (window.confirm('¿Estás seguro de que deseas ocultar esta sugerencia? No volverá a aparecer hasta el próximo análisis.')) {
+      setDismissedActionIndices(prev => {
+        const newDismissed = [...prev, index];
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('dismissedAgentActions', JSON.stringify(newDismissed));
+        }
+        return newDismissed;
+      });
+    }
+  };
 
   const handleCardAction = (action) => {
     if (!action.projectId) return;
@@ -132,7 +183,7 @@ const VistaDashboard = () => {
   }, [projects]);
 
   return (
-    <div className="space-y-8 p-4 md:p-6">
+    <div className="space-y-8 px-3 py-4 sm:px-4 md:px-6 md:py-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-primary">Panel ejecutivo</h1>
@@ -177,12 +228,22 @@ const VistaDashboard = () => {
       {canViewFinances && (
         <section className="glass-panel col-span-1 space-y-4 p-6">
           <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-            <div className="flex items-center gap-3">
-              <BrainCircuit className="h-8 w-8 text-accent" />
-              <div>
-                <h2 className="text-xl font-semibold text-primary">Análisis del Agente</h2>
-                <p className="text-sm text-secondary">Recomendaciones para optimizar el flujo de trabajo.</p>
+            <div className="flex flex-1 items-center gap-4">
+              <div className="flex items-center gap-3">
+                <BrainCircuit className="h-8 w-8 text-accent" />
+                <div>
+                  <h2 className="text-xl font-semibold text-primary">Análisis del Agente</h2>
+                  <p className="text-sm text-secondary">Recomendaciones para optimizar el flujo de trabajo.</p>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setIsAgentSectionExpanded(prev => !prev)}
+                className="rounded-lg p-2 text-secondary transition-colors hover:bg-background"
+                title={isAgentSectionExpanded ? 'Replegar sección' : 'Desplegar sección'}
+              >
+                {isAgentSectionExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </button>
             </div>
             <button
               onClick={handleRunAgent}
@@ -194,22 +255,31 @@ const VistaDashboard = () => {
             </button>
           </div>
 
-          {agentLoading && (!agentActions || agentActions.length === 0) ? (
-            <div className="flex h-24 items-center justify-center rounded-xl border-2 border-dashed border-border/40 bg-slate-900/40 text-secondary">
-              <p>El agente está analizando los proyectos...</p>
-            </div>
-          ) : agentError ? (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-200">{agentError}</div>
-          ) : agentActions && agentActions.length > 0 ? (
-            <div className="space-y-3">
-              <p className="text-sm text-secondary">{agentSummary}</p>
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                {agentActions.map((action, index) => (
-                  <AgentActionCard key={index} action={action} onAction={handleCardAction} />
-                ))}
+          {isAgentSectionExpanded && (
+            agentLoading && (!agentActions || agentActions.length === 0) ? (
+              <div className="flex h-24 items-center justify-center rounded-xl border-2 border-dashed border-border/40 bg-slate-900/40 text-secondary">
+                <p>El agente está analizando los proyectos...</p>
               </div>
-            </div>
-          ) : null}
+            ) : agentError ? (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-200">{agentError}</div>
+            ) : agentActions && agentActions.length > 0 ? (
+              <div className="space-y-3">
+                <p className="text-sm text-secondary">{agentSummary}</p>
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  {agentActions.map((action, index) => (
+                    !dismissedActionIndices.includes(index) && (
+                      <AgentActionCard 
+                        key={index} 
+                        action={action} 
+                        onAction={handleCardAction} 
+                        onDismiss={() => handleDismissAction(index)}
+                      />
+                    )
+                  ))}
+                </div>
+              </div>
+            ) : null
+          )}
         </section>
       )}
 
@@ -498,7 +568,7 @@ const getPhaseIcon = (phase) => {
   return '📝';
 };
 
-const AgentActionCard = ({ action, onAction }) => {
+const AgentActionCard = ({ action, onAction, onDismiss }) => {
   const priorityChipClasses = {
     High: 'bg-[#FEE2E2] text-[#B42318]',
     Medium: 'bg-[#FEF3C7] text-[#92400E]',
@@ -518,12 +588,17 @@ const AgentActionCard = ({ action, onAction }) => {
             <span className="font-medium text-secondary">{action.client || 'Sin cliente'}</span>
           </div>
           <p className="mt-1 text-xs text-secondary/80">
-            <span className="font-semibold">Fase:</span> {action.phase || 'N/A'}
+            <span className="font-semibold">Fase:</span> {action.phase || 'N/A'} | <span className="font-semibold">Prioridad:</span> {action.priority || 'Baja'}
           </p>
         </div>
-        <span className={`rounded-full px-3 py-1 text-xs font-medium ${priorityChipClasses[action.priority] || 'bg-[#F3F4F6] text-secondary'}`}>
-          {action.priority}
-        </span>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="rounded-lg p-2 text-secondary transition-colors hover:bg-background"
+          title="Ignorar sugerencia"
+        >
+          <EyeOff size={16} />
+        </button>
       </div>
       <div className="mt-3 space-y-3 border-t border-border pt-3 text-sm">
         <p className="text-primary">{action.recommendation}</p>
@@ -536,13 +611,6 @@ const AgentActionCard = ({ action, onAction }) => {
               className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-accent/10 px-3 py-1.5 text-sm font-semibold text-accent transition hover:bg-accent/20"
             >
               Ver proyecto <ChevronRight size={16} />
-            </button>
-            <button
-              type="button"
-              className="rounded-lg p-2 text-secondary transition-colors hover:bg-background"
-              title="Ignorar sugerencia"
-            >
-              <EyeOff size={16} />
             </button>
           </div>
         )}

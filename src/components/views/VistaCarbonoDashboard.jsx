@@ -68,7 +68,7 @@ const VistaCarbonoDashboard = () => {
   const { totals, managerLoad } = carbonoData;
 
   return (
-    <div className="space-y-8 p-4 md:p-6">
+    <div className="space-y-8 px-3 py-4 sm:px-4 md:px-6 md:py-6">
       <div>
         <h1 className="text-3xl font-bold text-primary">Dashboard de Carbono MKT</h1>
         <p className="text-sm text-secondary/80">
@@ -108,12 +108,12 @@ const VistaCarbonoDashboard = () => {
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <div className="glass-panel col-span-1 flex flex-col gap-4 p-6 transition-all">
+        <div className="glass-panel col-span-1 flex flex-col gap-4 p-4 transition-all sm:p-6">
           <Header title="Carga de trabajo por responsable" subtitle="Proyectos activos asignados" />
           {managerLoad.length > 0 ? (
             <ul className="space-y-3">
               {managerLoad.map(({ manager, total, level }) => (
-                <li key={manager} className="flex items-center justify-between rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3">
+                <li key={manager} className="flex flex-col gap-3 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`h-2.5 w-2.5 rounded-full ${getLoadColor(level)}`} />
                     <p className="text-sm font-medium text-primary">{manager}</p>
@@ -135,7 +135,7 @@ const VistaCarbonoDashboard = () => {
 };
 
 const MetricCard = ({ title, value, description, icon: Icon, accent }) => (
-  <div className="glass-panel flex flex-col justify-between gap-4 p-6 transition-all hover:-translate-y-1 hover:shadow-[0_18px_32px_rgba(15,23,42,0.12)]">
+  <div className="glass-panel flex flex-col justify-between gap-4 p-4 transition-all hover:-translate-y-1 hover:shadow-[0_18px_32px_rgba(15,23,42,0.12)] sm:p-6">
     <div className="flex items-center justify-between">
       <div>
         <p className="text-xs uppercase tracking-[0.28em] text-secondary/60">{title}</p>

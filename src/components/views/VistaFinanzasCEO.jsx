@@ -149,13 +149,17 @@ const VistaFinanzasCEO = () => {
         project.client?.toLowerCase() === 'carbono' || project.cliente?.toLowerCase() === 'carbono';
       if (!isCarbono) return false;
 
-      if (!project.startDate) return false;
+      // Condición 1: El proyecto fue iniciado en el mes seleccionado.
+      let startedInMonth = false;
+      if (project.startDate) {
       try {
         const projectMonth = getMonthFromDate(project.startDate);
-        return projectMonth === selectedMonth;
-      } catch {
-        return false;
+          startedInMonth = projectMonth === selectedMonth;
+        } catch { /* ignore date parsing errors */ }
       }
+      // Condición 2: El proyecto está completado.
+      const isCompleted = project.status?.toLowerCase() === 'completado';
+      return startedInMonth || isCompleted;
     });
 
     // Lógica para la lista de proyectos de Carbono (evita duplicados por nombre)
@@ -233,7 +237,7 @@ const VistaFinanzasCEO = () => {
   };
 
   return (
-    <div className="space-y-8 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="space-y-8 px-3 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -242,7 +246,7 @@ const VistaFinanzasCEO = () => {
               Mostrando ingresos y proyectos correspondientes a {selectedMonthLabel}.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-3">
             <label htmlFor="financial-month" className="text-sm font-medium text-secondary">
               Selecciona el mes
             </label>
@@ -368,8 +372,8 @@ const VistaFinanzasCEO = () => {
             <h2 className="text-xl font-semibold text-primary flex items-center gap-2">
               <FileText size={20} /> Proyectos variables activos
             </h2>
-            <div className="overflow-x-auto rounded-lg border border-gray-200 -mx-4 sm:-mx-6">
-              <table className="min-w-full divide-y divide-[#E5E7EB] text-left">
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
+              <table className="min-w-[640px] divide-y divide-[#E5E7EB] text-left">
                 <thead className="bg-[#F9FAFB] text-xs uppercase tracking-wider text-secondary">
                   <tr>
                     <th className="px-6 py-3">Cliente</th>

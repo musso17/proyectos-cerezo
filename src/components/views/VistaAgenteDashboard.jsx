@@ -94,7 +94,7 @@ const VistaAgenteDashboard = () => {
   }, [assignedProjects]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-3 py-4 sm:px-4 md:px-6">
       <div>
         <h1 className="text-3xl font-bold text-primary">Tu Dashboard</h1>
         <p className="text-sm text-secondary/80">Tareas, recordatorios y sugerencias para tus proyectos.</p>
@@ -104,7 +104,7 @@ const VistaAgenteDashboard = () => {
         
         {/* Columna Principal: Tareas y Recordatorios */}
         <div className="space-y-6">
-          <div className="glass-panel p-5 rounded-3xl">
+          <div className="glass-panel rounded-3xl p-4 sm:p-5">
             <Header title={grabaciones.title} icon={Video} />
             {grabaciones.items.length > 0 ? (
               <ul className="space-y-3 mt-4">
@@ -115,7 +115,7 @@ const VistaAgenteDashboard = () => {
             )}
           </div>
 
-          <div className="glass-panel p-5 rounded-3xl">
+          <div className="glass-panel rounded-3xl p-4 sm:p-5">
             <Header title="Entregas para hoy" icon={Calendar} />
             {tareasHoy.length > 0 ? (
               <ul className="space-y-3 mt-4">
@@ -126,7 +126,7 @@ const VistaAgenteDashboard = () => {
             )}
           </div>
 
-          <div className="glass-panel p-5 rounded-3xl">
+          <div className="glass-panel rounded-3xl p-4 sm:p-5">
             <Header title="Recordatorios: Próximas entregas" icon={Clock} />
             {recordatorios.length > 0 ? (
               <ul className="space-y-3 mt-4">
@@ -151,8 +151,8 @@ const Header = ({ title, icon: Icon }) => (
 );
 
 const ProjectListItem = ({ project, dateToDisplay }) => (
-  <li className="flex items-center justify-between rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 shadow-sm">
-    <div>
+  <li className="flex flex-col gap-3 rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+    <div className="w-full sm:w-auto">
       <p className="font-semibold text-primary">{project.name}</p>
       <p className="text-xs text-secondary/80">Cliente: {project.client}</p>
     </div>

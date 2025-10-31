@@ -60,10 +60,7 @@ const ViewRenderer = () => {
   }, [currentView, currentUser]);
 
   return (
-    <div
-      key={currentView}
-      className="animate-fade-up space-y-6 transition-all duration-300 ease-[var(--ease-ios-out)]"
-    >
+    <div key={currentView}>
       {renderedView}
     </div>
   );

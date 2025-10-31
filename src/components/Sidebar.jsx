@@ -1,10 +1,9 @@
 "use client";
 
-import React, { Fragment, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import clsx from 'clsx';
 import { ChevronLeft, Menu, List, Calendar, LayoutGrid, LayoutDashboard, RefreshCcw } from 'lucide-react';
 import useStore from '../hooks/useStore';
-import { Dialog, Transition } from '@headlessui/react';
 
 const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -23,15 +22,18 @@ const Sidebar = () => {
   ];
 
   const containerClasses = clsx(
-    'glass-panel animate-fade-up flex flex-col gap-6 p-6 transition-all duration-300 ease-[var(--ease-ios-out)] soft-scroll',
-    'h-[calc(100vh-6rem)]', isCollapsed ? 'w-[84px] p-4' : 'w-[260px]'
+    'glass-panel animate-fade-up hidden md:flex md:flex-col md:gap-6 md:overflow-y-auto md:rounded-3xl md:p-6 md:shadow-lg md:transition-all md:duration-300 md:ease-[var(--ease-ios-out)]',
+    'md:sticky md:top-4 md:h-[calc(100vh-2rem)]',
+    isCollapsed ? 'md:w-[84px] md:p-4' : 'md:w-[260px]'
   );
 
   const handleCollapse = () => setIsCollapsed((prev) => !prev);
 
   const handleNavigate = (view) => {
     setCurrentView(view);
-    toggleMobileSidebar(); // Cierra el sidebar al navegar en móvil
+    if (isSidebarOpen) {
+      toggleMobileSidebar();
+    }
   };
   const SidebarContent = () => (
     <>
@@ -42,13 +44,23 @@ const Sidebar = () => {
             <h1 className="mt-1 text-xl font-semibold text-primary">Studio Planner</h1>
           </div>
         )}
-        <button
-          type="button"
-          onClick={handleCollapse}
-          className="hidden rounded-full border border-[#E5E7EB] bg-white p-2 text-secondary transition hover:bg-[#EEF1F6] hover:text-primary md:block"
-        >
-          {isCollapsed ? <Menu size={18} /> : <ChevronLeft size={18} />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleMobileSidebar}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-secondary transition hover:bg-[#EEF1F6] hover:text-primary md:hidden"
+            aria-label="Cerrar menú"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <button
+            type="button"
+            onClick={handleCollapse}
+            className="hidden rounded-full border border-[#E5E7EB] bg-white p-2 text-secondary transition hover:bg-[#EEF1F6] hover:text-primary md:block"
+          >
+            {isCollapsed ? <Menu size={18} /> : <ChevronLeft size={18} />}
+          </button>
+        </div>
       </div>
       <nav className={clsx('flex-1', 'px-0')}>
         <ul className="flex flex-col gap-2">
@@ -89,44 +101,33 @@ const Sidebar = () => {
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className={`hidden md:flex ${containerClasses}`}>
+      <aside className={containerClasses}>
         <SidebarContent />
       </aside>
 
       {/* Mobile Sidebar */}
-      <Transition.Root show={isSidebarOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-50 md:hidden" onClose={toggleMobileSidebar}>
-          <Transition.Child
-            as={Fragment}
-            enter="transition-opacity ease-linear duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="transition-opacity ease-linear duration-300"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
-            <div className="fixed inset-0 bg-gray-900/60" />
-          </Transition.Child>
-
-          <div className="fixed inset-0 flex">
-            <Transition.Child
-              as={Fragment}
-              enter="transition ease-in-out duration-300 transform"
-              enterFrom="-translate-x-full"
-              enterTo="translate-x-0"
-              leave="transition ease-in-out duration-300 transform"
-              leaveFrom="translate-x-0"
-              leaveTo="-translate-x-full"
-            >
-              <Dialog.Panel className="relative mr-16 flex w-full max-w-xs flex-1">
-                <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white p-6">
-                  <SidebarContent />
-                </div>
-              </Dialog.Panel>
-            </Transition.Child>
+      <div className="relative z-50 md:hidden">
+        {/* Backdrop */}
+        <div
+          className={clsx(
+            'fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity duration-300 ease-linear',
+            isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          )}
+          onClick={toggleMobileSidebar}
+          aria-hidden="true"
+        />
+        {/* Panel */}
+        <div
+          className={clsx(
+            'fixed inset-y-0 left-0 flex w-full max-w-[18rem] transform transition duration-300 ease-in-out',
+            isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          )}
+        >
+          <div className="flex w-full grow flex-col gap-y-5 overflow-y-auto bg-white p-6 pb-8 shadow-[0_22px_45px_rgba(15,23,42,0.28)]">
+            <SidebarContent />
           </div>
-        </Dialog>
-      </Transition.Root>
+        </div>
+      </div>
     </>
   );
 };

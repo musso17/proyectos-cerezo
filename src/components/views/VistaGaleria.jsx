@@ -110,7 +110,7 @@ const VistaGaleria = () => {
   }, [projects]);
 
   return (
-    <div className="space-y-8 p-4 md:p-6">
+    <div className="space-y-8 px-3 py-4 sm:px-6 md:py-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Galería de entregables</h1>
         <p className="mt-1 text-sm text-gray-600">
@@ -119,7 +119,7 @@ const VistaGaleria = () => {
       </div>
 
       {completedProjects.length > 0 ? (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {completedProjects.map((project) => (
             <GalleryCard key={project.id} project={project} />
           ))}

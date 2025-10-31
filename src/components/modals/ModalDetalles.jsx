@@ -418,7 +418,7 @@ const ModalDetalles = () => {
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-6">
+          <div className="flex min-h-full items-stretch justify-center p-0 text-center sm:items-center sm:p-6">
             <Transition.Child
               as={Fragment}
               enter="ease-out duration-300"
@@ -427,8 +427,8 @@ const ModalDetalles = () => {
               leave="ease-in duration-200"
               leaveFrom="opacity-100 translate-y-0 scale-100"
               leaveTo="opacity-0 translate-y-4 scale-95">
-              <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-xl border border-gray-200 bg-white text-left align-middle shadow-xl transition-all">
-                <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5">
+              <Dialog.Panel className="flex h-full w-full max-w-full transform overflow-hidden rounded-none border border-gray-200 bg-white text-left align-middle shadow-xl transition-all sm:h-auto sm:max-w-4xl sm:rounded-xl">
+                <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-4 py-4 sm:px-6 sm:py-5">
                   <Dialog.Title className="flex-1">
                     <input
                       type="text"
@@ -451,7 +451,7 @@ const ModalDetalles = () => {
                   </button>
                 </div>
 
-                <div className="grid max-h-[68vh] gap-8 overflow-y-auto px-6 py-6 soft-scroll md:grid-cols-2">
+                <div className="grid max-h-[68vh] gap-8 overflow-y-auto px-4 py-6 soft-scroll sm:px-6 md:grid-cols-2">
                   <div className="space-y-5">
                     <div>
                       <label className="text-sm font-medium text-gray-600">Cliente</label>
@@ -819,11 +819,11 @@ const ModalDetalles = () => {
                   )}
                 </div>
 
-                <div className="flex flex-col gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 border-t border-gray-200 bg-gray-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                   {editedProject.id ? (
                     <button
                       type="button"
-                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-transparent px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+                      className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-transparent px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
                       onClick={handleDelete}
                     >
                       <Trash2 size={16} />
@@ -837,14 +837,14 @@ const ModalDetalles = () => {
                   <div className="flex flex-wrap gap-3">
                     <button
                       type="button"
-                      className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                      className="min-h-[44px] rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                       onClick={closeModal}
                     >
                       Cancelar
                     </button>
                     <button
                       type="button"
-                      className="rounded-lg border border-transparent bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-violet-700"
+                      className="min-h-[44px] rounded-lg border border-transparent bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-violet-700"
                       onClick={handleSave}
                     >
                       {editedProject.id ? 'Guardar cambios' : 'Crear proyecto'}

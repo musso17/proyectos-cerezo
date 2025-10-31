@@ -562,7 +562,7 @@ const VistaCalendario = () => {
   }, [calendarItemsByDay, currentMonth, buildEventSummary]);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 px-3 py-6 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Calendar className="text-accent" size={28} />
@@ -577,7 +577,7 @@ const VistaCalendario = () => {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-[#F7F8FA] p-1">
+        <div className="flex flex-wrap items-center gap-2 rounded-full border border-[#E5E7EB] bg-[#F7F8FA] p-1">
           <button
             type="button"
             onClick={() => setPrimaryView('calendar')}

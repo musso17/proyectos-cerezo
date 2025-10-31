@@ -11,7 +11,7 @@ const Navbar = () => {
   const openModal = useStore((state) => state.openModal);
   const searchTerm = useStore((state) => state.searchTerm);
   const setSearchTerm = useStore((state) => state.setSearchTerm);
-  const toggleSidebar = useStore((state) => state.toggleSidebar);
+  const toggleMobileSidebar = useStore((state) => state.toggleMobileSidebar);
   const setProjects = useStore((state) => state.setProjects);
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
@@ -39,12 +39,12 @@ const Navbar = () => {
 
   return (
     <>
-      <header className="glass-panel animate-fade-up flex flex-col gap-4 px-5 py-5 transition-all duration-200 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+      <header className="glass-panel animate-fade-up flex w-full flex-col gap-3 rounded-3xl px-4 py-4 transition-all duration-200 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6 md:rounded-[32px]">
         <div className="flex w-full items-center gap-2 sm:max-w-md">
           <button
             type="button"
-            onClick={toggleSidebar}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-secondary transition hover:bg-[#EEF1F6] hover:text-primary lg:hidden"
+            onClick={toggleMobileSidebar}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-secondary transition hover:bg-[#EEF1F6] hover:text-primary md:hidden"
             aria-label="Abrir menú"
           >
             <Menu size={18} />

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { addDays, parseISO, isValid, format, differenceInCalendarDays, startOfDay } from 'date-fns';
 import { supabase } from '../config/supabase';
+import { persist } from 'zustand/middleware';
 import { TEAM_MEMBERS } from '../constants/team';
 import { generarTareasEdicionDesdeProyectos } from '../utils/editingTasks';
 import { normalizeStatus, ALLOWED_STATUSES } from '../utils/statusHelpers';
@@ -8,6 +9,7 @@ import { normalizeStatus, ALLOWED_STATUSES } from '../utils/statusHelpers';
 const LOCAL_STORAGE_KEY = 'cerezo-projects';
 const RETAINERS_KEY = 'cerezo-retainers';
 const DEFAULT_ALLOWED_VIEWS = ['Table', 'Calendar', 'Timeline', 'Gallery', 'Ciclos'];
+const AGENT_STORAGE_KEY = 'cerezo-agent-state';
 const FRANCISCO_EMAIL = 'francisco@carbonomkt.com';
 const CEO_EMAIL = 'hola@cerezoperu.com';
 
@@ -704,6 +706,16 @@ const hasGeneratedEditingProject = (projects, recordingId) => {
     const linkedId = item.linkedRecordingId || item.properties?.linkedRecordingId || null;
     return stage === 'edicion' && linkedId === recordingId;
   });
+};
+
+const readLocalAgentState = () => {
+  if (typeof window === 'undefined') return { lastRunAt: null, summary: '', suggestions: [] };
+  try {
+    const stored = window.localStorage.getItem(AGENT_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : { lastRunAt: null, summary: '', suggestions: [] };
+  } catch (error) {
+    return { lastRunAt: null, summary: '', suggestions: [] };
+  }
 };
 
 const useStore = create((set, get) => ({
@@ -1736,13 +1748,7 @@ const useStore = create((set, get) => ({
     }),
 
   // Slice para el Agente Planificador
-  agent: {
-    lastRunAt: null,
-    suggestions: [],
-    running: false,
-    error: null,
-    summary: '',
-  },
+  agent: readLocalAgentState(),
   runAgent: async (mode = 'diagnose') => {
     const snapshot = get();
     if (snapshot.agent?.running) {
@@ -1770,16 +1776,19 @@ const useStore = create((set, get) => ({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || 'Error al ejecutar el agente');
+      
+      const agentState = {
+        lastRunAt: Date.now(),
+        summary: data.summary || '',
+        suggestions: data.actions || [],
+        running: false,
+        error: null,
+      };
 
-      set(() => ({
-        agent: {
-          lastRunAt: Date.now(),
-          summary: data.summary || '',
-          suggestions: data.actions || [],
-          running: false,
-          error: null,
-        },
-      }));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(AGENT_STORAGE_KEY, JSON.stringify(agentState));
+      }
+      set({ agent: agentState });
     } catch (error) {
       set((state) => ({
         agent: {
