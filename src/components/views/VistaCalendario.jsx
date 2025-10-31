@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import useStore from '../../hooks/useStore';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
@@ -21,30 +21,39 @@ import { es } from 'date-fns/locale';
 import { ensureMemberName } from '../../constants/team';
 import { filterProjects } from '../../utils/filterProjects';
 import { getClientStyles } from '../../utils/clientStyles';
+import { getUIPreference, setUIPreference } from '../../utils/uiPreferences';
+import VistaTimeline from './VistaTimeline';
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const MAX_ITEMS_PER_DAY = 3;
-const EDITING_TASK_PILL = 'bg-fuchsia-500/20 text-fuchsia-100 border-fuchsia-400/40';
+const EDITING_TASK_PILL = 'border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF]';
 const PROJECT_EVENT_PILLS = {
-  grabacion: 'bg-emerald-500/20 text-emerald-100 border-emerald-400/40',
-  edicion: 'bg-emerald-400/15 text-emerald-100 border-emerald-300/40',
-  entrega: 'bg-lime-400/15 text-lime-100 border-lime-300/40',
-  duracion: 'bg-slate-800/60 text-secondary border-border/60',
+  grabacion: 'border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7]',
+  edicion: 'border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF]',
+  entrega: 'border-[#C8E6C9] bg-[#F1FAF3] text-[#2F9E44]',
+  duracion: 'border-[#E5E7EB] bg-[#F9FAFB] text-secondary',
+  revision: 'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00]',
+  correccion: 'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00]',
+};
+
+const REVISION_EVENT_PILLS = {
+  sent: 'border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7]',
+  feedback: 'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00]',
 };
 
 const TYPE_BADGES = {
   grabacion: {
     label: 'Grabación',
-    className: 'bg-blue-500/10 text-blue-200 border border-blue-400/40',
+    className: 'border border-[#CDE5FF] bg-[#E7F3FF] text-[#2563EB]',
   },
   edicion: {
     label: 'Edición',
-    className: 'bg-emerald-500/10 text-emerald-200 border border-emerald-400/40',
+    className: 'border border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF]',
   },
 };
 
 const getProjectTypeBadge = (project) => {
-  if (!project) return { label: 'Sin tipo', className: 'bg-slate-700/50 text-secondary border border-border/60' };
+  if (!project) return { label: 'Sin tipo', className: 'border border-[#D1D5DB] bg-[#EEF1FF] text-accent' };
 
   const rawStage = project.stage || project.properties?.stage || '';
   const rawType = project.type || project.properties?.registrationType || '';
@@ -60,13 +69,25 @@ const getProjectTypeBadge = (project) => {
   }
 
   const label = rawType || rawStage || 'Sin tipo';
-  return { label, className: 'bg-slate-700/50 text-secondary border border-border/60' };
+  return { label, className: 'border border-[#D1D5DB] bg-[#EEF1FF] text-accent' };
 };
 
 const getClientDetailBadgeClass = (client) => {
   const styles = getClientStyles(client);
-  const paletteClass = styles?.badge || 'bg-slate-500/20 text-slate-200 border-slate-400/40';
+  const paletteClass = styles?.badge || 'bg-[#EEF1FF] text-accent border-accent/40';
   return `inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${paletteClass}`;
+};
+
+const getStoredCalendarMember = () => {
+  const stored = getUIPreference('calendarSelectedMember', 'Todos');
+  if (typeof stored !== 'string') return 'Todos';
+  const trimmed = stored.trim();
+  return trimmed.length > 0 ? trimmed : 'Todos';
+};
+
+const getStoredCalendarPrimaryView = () => {
+  const stored = getUIPreference('calendarPrimaryView', 'calendar');
+  return stored === 'timeline' ? 'timeline' : 'calendar';
 };
 
 const parseDate = (value) => {
@@ -88,8 +109,13 @@ const parseDateTime = (value) => {
 };
 
 const getCalendarRange = (project) => {
+  const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
   const start = parseDate(project.startDate);
   const end = parseDate(project.deadline);
+
+  if (stage === 'edicion' && end) {
+    return { start: end, end };
+  }
 
   if (start && end) {
     const normalizedStart = start <= end ? start : end;
@@ -129,6 +155,20 @@ const getProjectEventTypeForDay = (project, range, day) => {
   if (!project || !range || !day) return 'duracion';
 
   const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
+  const revisionStep = project.revision?.currentStep || '';
+  if (revisionStep === 'enviado' || revisionStep === 'esperando_feedback') {
+    return 'revision';
+  }
+  if (revisionStep === 'corrigiendo') {
+    return 'correccion';
+  }
+  if (revisionStep === 'editando') {
+    return 'edicion';
+  }
+  if (revisionStep === 'aprobado') {
+    return 'entrega';
+  }
+
   const isStartDay = range.start && isSameDay(range.start, day);
   const isEndDay = range.end && isSameDay(range.end, day);
   const deadline = project.deadline ? parseDate(project.deadline) : null;
@@ -168,6 +208,8 @@ const getProjectEventTypeForDay = (project, range, day) => {
 const getProjectEventLabel = (type) => {
   if (type === 'grabacion') return 'Grabación';
   if (type === 'entrega') return 'Entrega';
+  if (type === 'revision') return 'En revisión';
+  if (type === 'correccion') return 'Corrección';
   return 'Edición';
 };
 
@@ -177,9 +219,19 @@ const VistaCalendario = () => {
   const openModal = useStore((state) => state.openModal);
   const teamMembers = useStore((state) => state.teamMembers);
   const editingTasks = useStore((state) => state.editingTasks);
+  const revisionCycles = useStore((state) => state.revisionCycles);
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
-  const [selectedMember, setSelectedMember] = useState('Todos');
+  const [primaryView, setPrimaryView] = useState(() => getStoredCalendarPrimaryView());
+  const [selectedMember, setSelectedMember] = useState(() => getStoredCalendarMember());
   const [selectedDayKey, setSelectedDayKey] = useState(null);
+
+  useEffect(() => {
+    setUIPreference('calendarPrimaryView', primaryView);
+  }, [primaryView]);
+
+  useEffect(() => {
+    setUIPreference('calendarSelectedMember', selectedMember);
+  }, [selectedMember]);
 
   const today = startOfDay(new Date());
 
@@ -285,6 +337,49 @@ const VistaCalendario = () => {
     return items;
   }, [editingTasks, visibleProjects, selectedMember]);
 
+  const revisionCycleItems = useMemo(() => {
+    if (!revisionCycles || Object.keys(revisionCycles).length === 0) return [];
+
+    const projectLookup = new Map();
+    visibleProjects.forEach(({ project, memberName }) => {
+      if (project?.id) {
+        projectLookup.set(project.id, { project, memberName });
+      }
+    });
+
+    const items = [];
+
+    Object.entries(revisionCycles || {}).forEach(([projectId, cycles]) => {
+      const context = projectLookup.get(projectId);
+      if (!context) return;
+      const { project, memberName } = context;
+      const list = Array.isArray(cycles) ? cycles : [];
+
+      list.forEach((cycle) => {
+        const pushEvent = (eventType, value) => {
+          if (!value) return;
+          const timestamp = parseDateTime(value);
+          if (!timestamp) return;
+          const dayStart = startOfDay(timestamp);
+          if (selectedMember !== 'Todos' && memberName !== selectedMember) return;
+          items.push({
+            type: 'revision_event',
+            eventType,
+            cycle,
+            project,
+            timestamp,
+            range: { start: dayStart, end: dayStart },
+            memberName,
+          });
+        };
+
+        pushEvent('sent', cycle.sent_at);
+        pushEvent('feedback', cycle.client_returned_at);
+      });
+    });
+
+    return items;
+  }, [revisionCycles, visibleProjects, selectedMember]);
   const scheduledProjects = useMemo(
     () => visibleProjects.filter((item) => item.range),
     [visibleProjects]
@@ -296,8 +391,8 @@ const VistaCalendario = () => {
   );
 
   const scheduledItems = useMemo(
-    () => [...scheduledProjects, ...visibleEditingTaskItems],
-    [scheduledProjects, visibleEditingTaskItems]
+    () => [...scheduledProjects, ...visibleEditingTaskItems, ...revisionCycleItems],
+    [scheduledProjects, visibleEditingTaskItems, revisionCycleItems]
   );
 
   const calendarItemsByDay = useMemo(() => {
@@ -360,6 +455,39 @@ const VistaCalendario = () => {
         status: project?.status || '',
         typeMeta: getProjectTypeBadge(project),
         date: dayDate,
+      };
+    }
+
+    if (item.type === 'revision_event') {
+      const { project, cycle, eventType, timestamp, memberName } = item;
+      const eventLabel = eventType === 'feedback' ? 'Feedback recibido' : 'Versión enviada';
+      const baseDate = timestamp ? new Date(timestamp) : new Date(dayDate);
+      const sortedDate = new Date(baseDate);
+      if (eventType === 'feedback') {
+        sortedDate.setHours(17, 0, 0, 0);
+      } else {
+        sortedDate.setHours(9, 0, 0, 0);
+      }
+      const managersLabel = project?.managers?.length
+        ? project.managers.join(', ')
+        : ensureMemberName(project?.manager) || memberName;
+
+      return {
+        id: `${project?.id || cycle.id}-revision-${eventType}-${dayDate.toISOString()}`,
+        sortTime: sortedDate.getTime(),
+        type: `revision_${eventType}`,
+        title: project?.name || `Proyecto ciclo ${cycle.number}`,
+        description: cycle.notes || project?.description || '',
+        eventLabel,
+        timeLabel: `Ciclo ${cycle.number}`,
+        manager: managersLabel,
+        colorClass: REVISION_EVENT_PILLS[eventType] || PROJECT_EVENT_PILLS.edicion,
+        project,
+        client: project?.client || '',
+        status: project?.status || '',
+        typeMeta: getProjectTypeBadge(project),
+        date: dayDate,
+        cycle,
       };
     }
 
@@ -434,23 +562,55 @@ const VistaCalendario = () => {
   }, [calendarItemsByDay, currentMonth, buildEventSummary]);
 
   return (
-    <div className="p-6">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-6 p-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Calendar className="text-accent" size={28} />
           <div>
-            <h2 className="text-2xl font-bold text-primary">Calendario de Proyectos</h2>
+            <h2 className="text-2xl font-bold text-primary">
+              {primaryView === 'timeline' ? 'Timeline de disponibilidad' : 'Calendario de Proyectos'}
+            </h2>
             <p className="text-secondary text-sm">
-              Visualiza entregas y responsabilidades por integrante.
+              {primaryView === 'timeline'
+                ? 'Explora grabaciones y ediciones programadas en formato de línea de tiempo.'
+                : 'Visualiza entregas y responsabilidades por integrante.'}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-[#F7F8FA] p-1">
           <button
             type="button"
-            onClick={handlePrevMonth}
-            className="rounded-full border border-border p-2 text-secondary hover:border-accent hover:text-primary"
-            aria-label="Mes anterior">
+            onClick={() => setPrimaryView('calendar')}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+              primaryView === 'calendar'
+                ? 'bg-emerald-500/20 text-primary shadow-[inset_0_1px_0_rgba(34,197,94,0.35)]'
+                : 'text-secondary hover:text-primary'
+            }`}
+          >
+            Calendario
+          </button>
+          <button
+            type="button"
+            onClick={() => setPrimaryView('timeline')}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+              primaryView === 'timeline'
+                ? 'bg-emerald-500/20 text-primary shadow-[inset_0_1px_0_rgba(34,197,94,0.35)]'
+                : 'text-secondary hover:text-primary'
+            }`}
+          >
+            Timeline
+          </button>
+        </div>
+      </div>
+
+      {primaryView === 'calendar' ? (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <button
+              type="button"
+              onClick={handlePrevMonth}
+              className="rounded-full border border-border p-2 text-secondary hover:border-accent hover:text-primary"
+              aria-label="Mes anterior">
             <ChevronLeft size={18} />
           </button>
           <span className="text-lg font-semibold text-primary capitalize">
@@ -464,30 +624,28 @@ const VistaCalendario = () => {
             <ChevronRight size={18} />
           </button>
         </div>
-      </div>
+          <div className="flex flex-wrap gap-2">
+            {filterOptions.map((option) => {
+              const isActive = option === selectedMember;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setSelectedMember(option)}
+                  className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+                    isActive
+                      ? 'border-accent bg-accent/20 text-primary'
+                      : 'border-border bg-[#F7F8FA] text-secondary hover:border-accent/40 hover:text-primary'
+                  }`}>
+                  {option === 'Todos' ? 'Todos los responsables' : option}
+                </button>
+              );
+            })}
+          </div>
 
-      <div className="mb-6 flex flex-wrap gap-2">
-        {filterOptions.map((option) => {
-          const isActive = option === selectedMember;
-          return (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setSelectedMember(option)}
-              className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-                isActive
-                  ? 'border-accent bg-accent/20 text-primary'
-                  : 'border-border bg-slate-900/60 text-secondary hover:border-accent/40 hover:text-primary'
-              }`}>
-              {option === 'Todos' ? 'Todos los responsables' : option}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="sm:hidden">
+        <div className="sm:hidden">
         {mobileEvents.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-border/60 bg-slate-900/70 p-4 text-center text-sm text-secondary">
+          <div className="rounded-3xl border border-dashed border-[#E5E7EB] bg-white p-4 text-center text-sm text-secondary">
             No hay actividades programadas este mes.
           </div>
         ) : (
@@ -495,7 +653,7 @@ const VistaCalendario = () => {
             {mobileEvents.map((event) => (
               <div
                 key={`${event.id}-${event.sortTime}`}
-                className="space-y-3 rounded-3xl border border-border/60 bg-slate-900/70 p-4 shadow-[0_14px_36px_rgba(2,6,23,0.4)]"
+                className="space-y-3 rounded-3xl border border-[#E5E7EB] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.08)]"
               >
                 <p className="text-sm font-medium uppercase tracking-wide text-secondary/70">
                   {format(event.date, "EEEE d 'de' MMMM", { locale: es })}
@@ -511,7 +669,7 @@ const VistaCalendario = () => {
                   )}
                 </div>
                 {event.eventLabel && (
-                  <span className="inline-block rounded-full border border-border/60 px-3 py-1 text-xs uppercase tracking-wide text-secondary">
+                  <span className="inline-block rounded-full border border-[#E5E7EB] px-3 py-1 text-xs uppercase tracking-wide text-secondary">
                     {event.eventLabel}
                   </span>
                 )}
@@ -557,13 +715,13 @@ const VistaCalendario = () => {
             ))}
           </div>
         )}
-      </div>
+        </div>
 
-      <div className="hidden grid-cols-7 gap-px overflow-hidden rounded-2xl border border-border bg-border/40 sm:grid">
+        <div className="hidden grid-cols-7 gap-px overflow-hidden rounded-2xl border border-border bg-border/40 sm:grid">
         {WEEKDAYS.map((weekday) => (
           <div
             key={weekday}
-            className="bg-slate-900/70 px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-secondary">
+            className="bg-white px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-secondary">
             {weekday}
           </div>
         ))}
@@ -582,19 +740,19 @@ const VistaCalendario = () => {
             <div
               key={key}
               onClick={() => handleDaySelect(day)}
-              className={`min-h-[110px] cursor-pointer bg-slate-900/60 p-2 transition-all duration-200 ease-[var(--ease-ios-out)] ${
+              className={`min-h-[110px] cursor-pointer bg-white p-2 shadow-[0_12px_24px_rgba(15,23,42,0.05)] transition-all duration-200 ease-[var(--ease-ios-out)] ${
                 isCurrentMonth ? 'text-primary' : 'text-secondary/60'
               } ${
                 isToday
                   ? 'border border-accent/60 bg-accent/10 shadow-[0_18px_40px_rgba(34,197,94,0.3)]'
-                  : 'border border-border/60 hover:border-accent/60 hover:bg-slate-900/70 hover:shadow-[0_12px_30px_rgba(2,6,23,0.55)]'
+                  : 'border border-[#E5E7EB] hover:border-accent/60 hover:bg-white hover:shadow-[0_12px_30px_rgba(2,6,23,0.55)]'
               } ${isSelected ? 'ring-2 ring-accent/60' : ''}`}>
               <div className="flex items-center justify-between text-xs">
                 <span className={`text-sm font-semibold ${isCurrentMonth ? 'text-primary' : ''}`}>
                   {format(day, 'd', { locale: es })}
                 </span>
                 {dayItems.length > 0 && (
-                  <span className="rounded-full bg-slate-900/60 px-2 py-0.5 text-[10px] text-secondary">
+                  <span className="rounded-full bg-[#F7F8FA] px-2 py-0.5 text-[10px] text-secondary">
                     {dayItems.length}
                   </span>
                 )}
@@ -645,6 +803,38 @@ const VistaCalendario = () => {
                     );
                   }
 
+                  if (item.type === 'revision_event') {
+                    const { project, eventType, cycle } = item;
+                    const pillClass = REVISION_EVENT_PILLS[eventType] || PROJECT_EVENT_PILLS.revision;
+                    const title = project?.name || `Proyecto ciclo ${cycle?.number || ''}`;
+                    const label = eventType === 'feedback' ? 'Feedback recibido' : 'Versión enviada';
+                    return (
+                      <button
+                        key={`${project?.id || cycle?.id}-${eventType}-${day.toISOString()}`}
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (project) {
+                            openModal(project);
+                          }
+                        }}
+                        className={`group rounded-md border px-2 py-1 text-left text-xs shadow-sm transition-all duration-200 ease-[var(--ease-ios-out)] hover:shadow-lg hover:-translate-y-0.5 ${pillClass}`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <span className="truncate font-semibold">{title}</span>
+                            <span className="mt-1 block text-[10px] uppercase tracking-wide opacity-70">
+                              {label}
+                            </span>
+                          </div>
+                          <span className="whitespace-nowrap text-[10px] opacity-75">
+                            Ciclo {cycle?.number || '—'}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  }
+
                   const { project } = item;
                   const eventType = getProjectEventTypeForDay(project, range, day);
                   const pillClass = PROJECT_EVENT_PILLS[eventType] || PROJECT_EVENT_PILLS.duracion;
@@ -685,7 +875,7 @@ const VistaCalendario = () => {
                   );
                 })}
                 {extraItems > 0 && (
-                  <div className="rounded-md bg-slate-900/60 px-2 py-1 text-[10px] text-secondary">
+                  <div className="rounded-md bg-[#F7F8FA] px-2 py-1 text-[10px] text-secondary">
                     +{extraItems} más
                   </div>
                 )}
@@ -693,10 +883,10 @@ const VistaCalendario = () => {
             </div>
           );
         })}
-      </div>
+        </div>
 
-      {selectedDayDate && (
-        <div className="mt-6 rounded-3xl border border-border/60 bg-slate-900/70 p-6">
+        {selectedDayDate && (
+        <div className="mt-6 rounded-3xl border border-[#E5E7EB] bg-white p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-xl font-semibold text-primary">
@@ -709,7 +899,7 @@ const VistaCalendario = () => {
             <button
               type="button"
               onClick={() => setSelectedDayKey(null)}
-              className="rounded-full border border-border/60 px-3 py-1 text-xs text-secondary transition hover:border-accent/70 hover:text-accent">
+              className="rounded-full border border-[#E5E7EB] px-3 py-1 text-xs text-secondary transition hover:border-accent/70 hover:text-accent">
               Cerrar
             </button>
           </div>
@@ -721,7 +911,7 @@ const VistaCalendario = () => {
               {selectedDayDetails.map((item) => (
                 <div
                   key={`${item.id}-${item.sortTime}`}
-                  className="rounded-2xl border border-border/60 bg-slate-900/60 p-4 transition hover:border-accent/60 hover:bg-slate-900/40">
+                  className="rounded-2xl border border-[#E5E7EB] bg-white p-4 transition hover:border-accent/60 hover:bg-[#F1F5F9]">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-[200px] max-w-full">
                       <div className="flex flex-wrap items-center gap-2">
@@ -759,7 +949,7 @@ const VistaCalendario = () => {
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-secondary">
                     {item.client && (
-                      <div className="flex items-center gap-2 rounded-full border border-border/60 bg-slate-900/50 px-3 py-1.5">
+                      <div className="flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-[#F7F8FA] px-3 py-1.5">
                         <span className="text-[10px] uppercase tracking-wide text-secondary/70">Cliente</span>
                         <span className={getClientDetailBadgeClass(item.client)}>{item.client}</span>
                       </div>
@@ -785,8 +975,8 @@ const VistaCalendario = () => {
         </div>
       )}
 
-      {unscheduledProjects.length > 0 && (
-        <div className="mt-6 rounded-xl border border-dashed border-border/60 bg-slate-900/60 p-4 text-sm text-secondary">
+        {unscheduledProjects.length > 0 && (
+        <div className="mt-6 rounded-xl border border-dashed border-[#E5E7EB] bg-[#F7F8FA] p-4 text-sm text-secondary">
           <p className="font-semibold text-primary">
             Proyectos sin fechas asignadas ({unscheduledProjects.length}):
           </p>
@@ -796,12 +986,16 @@ const VistaCalendario = () => {
                 key={project.id}
                 type="button"
                 onClick={() => openModal(project)}
-                className="rounded-full border border-border/60 px-3 py-1 text-xs text-secondary transition hover:border-accent/60 hover:text-accent">
+                className="rounded-full border border-[#E5E7EB] px-3 py-1 text-xs text-secondary transition hover:border-accent/60 hover:text-accent">
                 {project.name}
               </button>
             ))}
           </div>
         </div>
+      )}
+        </>
+      ) : (
+        <VistaTimeline />
       )}
     </div>
   );

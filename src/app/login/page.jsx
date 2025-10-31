@@ -40,16 +40,27 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-8">
-      <Toaster position="top-center" toastOptions={{ className: 'bg-slate-900 text-slate-50 border border-slate-700/60' }} />
-      <div className="w-full max-w-md space-y-6 rounded-3xl border border-slate-800/60 bg-slate-900/80 p-8 shadow-[0_25px_60px_rgba(2,6,23,0.55)]">
-        <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold text-slate-50">Iniciar sesión</h1>
-          <p className="text-sm text-slate-400">Accede con tu correo corporativo y contraseña.</p>
+    <div className="flex min-h-screen items-center justify-center bg-[#F7F8FA] px-4 py-10">
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          className:
+            'rounded-xl border border-[#E5E7EB] bg-white text-primary shadow-[0_12px_24px_rgba(15,23,42,0.08)]',
+        }}
+      />
+      <div className="w-full max-w-md space-y-7 rounded-2xl border border-[#E5E7EB] bg-white p-10 shadow-[0_20px_40px_rgba(15,23,42,0.1)]">
+        <div className="space-y-3 text-center">
+          <div className="inline-flex items-center justify-center rounded-full bg-accent/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-accent">
+            Studio Planner
+          </div>
+          <h1 className="text-2xl font-semibold text-primary">Iniciar sesión</h1>
+          <p className="text-sm text-secondary">
+            Ingresa con tu correo corporativo para continuar gestionando tus proyectos.
+          </p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
-            <label htmlFor="email" className="block text-sm font-medium text-slate-300">
+            <label htmlFor="email" className="block text-sm font-semibold text-secondary/80">
               Correo electrónico
             </label>
             <input
@@ -58,13 +69,13 @@ const LoginPage = () => {
               required
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+              className="w-full rounded-xl border border-[#D1D5DB] bg-white px-4 py-2.5 text-sm text-primary placeholder:text-secondary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
               placeholder="tucorreo@empresa.com"
               autoComplete="email"
             />
           </div>
           <div className="space-y-2">
-            <label htmlFor="password" className="block text-sm font-medium text-slate-300">
+            <label htmlFor="password" className="block text-sm font-semibold text-secondary/80">
               Contraseña
             </label>
             <input
@@ -73,7 +84,7 @@ const LoginPage = () => {
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+              className="w-full rounded-xl border border-[#D1D5DB] bg-white px-4 py-2.5 text-sm text-primary placeholder:text-secondary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
               placeholder="Ingresa tu contraseña"
               autoComplete="current-password"
             />
@@ -81,7 +92,7 @@ const LoginPage = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-500 to-lime-500 px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-[0_18px_40px_rgba(34,197,94,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_48px_rgba(34,197,94,0.45)] disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(108,99,255,0.25)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_40px_rgba(108,99,255,0.32)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? 'Ingresando…' : 'Ingresar'}
           </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   addMonths,
   addWeeks,
@@ -19,6 +19,7 @@ import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight } from 'luci
 import useStore from '../../hooks/useStore';
 import { ensureMemberName, TEAM_STYLES } from '../../constants/team';
 import { filterProjects } from '../../utils/filterProjects';
+import { getUIPreference, setUIPreference } from '../../utils/uiPreferences';
 
 const STAGE_STYLES = {
   grabacion: 'bg-blue-500/80 border border-blue-300/60 text-white',
@@ -36,6 +37,13 @@ const parseDate = (value) => {
 const getProjectStage = (project) =>
   (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
 
+const getStoredTimelineViewMode = () => {
+  const stored = getUIPreference('timelineViewMode', 'month');
+  if (typeof stored !== 'string') return 'month';
+  const normalized = stored.trim().toLowerCase();
+  return normalized === 'week' ? 'week' : 'month';
+};
+
 const VistaTimeline = () => {
   const projects = useStore((state) => state.projects);
   const searchTerm = useStore((state) => state.searchTerm);
@@ -43,8 +51,12 @@ const VistaTimeline = () => {
   const teamMembers = useStore((state) => state.teamMembers);
   const currentUser = useStore((state) => state.currentUser);
 
-  const [viewMode, setViewMode] = useState('month');
+  const [viewMode, setViewMode] = useState(() => getStoredTimelineViewMode());
   const [currentDate, setCurrentDate] = useState(() => startOfMonth(new Date()));
+
+  useEffect(() => {
+    setUIPreference('timelineViewMode', viewMode);
+  }, [viewMode]);
 
   const isFranciscoUser = (user) => user?.email?.toString().trim().toLowerCase() === 'francisco@carbonomkt.com';
 
@@ -62,7 +74,7 @@ const VistaTimeline = () => {
       const stage = getProjectStage(project);
       return stage === 'grabacion' || stage === 'edicion';
     });
-  }, [projects, searchTerm]);
+  }, [displayedProjects, searchTerm]);
 
   const processedAssignments = useMemo(() => {
     return filteredProjects
@@ -188,7 +200,7 @@ const VistaTimeline = () => {
               className={`rounded-full border px-3 py-1 text-sm transition ${
                 viewMode === 'week'
                   ? 'border-accent bg-accent/20 text-primary'
-                  : 'border-border bg-slate-900/50 text-secondary hover:border-accent/40 hover:text-primary'
+                  : 'border-border bg-[#F7F8FA] text-secondary hover:border-accent/40 hover:text-primary'
               }`}
             >
               Semana
@@ -199,7 +211,7 @@ const VistaTimeline = () => {
               className={`rounded-full border px-3 py-1 text-sm transition ${
                 viewMode === 'month'
                   ? 'border-accent bg-accent/20 text-primary'
-                  : 'border-border bg-slate-900/50 text-secondary hover:border-accent/40 hover:text-primary'
+                  : 'border-border bg-[#F7F8FA] text-secondary hover:border-accent/40 hover:text-primary'
               }`}
             >
               Mes
@@ -207,7 +219,7 @@ const VistaTimeline = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border/60 bg-slate-900/60 px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-[#E5E7EB] bg-[#F7F8FA] px-4 py-3">
           <div className="flex items-center gap-3 text-sm text-secondary">
             <CalendarIcon size={16} />
             <span className="text-primary font-medium">{timelineTitle}</span>
@@ -216,21 +228,21 @@ const VistaTimeline = () => {
             <button
               type="button"
               onClick={handlePrevious}
-              className="rounded-full border border-border/60 bg-slate-900 p-2 text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
+              className="rounded-full border border-[#E5E7EB] bg-white p-2 text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
             >
               <ChevronLeft size={16} />
             </button>
             <button
               type="button"
               onClick={handleToday}
-              className="rounded-full border border-border/60 bg-slate-900 px-4 py-1 text-xs font-medium text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
+              className="rounded-full border border-[#E5E7EB] bg-white px-4 py-1 text-xs font-medium text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
             >
               Hoy
             </button>
             <button
               type="button"
               onClick={handleNext}
-              className="rounded-full border border-border/60 bg-slate-900 p-2 text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
+              className="rounded-full border border-[#E5E7EB] bg-white p-2 text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
             >
               <ChevronRight size={16} />
             </button>
@@ -238,23 +250,23 @@ const VistaTimeline = () => {
         </div>
 
         {visibleDates.length === 0 || memberOrder.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-border/60 bg-slate-900/60 p-6 text-center text-sm text-secondary">
+          <div className="rounded-3xl border border-dashed border-[#E5E7EB] bg-[#F7F8FA] p-6 text-center text-sm text-secondary">
             No hay proyectos con fechas asignadas en el periodo seleccionado.
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <div className="min-w-[1000px] rounded-3xl border border-border/60 bg-slate-950/70">
+            <div className="min-w-[1000px] rounded-3xl border border-[#E5E7EB] bg-[#E8ECF5]">
               <div
                 className="grid text-xs uppercase tracking-wide text-secondary"
                 style={{ gridTemplateColumns }}
               >
-                <div className="sticky left-0 z-20 border-b border-border/60 bg-slate-900 px-4 py-3 text-left text-[11px] font-semibold text-secondary/80">
+                <div className="sticky left-0 z-20 border-b border-[#E5E7EB] bg-white px-4 py-3 text-left text-[11px] font-semibold text-secondary/80">
                   Responsable
                 </div>
                 {visibleDates.map((date) => (
                   <div
                     key={date.toISOString()}
-                    className="border-b border-border/60 px-2 py-3 text-center text-[11px] font-semibold text-secondary"
+                    className="border-b border-[#E5E7EB] px-2 py-3 text-center text-[11px] font-semibold text-secondary"
                   >
                     <span className="block text-sm text-primary">{format(date, 'd')}</span>
                     <span className="text-[10px] text-secondary/70">{format(date, 'EEE', { locale: es })}</span>
@@ -266,14 +278,14 @@ const VistaTimeline = () => {
                   return (
                     <React.Fragment key={row.manager}>
                       <div
-                        className={`sticky left-0 z-20 border-b border-border/60 bg-slate-900 px-4 py-3 text-sm font-semibold text-primary ${palette.pill || ''}`}
+                        className={`sticky left-0 z-20 border-b border-[#E5E7EB] bg-white px-4 py-3 text-sm font-semibold text-primary ${palette.pill || ''}`}
                       >
                         {row.manager || 'Sin responsable'}
                       </div>
                       {row.dates.map((cell) => (
                         <div
                           key={cell.key}
-                          className="border-b border-l border-border/50 px-1 py-2"
+                          className="border-b border-l border-[#E5E7EB] px-1 py-2"
                         >
                           <div className="flex flex-col gap-1">
                             {cell.items.map(({ project, stage }) => {

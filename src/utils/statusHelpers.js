@@ -16,4 +16,10 @@ export const buildStatusUpdatePayload = (project, nextStatus) => ({
   status: nextStatus,
 });
 
-export default { ALLOWED_STATUSES, normalizeStatus, buildStatusUpdatePayload };
+const statusHelpers = {
+  ALLOWED_STATUSES,
+  normalizeStatus,
+  buildStatusUpdatePayload,
+};
+
+export default statusHelpers;

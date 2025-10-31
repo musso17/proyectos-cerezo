@@ -1,11 +1,29 @@
-
-import React, { useMemo, useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
-import { DollarSign, TrendingUp, Briefcase, PiggyBank, Users, FileText, LayoutDashboard, CheckCircle, Save, AlertCircle } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
+import {
+  DollarSign,
+  TrendingUp,
+  Briefcase,
+  PiggyBank,
+  Users,
+  FileText,
+  CheckCircle,
+  Save,
+  AlertCircle,
+} from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import useStore from '../../hooks/useStore';
 
-// --- DATOS DE ENTRADA GLOBALES ---
 const RETAINER_FIJO_MENSUAL = 4000;
 const PROYECTOS_INCLUIDOS_RETAINER = 6;
 const TASA_FONDO_OPERATIVO = 0.10;
@@ -14,88 +32,158 @@ const INGRESO_PROVISIONAL_PROYECTO = 2500; // Placeholder
 const SALARIO_BASE_POR_PERSONA = 2500;
 const NUMERO_SOCIOS = 3;
 
+const getMonthFromDate = (value) => {
+  if (!value) return null;
+  const raw = value.toString().trim();
+  if (!raw) return null;
+  const normalized =
+    raw.length === 7 ? `${raw}-01` : raw.length === 4 ? `${raw}-01-01` : raw;
+  try {
+    const parsed = parseISO(normalized);
+    if (Number.isNaN(parsed?.getTime?.())) {
+      throw new Error('Invalid date');
+    }
+    return format(parsed, 'yyyy-MM');
+  } catch {
+    const fallback = new Date(normalized);
+    if (Number.isNaN(fallback.getTime())) return null;
+    return format(fallback, 'yyyy-MM');
+  }
+};
+
+const resolveProjectMonth = (project) => {
+  if (!project) return null;
+  const candidates = [
+    project.billingMonth,
+    project.facturacionMes,
+    project.facturacion_mes,
+    project.month,
+    project.deadline,
+    project.endDate,
+    project.end_date,
+    project.fecha_entrega,
+    project.fechaEntrega,
+    project.startDate,
+    project.start_date,
+    project.fecha_inicio,
+    project.fechaGrabacion,
+    project.recordingDate,
+    project.properties?.deadline,
+    project.properties?.startDate,
+    project.properties?.fechaGrabacion,
+    project.properties?.month,
+    project.created_at,
+  ];
+
+  for (const value of candidates) {
+    const month = getMonthFromDate(value);
+    if (month) return month;
+  }
+  return null;
+};
+
+const isProjectInMonth = (project, month) => {
+  if (!month) return true;
+  const projectMonth = resolveProjectMonth(project);
+  return projectMonth === month;
+};
+
 const VistaFinanzasCEO = () => {
   const projects = useStore((state) => state.projects);
   const updateProject = useStore((state) => state.updateProject);
-  const [montosProyectos, setMontosProyectos] = useState({});
+  const setProjects = useStore((state) => state.setProjects);
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
 
-  const proyectosVariables = useMemo(() => 
-    projects.filter(p => 
-      (p.client?.toLowerCase() !== 'carbono' && p.cliente?.toLowerCase() !== 'carbono')
-    )
-  , [projects]);
+  const selectedMonthLabel = useMemo(() => {
+    if (!selectedMonth) return 'todos los meses';
+    try {
+      const date = parseISO(`${selectedMonth}-01`);
+      const label = date.toLocaleDateString('es-ES', {
+        month: 'long',
+        year: 'numeric',
+      });
+      return label.charAt(0).toUpperCase() + label.slice(1);
+    } catch {
+      return selectedMonth;
+    }
+  }, [selectedMonth]);
 
-  useEffect(() => {
-    const newMontos = {};
-    proyectosVariables.forEach(p => {
-      newMontos[p.id] = p.income ?? INGRESO_PROVISIONAL_PROYECTO;
-    });
-    setMontosProyectos(newMontos);
-  }, [proyectosVariables]);
+  const proyectosNoCarbono = useMemo(
+    () =>
+      projects.filter(
+        (project) =>
+          project.client?.toLowerCase() !== 'carbono' && project.cliente?.toLowerCase() !== 'carbono'
+      ),
+    [projects]
+  );
+
+  const proyectosVariables = useMemo(
+    () =>
+      proyectosNoCarbono.filter((project) => isProjectInMonth(project, selectedMonth)),
+    [proyectosNoCarbono, selectedMonth]
+  );
 
   const handleMontoChange = (projectId, nuevoMonto) => {
-    setMontosProyectos(prevMontos => ({
-        ...prevMontos,
-        [projectId]: nuevoMonto
-    }));
+    const updatedProjects = projects.map((project) =>
+      project.id === projectId ? { ...project, income: nuevoMonto } : project
+    );
+    setProjects(updatedProjects);
   };
 
-  const handleSaveMonto = (project) => {
-    const newIncome = parseFloat(montosProyectos[project.id]) || 0;
+  const handleSaveMonto = (projectId) => {
+    const projectToUpdate = projects.find((project) => project.id === projectId);
+    if (!projectToUpdate) return;
+
+    const newIncome = parseFloat(projectToUpdate.income) || 0;
     const updatedProject = {
-        ...project,
-        income: newIncome
+      ...projectToUpdate,
+      income: newIncome,
     };
     updateProject(updatedProject);
   };
 
-  // --- CÁLCULOS FINANCIEROS DINÁMICOS ---
   const calculos = useMemo(() => {
-    const currentMonth = format(new Date(), 'yyyy-MM');
-    
-    const proyectosCarbonoContabilizados = projects.filter(p => {
-      const isCarbono = p.client?.toLowerCase() === 'carbono' || p.cliente?.toLowerCase() === 'carbono';
+    // Lógica específica para el contador de Carbono MKT: proyectos iniciados en el mes.
+    const proyectosCarbonoDelMes = projects.filter((project) => {
+      const isCarbono =
+        project.client?.toLowerCase() === 'carbono' || project.cliente?.toLowerCase() === 'carbono';
       if (!isCarbono) return false;
 
-      const isCompleted = p.status?.toLowerCase() === 'completado';
-
-      let isInCurrentMonth = false;
-      if (p.startDate) {
-        try {
-          const projectMonth = format(parseISO(p.startDate), 'yyyy-MM');
-          isInCurrentMonth = projectMonth === currentMonth;
-        } catch (error) {
-          // Ignorar errores de parseo de fecha
-        }
+      if (!project.startDate) return false;
+      try {
+        const projectMonth = getMonthFromDate(project.startDate);
+        return projectMonth === selectedMonth;
+      } catch {
+        return false;
       }
-      return isInCurrentMonth || isCompleted;
     });
 
-    // Lógica para contar proyectos de Carbono únicos por nombre
+    // Lógica para la lista de proyectos de Carbono (evita duplicados por nombre)
     const proyectosCarbonoUnicos = [];
     const nombresVistos = new Set();
-    proyectosCarbonoContabilizados.forEach(p => {
-      if (p.name && !nombresVistos.has(p.name)) {
-        proyectosCarbonoUnicos.push(p);
-        nombresVistos.add(p.name);
+    proyectosCarbonoDelMes.forEach((project) => {
+      if (project.name && !nombresVistos.has(project.name)) {
+        proyectosCarbonoUnicos.push(project);
+        nombresVistos.add(project.name);
       }
     });
     const proyectosCarbonoRealizados = proyectosCarbonoUnicos.length;
 
-    const ingresosVariables = proyectosVariables.reduce((sum, p) => {
-        return sum + (parseFloat(montosProyectos[p.id]) || 0);
-    }, 0);
+    const ingresosVariables = proyectosVariables.reduce( // proyectosVariables ya está filtrado por el mes seleccionado
+      (sum, project) => sum + (parseFloat(project.income) || 0),
+      0
+    );
 
     const ingresosTotales = RETAINER_FIJO_MENSUAL + ingresosVariables;
     const costoSalarialTotal = SALARIO_BASE_POR_PERSONA * NUMERO_SOCIOS;
-    
+
     const fondoOperativo = ingresosTotales * TASA_FONDO_OPERATIVO;
     const utilidadNeta = ingresosTotales - fondoOperativo - costoSalarialTotal;
 
     const distribucion = {
-      marcelo: utilidadNeta * 0.60,
-      mauricio: utilidadNeta * 0.30,
-      edson: utilidadNeta * 0.10,
+      marcelo: utilidadNeta * 0.6,
+      mauricio: utilidadNeta * 0.3,
+      edson: utilidadNeta * 0.1,
     };
 
     return {
@@ -108,95 +196,125 @@ const VistaFinanzasCEO = () => {
       utilidadNeta,
       distribucion,
     };
-  }, [projects, montosProyectos, proyectosVariables]);
+  }, [projects, proyectosVariables, selectedMonth]);
 
   const datosGrafico = [
     { name: 'Retainer Fijo', value: RETAINER_FIJO_MENSUAL, color: '#a78bfa' },
     { name: 'Proyectos Variables', value: calculos.ingresosVariables, color: '#60a5fa' },
   ];
 
-  const currency = (value) => `S/ ${value.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const usd = (value) => `$ ${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const currency = (value) =>
+    `S/ ${value.toLocaleString('es-PE', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  const usd = (value) =>
+    `$ ${value.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
 
   const getStatusColor = (estado) => {
     const status = estado?.toLowerCase() || '';
-    if (status.includes('cobrado') || status.includes('completado')) return 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20';
-    if (status.includes('entregado')) return 'bg-blue-500/10 text-blue-300 border-blue-500/20';
-    if (status.includes('curso') || status.includes('progreso')) return 'bg-amber-500/10 text-amber-300 border-amber-500/20';
-    if (status.includes('cotizado') || status.includes('programado')) return 'bg-slate-500/10 text-slate-300 border-slate-500/20';
-    return 'bg-slate-600/20 text-slate-200 border-slate-600/30';
+
+    if (status.includes('cobrado') || status.includes('completado')) {
+      return 'border-[#C8E6C9] bg-[#F1FAF3] text-[#2F9E44]';
+    }
+    if (status.includes('entregado')) {
+      return 'border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7]';
+    }
+    if (status.includes('curso') || status.includes('progreso')) {
+      return 'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00]';
+    }
+    if (status.includes('cotizado') || status.includes('programado')) {
+      return 'border-[#E5E7EB] bg-[#F4F5F7] text-secondary';
+    }
+    return 'border-[#E5E7EB] bg-[#F9FAFB] text-secondary';
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 font-sans antialiased animate-fade-in">
-      <div className="max-w-7xl mx-auto space-y-8">
-        
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center gap-3">
-            <LayoutDashboard className="text-purple-400" size={32} />
-            <div>
-              <h1 className="text-3xl font-bold text-slate-50">Dashboard Financiero</h1>
-              <p className="text-sm text-slate-400">Resumen de Rentabilidad y Operaciones</p>
-            </div>
+    <div className="space-y-8 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-primary">Resumen financiero mensual</h1>
+            <p className="text-sm text-secondary">
+              Mostrando ingresos y proyectos correspondientes a {selectedMonthLabel}.
+            </p>
           </div>
-          <div className="text-right">
-            <p className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-cyan-400">Cerezo Audiovisual</p>
-            <p className="text-xs text-slate-500">Actualizado en tiempo real</p>
+          <div className="flex items-center gap-3">
+            <label htmlFor="financial-month" className="text-sm font-medium text-secondary">
+              Selecciona el mes
+            </label>
+            <input
+              id="financial-month"
+              type="month"
+              value={selectedMonth}
+              onChange={(event) => setSelectedMonth(event.target.value)}
+              className="rounded-lg border border-[#D1D5DB] bg-white px-3 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+            />
           </div>
         </div>
 
         {calculos.proyectosCarbonoRealizados > PROYECTOS_INCLUIDOS_RETAINER && (
-          <div className="bg-red-500/15 border border-red-400/30 text-red-300 p-4 rounded-xl flex items-center gap-3 animate-pulse">
-            <AlertCircle />
+          <div className="flex items-center gap-3 rounded-xl border border-[#F4C7C7] bg-[#FDECEC] p-4 text-[#B91C1C]">
+            <AlertCircle size={18} />
             <span>
-              <strong>Alerta de Retainer:</strong> Se han superado los {PROYECTOS_INCLUIDOS_RETAINER} proyectos de Carbono este mes.
+              <strong>Alerta de retainer:</strong> Se han superado los {PROYECTOS_INCLUIDOS_RETAINER} proyectos de
+              Carbono este mes.
             </span>
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
           <KpiCard
             icon={<DollarSign />}
-            title="Ingresos del Mes"
+            title="Ingresos del mes"
             value={currency(calculos.ingresosTotales)}
             subValue={usd(calculos.ingresosTotales / TIPO_CAMBIO_USD)}
             color="violet"
           />
           <KpiCard
             icon={<TrendingUp />}
-            title="Utilidad Neta"
+            title="Utilidad neta"
             value={currency(calculos.utilidadNeta)}
             subValue={`Marcelo: ${currency(calculos.distribucion.marcelo)} (60%)`}
             color="emerald"
           />
           <KpiCard
             icon={<Briefcase />}
-            title="Proyectos Variables"
+            title="Proyectos variables"
             value={calculos.proyectosVariables.length}
             subValue={`Totalizando ${currency(calculos.ingresosVariables)}`}
             color="sky"
           />
           <KpiCard
             icon={<PiggyBank />}
-            title="Fondo Operativo (10%)"
+            title="Fondo operativo (10%)"
             value={currency(calculos.fondoOperativo)}
             subValue="Reservado para gastos futuros"
             color="amber"
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-slate-900/70 backdrop-blur-sm rounded-2xl p-6 border border-slate-800/80 shadow-lg">
-            <h2 className="text-xl font-bold mb-4 text-slate-200">Desglose de Ingresos Mensuales</h2>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="glass-panel lg:col-span-2 space-y-4 p-6">
+            <h2 className="text-xl font-semibold text-primary">Desglose de ingresos mensuales</h2>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={datosGrafico} layout="vertical" margin={{ top: 20, right: 20, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(100, 116, 139, 0.2)" />
-                <XAxis type="number" stroke="#64748b" tickFormatter={(value) => `S/${value/1000}k`} />
-                <YAxis type="category" dataKey="name" hide/>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis type="number" tick={{ fill: '#6B7280', fontSize: 12 }} tickFormatter={(value) => `S/${value / 1000}k`} />
+                <YAxis type="category" dataKey="name" hide tick={{ fill: '#6B7280', fontSize: 12 }} />
                 <Tooltip
-                  cursor={{ fill: 'rgba(148, 163, 184, 0.05)' }}
-                  contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(4px)', border: '1px solid #334155', borderRadius: '12px', color: '#cbd5e1' }}
-                  labelStyle={{ color: '#94a3b8' }}
+                  cursor={{ fill: 'rgba(108, 99, 255, 0.06)' }}
+                  contentStyle={{
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(209,213,219,0.7)',
+                    boxShadow: '0 10px 24px rgba(15,23,42,0.08)',
+                    color: '#2E2E2E',
+                  }}
+                  labelStyle={{ color: '#6B7280' }}
                 />
                 <Legend />
                 <Bar dataKey="value" name="Ingresos" stackId="a" barSize={40}>
@@ -207,105 +325,161 @@ const VistaFinanzasCEO = () => {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          
-          <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-6 border border-slate-800/80 flex flex-col justify-center shadow-lg">
-            <h2 className="text-xl font-bold mb-4 text-slate-200">Retainer: Carbono MKT</h2>
-            <div className="text-center mb-4">
-              <p className="text-5xl font-bold text-purple-400">{calculos.proyectosCarbonoRealizados} / {PROYECTOS_INCLUIDOS_RETAINER}</p>
-              <p className="text-slate-400 mt-1">Proyectos Realizados este Mes</p>
+
+          <div className="glass-panel flex flex-col justify-center space-y-4 p-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-primary">Retainer: Carbono MKT</h2>
+              <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">Mensual</span>
             </div>
-            <div className="w-full bg-slate-800 rounded-full h-3.5 mb-4 overflow-hidden">
+            <div className="text-center space-y-1">
+              <p className="text-5xl font-bold text-accent">
+                {calculos.proyectosCarbonoRealizados} / {PROYECTOS_INCLUIDOS_RETAINER}
+              </p>
+              <p className="text-sm text-secondary">Proyectos realizados este mes</p>
+            </div>
+            <div className="h-3.5 w-full rounded-full bg-[#E8EAF6]">
               <div
-                className="bg-purple-500 h-3.5 rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${Math.min(100, (calculos.proyectosCarbonoRealizados / PROYECTOS_INCLUIDOS_RETAINER) * 100)}%` }}
+                className="h-3.5 rounded-full bg-accent transition-all duration-500 ease-out"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    (calculos.proyectosCarbonoRealizados / PROYECTOS_INCLUIDOS_RETAINER) * 100
+                  )}%`,
+                }}
               />
             </div>
             <div className="space-y-2 text-sm">
-              {calculos.proyectosCarbonoUnicos.map(p => (
-                <div key={p.id} className="flex items-center gap-2 text-slate-400">
-                  <CheckCircle size={14} className="text-purple-400" />
-                  <span className="truncate">{p.name}</span>
-                </div>
-              ))}
+              {calculos.proyectosCarbonoUnicos.length === 0 ? (
+                <p className="text-secondary">No hay proyectos registrados en este mes.</p>
+              ) : (
+                calculos.proyectosCarbonoUnicos.map((project) => (
+                  <div key={project.id} className="flex items-center gap-2 text-secondary">
+                    <CheckCircle size={14} className="text-accent" />
+                    <span className="truncate">{project.name}</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-slate-900/70 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-slate-800/80 shadow-lg">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-200"><FileText size={20}/> Proyectos Variables Activos</h2>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="glass-panel space-y-4 p-6 lg:col-span-2">
+            <h2 className="text-xl font-semibold text-primary flex items-center gap-2">
+              <FileText size={20} /> Proyectos variables activos
+            </h2>
             <div className="overflow-x-auto -mx-4 sm:-mx-6">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-slate-800 text-xs text-slate-400 uppercase tracking-wider">
-                    <th className="p-4">Cliente</th>
-                    <th className="p-4">Proyecto</th>
-                    <th className="p-4 text-right">Monto (S/)</th>
-                    <th className="p-4">Estado</th>
-                    <th className="p-4"></th>
+              <table className="min-w-full divide-y divide-[#E5E7EB] text-left">
+                <thead className="bg-[#F9FAFB] text-xs uppercase tracking-wider text-secondary">
+                  <tr>
+                    <th className="px-6 py-3">Cliente</th>
+                    <th className="px-6 py-3">Proyecto</th>
+                    <th className="px-6 py-3 text-right">Monto (S/)</th>
+                    <th className="px-6 py-3">Estado</th>
+                    <th className="px-6 py-3" />
                   </tr>
                 </thead>
-                <tbody>
-                  {calculos.proyectosVariables.map(p => (
-                    <tr key={p.id} className="border-b border-slate-800/50 hover:bg-slate-800/40 transition-colors">
-                      <td className="p-4 font-medium text-slate-300">{p.client || p.cliente}</td>
-                      <td className="p-4 font-medium text-slate-300">{p.name}</td>
-                      <td className="p-4">
-                        <input 
-                          type="number"
-                          value={montosProyectos[p.id] || ''}
-                          onChange={(e) => handleMontoChange(p.id, e.target.value)}
-                          onBlur={() => handleSaveMonto(p)}
-                          className="bg-slate-800 rounded-md p-2 w-32 text-right text-slate-100 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition"
-                        />
-                      </td>
-                      <td className="p-4">
-                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${getStatusColor(p.status)}`}>
-                          {p.status}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <button onClick={() => handleSaveMonto(p)} className="p-2 rounded-full text-slate-400 hover:bg-emerald-500/20 hover:text-emerald-300 transition-colors">
-                          <Save size={16} />
-                        </button>
+                <tbody className="divide-y divide-[#F1F5F9]">
+                  {calculos.proyectosVariables.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-6 text-center text-sm text-secondary">
+                        No hay proyectos variables registrados en {selectedMonthLabel}.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    calculos.proyectosVariables.map((project) => (
+                      <tr key={project.id} className="transition hover:bg-[#F7F8FA]">
+                        <td className="px-6 py-3 text-sm font-medium text-primary">
+                          {project.client || project.cliente}
+                        </td>
+                        <td className="px-6 py-3 text-sm font-medium text-primary">{project.name}</td>
+                        <td className="px-6 py-3">
+                          <input
+                            type="number"
+                            value={project.income ?? ''}
+                            onChange={(event) => handleMontoChange(project.id, event.target.value)}
+                            onBlur={() => handleSaveMonto(project.id)}
+                            className="w-32 rounded-lg border border-[#D1D5DB] bg-white p-2 text-right text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                          />
+                        </td>
+                        <td className="px-6 py-3">
+                          <span
+                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${getStatusColor(
+                              project.status
+                            )}`}
+                          >
+                            {project.status || 'Sin estado'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3">
+                          <button
+                            type="button"
+                            onClick={() => handleSaveMonto(project.id)}
+                            className="rounded-full p-2 text-secondary transition hover:bg-accent/10 hover:text-accent"
+                          >
+                            <Save size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
 
-          <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-6 border border-slate-800/80 shadow-lg">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-200"><Users size={20}/> Distribución de Utilidad</h2>
-            <div className="space-y-4">
-              <SocioCard socio="Marcelo" rol="CEO" porcentaje="60%" monto={currency(calculos.distribucion.marcelo)} color="purple" />
-              <SocioCard socio="Mauricio" rol="Operaciones" porcentaje="30%" monto={currency(calculos.distribucion.mauricio)} color="blue" />
-              <SocioCard socio="Edson" rol="Operaciones" porcentaje="10%" monto={currency(calculos.distribucion.edson)} color="green" />
+          <div className="glass-panel space-y-4 p-6">
+            <h2 className="text-xl font-semibold text-primary flex items-center gap-2">
+              <Users size={20} /> Distribución de utilidad
+            </h2>
+            <div className="space-y-3">
+              <SocioCard
+                socio="Marcelo"
+                rol="CEO"
+                porcentaje="60%"
+                monto={currency(calculos.distribucion.marcelo)}
+                color="purple"
+              />
+              <SocioCard
+                socio="Mauricio"
+                rol="Operaciones"
+                porcentaje="30%"
+                monto={currency(calculos.distribucion.mauricio)}
+                color="blue"
+              />
+              <SocioCard
+                socio="Edson"
+                rol="Operaciones"
+                porcentaje="10%"
+                monto={currency(calculos.distribucion.edson)}
+                color="green"
+              />
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
 };
 
 const KpiCard = ({ icon, title, value, subValue, color }) => {
-  const colorClasses = {
+  const palette = {
     violet: 'from-violet-600 to-indigo-600',
     emerald: 'from-emerald-500 to-green-500',
     sky: 'from-sky-500 to-cyan-500',
     amber: 'from-amber-500 to-orange-500',
   };
+
+  const colorClasses = palette[color] || palette.violet;
+
   return (
-    <div className={`bg-gradient-to-br ${colorClasses[color]} rounded-2xl p-5 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-slate-900/50`}>
+    <div className={`bg-gradient-to-br ${colorClasses} rounded-2xl p-5 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(15,23,42,0.18)]`}>
       <div className="flex items-center gap-4">
         <div className="bg-white/15 p-3 rounded-full backdrop-blur-sm">{icon}</div>
         <div>
-          <p className="text-slate-200 text-sm font-medium">{title}</p>
+          <p className="text-sm font-medium text-white/80">{title}</p>
           <p className="text-2xl font-bold text-white">{value}</p>
-          {subValue && <p className="text-xs text-slate-200/80 mt-1">{subValue}</p>}
+          {subValue && <p className="mt-1 text-xs text-white/70">{subValue}</p>}
         </div>
       </div>
     </div>
@@ -313,25 +487,28 @@ const KpiCard = ({ icon, title, value, subValue, color }) => {
 };
 
 const SocioCard = ({ socio, rol, porcentaje, monto, color }) => {
-    const colorClasses = {
-        purple: 'border-l-purple-400 hover:bg-purple-500/10',
-        blue: 'border-l-blue-400 hover:bg-blue-500/10',
-        green: 'border-l-green-400 hover:bg-green-500/10',
-    };
-    return (
-        <div className={`bg-slate-800/50 p-4 rounded-lg border-l-4 transition-colors ${colorClasses[color]}`}>
-            <div className="flex justify-between items-center">
-                <div>
-                    <p className="font-bold text-lg text-slate-200">{socio}</p>
-                    <p className="text-sm text-slate-400">{rol}</p>
-                </div>
-                <div className="text-right">
-                    <p className="font-bold text-lg text-slate-200">{monto}</p>
-                    <p className="text-sm text-slate-400">{porcentaje}</p>
-                </div>
-            </div>
+  const palette = {
+    purple: 'border-l-accent',
+    blue: 'border-l-[#4C8EF7]',
+    green: 'border-l-[#2F9E44]',
+  };
+
+  const selected = palette[color] || palette.purple;
+
+  return (
+    <div className={`rounded-xl border border-[#E5E7EB] bg-white p-4 transition hover:shadow-[0_12px_24px_rgba(15,23,42,0.08)] border-l-4 ${selected}`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-lg font-semibold text-primary">{socio}</p>
+          <p className="text-sm text-secondary/80">{rol}</p>
         </div>
-    );
-}
+        <div className="text-right">
+          <p className="text-lg font-semibold text-primary">{monto}</p>
+          <p className="text-sm text-secondary">{porcentaje}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default VistaFinanzasCEO;

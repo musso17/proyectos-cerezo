@@ -1,29 +1,29 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Calendar as CalendarIcon, Edit2, Trash2 } from 'lucide-react';
 import useStore from '../../hooks/useStore';
 import { filterProjects } from '../../utils/filterProjects';
-import { ALLOWED_STATUSES } from '../../utils/statusHelpers';
 import { getClientBadgeClass } from '../../utils/clientStyles';
 import { generarLinkGoogleCalendar } from '../../utils/calendar';
+import { getUIPreference, setUIPreference } from '../../utils/uiPreferences';
 
 const statusStyles = {
   Programado: {
-    badge: 'border-slate-500/40 bg-slate-700/30 text-slate-200',
-    dot: 'bg-slate-300',
+    badge: 'border-[#D1D5DB] bg-[#F4F5F7] text-secondary',
+    dot: 'bg-[#9CA3AF]',
   },
   'En progreso': {
-    badge: 'border-amber-400/40 bg-amber-500/20 text-amber-100',
-    dot: 'bg-amber-300',
+    badge: 'border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF]',
+    dot: 'bg-[#6C63FF]',
   },
   'En revisión': {
-    badge: 'border-purple-400/40 bg-purple-600/20 text-purple-100',
-    dot: 'bg-purple-300',
+    badge: 'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00]',
+    dot: 'bg-[#FFB020]',
   },
   Completado: {
-    badge: 'border-emerald-400/40 bg-emerald-500/20 text-emerald-100',
-    dot: 'bg-emerald-300',
+    badge: 'border-[#C8E6C9] bg-[#F1FAF3] text-[#2F9E44]',
+    dot: 'bg-[#4CAF50]',
   },
 };
 
@@ -60,16 +60,16 @@ const formatDate = (value) => {
 const TYPE_BADGES = {
   grabacion: {
     label: 'Grabación',
-    className: 'bg-blue-500/10 text-blue-200 border border-blue-400/40',
+    className: 'border border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7]',
   },
   edicion: {
     label: 'Edición',
-    className: 'bg-emerald-500/10 text-emerald-200 border border-emerald-400/40',
+    className: 'border border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF]',
   },
 };
 
 const getProjectTypeBadge = (project) => {
-  if (!project) return { label: 'Sin tipo', className: 'bg-slate-700/50 text-secondary border border-border/60' };
+  if (!project) return { label: 'Sin tipo', className: 'bg-slate-700/50 text-secondary border border-[#E5E7EB]' };
 
   const rawStage = project.stage || project.properties?.stage || '';
   const rawType = project.type || project.properties?.registrationType || '';
@@ -84,7 +84,10 @@ const getProjectTypeBadge = (project) => {
     return TYPE_BADGES[normalizedType];
   }
 
-  return { label: rawType || rawStage || 'Sin tipo', className: 'bg-slate-700/50 text-secondary border border-border/60' };
+  return {
+    label: rawType || rawStage || 'Sin tipo',
+    className: 'border border-[#D1D5DB] bg-[#F4F5F7] text-secondary',
+  };
 };
 
 const isCompletedProject = (project) => {
@@ -106,22 +109,131 @@ const renderStatusBadge = (status) => {
   );
 };
 
+const revisionDisplayConfig = {
+  grabacion: {
+    className: 'border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7]',
+    label: 'Grabación',
+  },
+  edicion: {
+    className: 'border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF]',
+    label: 'En edición',
+  },
+  revision: {
+    className: 'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00]',
+    label: 'En revisión',
+  },
+  aprobado: {
+    className: 'border-[#C8E6C9] bg-[#F1FAF3] text-[#2F9E44]',
+    label: 'Aprobado',
+  },
+};
+
+const getDisplayStatus = (project) => {
+  const step = project?.revision?.currentStep || '';
+  if (step === 'enviado' || step === 'esperando_feedback') return 'En revisión';
+  if (step === 'editando' || step === 'corrigiendo') return 'En progreso';
+  return project?.status || 'Programado';
+};
+
+const getRecordingDateValue = (project) => {
+  const candidates = [
+    project.recordingDate,
+    project.fechaGrabacion,
+    project.fecha_grabacion,
+    project.fechaGrabación,
+    project.properties?.fechaGrabacion,
+    project.properties?.fecha_grabacion,
+  ];
+  const value = candidates.find((item) => item && item.toString().trim().length > 0);
+  return value || '';
+};
+
+const isExpiredRecordingProject = (project) => {
+  const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
+  if (stage !== 'grabacion') return false;
+  const rawDate = getRecordingDateValue(project);
+  if (!rawDate) return false;
+  const parsed = new Date(rawDate.length <= 10 ? `${rawDate}T00:00:00` : rawDate);
+  if (Number.isNaN(parsed.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  parsed.setHours(0, 0, 0, 0);
+  return parsed < today;
+};
+
+const renderRevisionBadge = (project) => {
+  const revision = project?.revision;
+  const step = revision?.currentStep;
+  let config = null;
+  if (step) {
+    if (step === 'enviado' || step === 'esperando_feedback') {
+      config = revisionDisplayConfig.revision;
+    } else if (step === 'corrigiendo' || step === 'editando') {
+      config = revisionDisplayConfig.edicion;
+    } else if (step === 'aprobado') {
+      config = revisionDisplayConfig.aprobado;
+    }
+  } else {
+    const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
+    if (stage === 'grabacion') {
+      config = revisionDisplayConfig.grabacion;
+    } else if (stage === 'edicion' || stage === 'postproduccion') {
+      config = revisionDisplayConfig.edicion;
+    }
+  }
+
+  if (!config) return null;
+  const label = config.label || revision?.label || step;
+  const cycleNumber = revision?.currentNumber || 1;
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${config.className}`}
+    >
+      {revision?.totalCycles ? (
+        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-secondary/70">
+          Ciclo {cycleNumber}
+        </span>
+      ) : null}
+      <span>{label}</span>
+    </span>
+  );
+};
+
+const DEFAULT_TABLE_FILTERS = {
+  type: 'Todos',
+  manager: 'Todos',
+  status: 'Todos',
+  client: 'Todos',
+};
+
+const buildInitialFilters = () => {
+  const stored = getUIPreference('tableFilters', null);
+  const base = { ...DEFAULT_TABLE_FILTERS };
+  if (stored && typeof stored === 'object') {
+    Object.keys(base).forEach((key) => {
+      const value = stored[key];
+      if (typeof value === 'string' && value.trim().length > 0) {
+        base[key] = value;
+      }
+    });
+  }
+  return base;
+};
+
 const VistaTabla = () => {
   const projects = useStore((state) => state.projects);
   const openModal = useStore((state) => state.openModal);
-  const updateProject = useStore((state) => state.updateProject);
   const deleteProject = useStore((state) => state.deleteProject);
   const searchTerm = useStore((state) => state.searchTerm);
 
-  const [filters, setFilters] = useState({
-    type: 'Todos',
-    manager: 'Todos',
-    status: 'Todos',
-    client: 'Todos',
-  });
+  const [filters, setFilters] = useState(() => buildInitialFilters());
+
+  useEffect(() => {
+    setUIPreference('tableFilters', filters);
+  }, [filters]);
 
   const activeProjects = useMemo(
-    () => projects.filter((project) => !isCompletedProject(project)),
+    () => projects.filter((project) => !isCompletedProject(project) && !isExpiredRecordingProject(project)),
     [projects]
   );
 
@@ -140,7 +252,7 @@ const orderedProjects = useMemo(() => {
     const clientSet = new Set();
 
     activeProjects.forEach((project) => {
-      typeSet.add(getLabel(project.type, 'Sin tipo'));
+      typeSet.add(getProjectTypeBadge(project).label);
       const managers = getProjectManagers(project);
       if (managers.length === 0) {
         managerSet.add('Sin asignar');
@@ -163,7 +275,7 @@ const orderedProjects = useMemo(() => {
 
   const filteredProjects = useMemo(() => {
     return orderedProjects.filter((project) => {
-      const typeLabel = getLabel(project.type, 'Sin tipo');
+      const typeLabel = getProjectTypeBadge(project).label;
   const statusLabel = getLabel(project.status, 'Programado');
       const clientLabel = getLabel(project.client, 'Sin cliente');
 
@@ -193,12 +305,7 @@ const orderedProjects = useMemo(() => {
   };
 
   const handleResetFilters = () => {
-    setFilters({
-      type: 'Todos',
-      manager: 'Todos',
-      status: 'Todos',
-      client: 'Todos',
-    });
+    setFilters(() => ({ ...DEFAULT_TABLE_FILTERS }));
   };
 
   const handleEdit = (project, event) => {
@@ -226,13 +333,13 @@ const orderedProjects = useMemo(() => {
 
   return (
     <div className="soft-scroll flex h-full flex-col gap-4 overflow-auto">
-      <div className="glass-panel flex flex-wrap items-end gap-4 rounded-3xl px-4 py-4 text-xs text-secondary sm:px-6">
+      <div className="glass-panel flex flex-wrap items-end gap-4 p-5 text-xs text-secondary">
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:gap-0">
-          <label className="mb-1 font-medium uppercase tracking-wide text-secondary">Tipo</label>
+          <label className="mb-1 font-semibold uppercase tracking-[0.26em] text-secondary/80">Tipo</label>
           <select
             value={filters.type}
             onChange={handleFilterChange('type')}
-            className="rounded-2xl border border-border/60 bg-slate-900/70 px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+            className="rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           >
             {filterOptions.types.map((option) => (
               <option key={option} value={option}>
@@ -243,11 +350,11 @@ const orderedProjects = useMemo(() => {
         </div>
 
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:gap-0">
-          <label className="mb-1 font-medium uppercase tracking-wide text-secondary">Encargado</label>
+          <label className="mb-1 font-semibold uppercase tracking-[0.26em] text-secondary/80">Encargado</label>
           <select
             value={filters.manager}
             onChange={handleFilterChange('manager')}
-            className="rounded-2xl border border-border/60 bg-slate-900/70 px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+            className="rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           >
             {filterOptions.managers.map((option) => (
               <option key={option} value={option}>
@@ -258,11 +365,11 @@ const orderedProjects = useMemo(() => {
         </div>
 
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:gap-0">
-          <label className="mb-1 font-medium uppercase tracking-wide text-secondary">Estado</label>
+          <label className="mb-1 font-semibold uppercase tracking-[0.26em] text-secondary/80">Estado</label>
           <select
             value={filters.status}
             onChange={handleFilterChange('status')}
-            className="rounded-2xl border border-border/60 bg-slate-900/70 px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+            className="rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           >
             {filterOptions.statuses.map((option) => (
               <option key={option} value={option}>
@@ -273,11 +380,11 @@ const orderedProjects = useMemo(() => {
         </div>
 
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:gap-0">
-          <label className="mb-1 font-medium uppercase tracking-wide text-secondary">Cliente</label>
+          <label className="mb-1 font-semibold uppercase tracking-[0.26em] text-secondary/80">Cliente</label>
           <select
             value={filters.client}
             onChange={handleFilterChange('client')}
-            className="rounded-2xl border border-border/60 bg-slate-900/70 px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+            className="rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           >
             {filterOptions.clients.map((option) => (
               <option key={option} value={option}>
@@ -290,7 +397,7 @@ const orderedProjects = useMemo(() => {
         <button
           type="button"
           onClick={handleResetFilters}
-          className="w-full rounded-2xl border border-accent/60 bg-emerald-500/20 px-4 py-2 text-sm font-medium text-emerald-100 transition hover:-translate-y-0.5 hover:bg-emerald-500/30 sm:ml-auto sm:w-auto"
+          className="w-full rounded-xl border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-semibold text-accent transition hover:shadow-sm sm:ml-auto sm:w-auto"
         >
           Limpiar filtros
         </button>
@@ -298,7 +405,7 @@ const orderedProjects = useMemo(() => {
 
       <div className="flex flex-col gap-4 sm:hidden">
         {searchFilteredProjects.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-border/60 bg-slate-900/60 p-6 text-center text-sm text-secondary">
+          <div className="rounded-2xl border border-dashed border-[#CBD5F5] bg-[#F9FAFF] p-6 text-center text-sm text-secondary">
             No hay proyectos para mostrar.
           </div>
         ) : (
@@ -318,7 +425,7 @@ const orderedProjects = useMemo(() => {
             return (
               <div
                 key={project.id || index}
-                className="space-y-4 rounded-3xl border border-border/60 bg-slate-900/70 p-5 shadow-[0_14px_42px_rgba(2,6,23,0.38)] transition hover:border-accent/40"
+                className="space-y-4 rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm transition hover:shadow-md"
                 onClick={() => openModal(project)}
                 role="button"
                 tabIndex={0}
@@ -367,8 +474,8 @@ const orderedProjects = useMemo(() => {
                           disabled={calendarDisabled}
                           className={`flex h-8 w-8 items-center justify-center rounded-full transition focus:outline-none focus:ring-2 focus:ring-accent/50 ${
                             calendarDisabled
-                              ? 'cursor-not-allowed border border-border/60 text-secondary'
-                              : 'border border-accent/50 text-accent hover:bg-accent/10'
+                              ? 'cursor-not-allowed border border-[#E5E7EB] text-secondary'
+                              : 'border border-accent/40 text-accent hover:bg-accent/10'
                           }`}
                           aria-label="Agendar en Calendar"
                         >
@@ -376,7 +483,12 @@ const orderedProjects = useMemo(() => {
                         </button>
                       </div>
                     </div>
-                    <div>{renderStatusBadge(project.status)}</div>
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center gap-2">
+                      {renderStatusBadge(getDisplayStatus(project))}
+                      {renderRevisionBadge(project)}
+                    </div>
+                  </div>
                   </div>
                 </div>
                 <div className="flex flex-col gap-3 pt-2">
@@ -387,6 +499,7 @@ const orderedProjects = useMemo(() => {
                       openModal(project);
                     }}
                     className="w-full rounded-2xl border border-accent/70 bg-emerald-500/20 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:border-accent hover:bg-emerald-500/30"
+                    className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
                   >
                     Ver detalles
                   </button>
@@ -396,7 +509,7 @@ const orderedProjects = useMemo(() => {
                       event.stopPropagation();
                       handleDelete(project, event);
                     }}
-                    className="w-full rounded-2xl border border-red-500/60 bg-red-600/20 px-4 py-3 text-sm font-semibold text-red-200 transition hover:-translate-y-0.5 hover:bg-red-600/30"
+                    className="w-full rounded-xl border border-[#F4C7C7] bg-[#FDECEC] px-4 py-3 text-sm font-semibold text-[#B91C1C] transition hover:shadow-sm"
                   >
                     Eliminar
                   </button>
@@ -407,10 +520,10 @@ const orderedProjects = useMemo(() => {
         )}
       </div>
 
-      <div className="glass-panel overflow-hidden rounded-3xl">
+      <div className="glass-panel overflow-hidden">
         <table className="hidden w-full border-collapse text-sm text-secondary sm:table">
           <thead>
-            <tr className="bg-white/5 text-xs uppercase tracking-wide text-secondary">
+            <tr className="bg-[#F9FAFB] text-xs uppercase tracking-[0.26em] text-secondary/80">
               {['Proyecto', 'Encargado', 'Estado', 'Inicio', 'Entrega', 'Cliente', 'Acciones'].map((header) => (
                 <th key={header} className="px-6 py-4 text-left font-semibold">
                   {header}
@@ -440,7 +553,7 @@ const orderedProjects = useMemo(() => {
                 return (
                   <tr
                     key={project.id || index}
-                    className="border-t border-border/60 transition-all duration-200 ease-[var(--ease-ios-out)] hover:-translate-y-0.5 hover:bg-slate-900/40"
+                    className="border-t border-[#E5E7EB] transition-colors duration-150 ease-out hover:bg-[#F7F8FA]"
                     onClick={() => openModal(project)}
                   >
                     <td className="px-6 py-5 text-sm font-semibold text-primary">
@@ -456,26 +569,7 @@ const orderedProjects = useMemo(() => {
                       })()}
                     </td>
                     <td className="px-6 py-5">
-                      <div className="flex items-center gap-3">
-                        <span className={`h-2.5 w-2.5 rounded-full ${statusStyles[project.status || 'Programado']?.dot || 'bg-slate-300'}`} />
-                        <select
-                          value={project.status || 'Programado'}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            const nextStatus = e.target.value;
-                            if (nextStatus === project.status) return;
-                            updateProject({ ...project, status: nextStatus });
-                          }}
-                          className="rounded-2xl border border-border/60 bg-slate-900/70 px-3 py-2 text-sm text-primary focus:border-accent focus:outline-none"
-                        >
-                          {ALLOWED_STATUSES.map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      {renderStatusBadge(getDisplayStatus(project))}
                     </td>
                     <td className="px-6 py-5 text-sm text-secondary">{formatDate(project.startDate)}</td>
                     <td className="px-6 py-5 text-sm text-secondary">
@@ -489,10 +583,10 @@ const orderedProjects = useMemo(() => {
                             window.open(calendarLink, '_blank', 'noopener');
                           }}
                           disabled={calendarDisabled}
-                          className={`flex h-8 w-8 items-center justify-center rounded-full transition focus:outline-none focus:ring-2 focus:ring-accent/50 ${
+                          className={`flex h-8 w-8 items-center justify-center rounded-full transition focus:outline-none focus:ring-2 focus:ring-accent/30 ${
                             calendarDisabled
-                              ? 'cursor-not-allowed border border-border/60 text-secondary'
-                              : 'border border-accent/50 text-accent hover:bg-accent/10'
+                              ? 'cursor-not-allowed border border-[#E5E7EB] text-secondary'
+                              : 'border border-accent/40 text-accent hover:bg-accent/10'
                           }`}
                           aria-label="Agendar entrega en Calendar"
                         >
@@ -511,14 +605,14 @@ const orderedProjects = useMemo(() => {
                         <button
                           type="button"
                           onClick={(event) => handleEdit(project, event)}
-                          className="rounded-full border border-border/50 bg-slate-900/70 p-2 text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
+                          className="rounded-full border border-[#D1D5DB] bg-white p-2 text-secondary transition hover:bg-[#EEF1F6] hover:text-accent"
                         >
                           <Edit2 size={14} />
                         </button>
                         <button
                           type="button"
                           onClick={(event) => handleDelete(project, event)}
-                          className="rounded-full border border-red-500/60 bg-red-600/20 p-2 text-red-200 transition hover:-translate-y-0.5 hover:bg-red-600/30"
+                          className="rounded-full border border-[#F4C7C7] bg-[#FDECEC] p-2 text-[#B91C1C] transition hover:shadow-sm"
                         >
                           <Trash2 size={14} />
                         </button>

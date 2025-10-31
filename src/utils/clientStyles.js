@@ -1,12 +1,12 @@
 const palette = [
-  { badge: 'bg-rose-500/20 text-rose-200 border-rose-400/40' },
-  { badge: 'bg-cyan-500/20 text-cyan-200 border-cyan-400/40' },
-  { badge: 'bg-amber-500/20 text-amber-200 border-amber-400/40' },
-  { badge: 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40' },
-  { badge: 'bg-indigo-500/20 text-indigo-200 border-indigo-400/40' },
-  { badge: 'bg-violet-500/20 text-violet-200 border-violet-400/40' },
-  { badge: 'bg-pink-500/20 text-pink-200 border-pink-400/40' },
-  { badge: 'bg-blue-500/20 text-blue-200 border-blue-400/40' },
+  { badge: 'border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF]' },
+  { badge: 'border-[#CDE5FF] bg-[#E7F3FF] text-[#4C8EF7]' },
+  { badge: 'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00]' },
+  { badge: 'border-[#C8E6C9] bg-[#F1FAF3] text-[#2F9E44]' },
+  { badge: 'border-[#D8F2F0] bg-[#ECFDF5] text-[#0F766E]' },
+  { badge: 'border-[#FBCFE8] bg-[#FDF2F8] text-[#C026D3]' },
+  { badge: 'border-[#FDE68A] bg-[#FEF9C3] text-[#B45309]' },
+  { badge: 'border-[#D0D7E3] bg-[#F4F5F7] text-[#4B5563]' },
 ];
 
 const clientColorMap = new Map();
@@ -32,8 +32,8 @@ export const getClientStyles = (client) => {
 };
 
 const baseBadges = {
-  md: 'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide shadow-[0_0_0_1px_rgba(255,255,255,0.05)]',
-  sm: 'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide shadow-[0_0_0_1px_rgba(255,255,255,0.05)]',
+  md: 'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em]',
+  sm: 'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.24em]',
 };
 
 export const getClientBadgeClass = (client, size = 'md') => {

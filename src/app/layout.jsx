@@ -1,3 +1,6 @@
+'use client';
+import { useEffect } from 'react';
+import useStore from '../hooks/useStore';
 import './globals.css';
 import { Inter } from 'next/font/google';
 
@@ -6,21 +9,25 @@ const inter = Inter({
   display: 'swap',
 });
 
-export const metadata = {
-  title: 'Cerezo Studio Planner',
-  description: 'Gestión audiovisual con estilo iOS.',
-  icons: {
-    icon: '/favicon.svg',
-    shortcut: '/favicon.svg',
-    apple: '/favicon.svg',
-  },
-};
+// Metadata is now exported from page.jsx or specific layouts, not here in a client component.
 
 export default function RootLayout({ children }) {
+  const fetchProjects = useStore((state) => state.fetchProjects);
+  const checkAndAdvanceProjectStates = useStore((state) => state.checkAndAdvanceProjectStates);
+
+  useEffect(() => {
+    const initializeApp = async () => {
+      await fetchProjects();
+      // Now that projects are fetched, run the state check
+      await checkAndAdvanceProjectStates();
+    };
+
+    initializeApp();
+  }, [fetchProjects, checkAndAdvanceProjectStates]);
+
   return (
     <html lang="es">
-      <body className={`${inter.className} bg-slate-950 text-slate-50`}>
-        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,#38bdf8_0%,transparent_55%),radial-gradient(circle_at_bottom_right,#818cf8_0%,transparent_55%)] opacity-60 blur-3xl" />
+      <body className={`${inter.className} bg-[#F7F8FA] text-[#2E2E2E] antialiased`}>
         <div className="relative flex min-h-screen flex-col">{children}</div>
       </body>
     </html>

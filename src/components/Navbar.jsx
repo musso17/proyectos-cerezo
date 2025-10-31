@@ -39,24 +39,24 @@ const Navbar = () => {
 
   return (
     <>
-      <header className="glass-panel animate-fade-up flex flex-col gap-3 rounded-3xl px-4 py-4 transition-all duration-200 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <header className="glass-panel animate-fade-up flex flex-col gap-4 px-5 py-5 transition-all duration-200 sm:flex-row sm:items-center sm:justify-between sm:px-7">
         <div className="flex w-full items-center gap-2 sm:max-w-md">
           <button
             type="button"
             onClick={toggleSidebar}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border/70 bg-slate-900 text-secondary shadow-[inset_0_1px_0_rgba(148,163,184,0.12)] transition hover:-translate-y-0.5 hover:border-accent/70 hover:text-accent lg:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-secondary transition hover:bg-[#EEF1F6] hover:text-primary lg:hidden"
             aria-label="Abrir menú"
           >
             <Menu size={18} />
           </button>
           <div className="relative flex-1 items-center">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]" size={18} />
             <input
               type="text"
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Buscar proyectos, clientes o responsables…"
-              className="w-full rounded-2xl border border-border/60 bg-slate-900/70 py-2.5 pl-12 pr-4 text-sm text-primary placeholder:text-secondary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+              className="w-full rounded-xl border border-[#D1D5DB] bg-white py-2.5 pl-12 pr-4 text-sm text-primary placeholder:text-secondary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </div>
         </div>
@@ -65,7 +65,7 @@ const Navbar = () => {
             type="button"
             onClick={handleSignOut}
             disabled={signingOut}
-            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-800 bg-slate-900 text-secondary transition hover:-translate-y-0.5 hover:border-red-400 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-secondary transition hover:bg-[#FDECEC] hover:text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-60"
             aria-label="Cerrar sesión"
           >
             <LogOut size={16} />
@@ -73,7 +73,7 @@ const Navbar = () => {
           <button
             onClick={handleAddNew}
             type="button"
-            className="hidden items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-500 to-lime-500 px-4 py-2 text-sm font-semibold text-slate-900 shadow-[0_16px_32px_rgba(16,185,129,0.35)] transition duration-200 ease-[var(--ease-ios-out)] hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(16,185,129,0.45)] sm:inline-flex"
+            className="hidden items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(108,99,255,0.25)] transition duration-200 ease-[var(--ease-ios-out)] hover:-translate-y-0.5 hover:shadow-[0_14px_34px_rgba(108,99,255,0.35)] sm:inline-flex"
           >
             <Plus size={16} />
             <span>Nuevo proyecto</span>
@@ -84,7 +84,7 @@ const Navbar = () => {
         type="button"
         onClick={handleAddNew}
         aria-label="Crear nuevo proyecto"
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-emerald-500 via-emerald-500 to-lime-500 text-slate-900 shadow-[0_18px_40px_rgba(16,185,129,0.45)] transition hover:-translate-y-1 hover:shadow-[0_28px_56px_rgba(16,185,129,0.55)] sm:hidden"
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-[0_18px_36px_rgba(108,99,255,0.35)] transition hover:-translate-y-1 hover:shadow-[0_26px_48px_rgba(108,99,255,0.45)] sm:hidden"
       >
         <Plus size={22} />
       </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -13,7 +13,7 @@ import {
   Area,
 } from 'recharts';
 import {
-  Activity,
+  Activity, Briefcase,
   Video,
   PenSquare,
   CheckCircle2,
@@ -21,7 +21,10 @@ import {
   Clock,
   AlertTriangle,
   GaugeCircle,
-  Briefcase,
+  BrainCircuit,
+  ChevronRight,
+  Zap,
+  EyeOff
 } from 'lucide-react';
 import {
   differenceInCalendarDays,
@@ -35,14 +38,63 @@ import {
 import { es } from 'date-fns/locale';
 import { normalizeString } from '../../utils/normalize';
 import useStore from '../../hooks/useStore';
+import { useShallow } from 'zustand/react/shallow';
+import VistaFinanzasCEO from './VistaFinanzasCEO';
 
-import { Users, DollarSign } from 'lucide-react';
+// By defining the selector outside the component, we ensure it's a stable function reference.
+// This prevents the useStore hook from re-subscribing on every render.
+const selectDashboardState = (state) => ({
+  projects: state.projects,
+  revisionCycles: state.revisionCycles,
+  currentUser: state.currentUser,
+  runAgent: state.runAgent,
+  agentLoading: state.agent?.running || false,
+  lastAgentRun: state.agent?.lastRunAt || null,
+  agentSummary: state.agent?.summary || '',
+  agentActions: Array.isArray(state.agent?.suggestions) ? state.agent.suggestions : [],
+  agentError: state.agent?.error || null,
+});
 
 const VistaDashboard = () => {
-  const projects = useStore((state) => state.projects || []);
-  const currentUser = useStore((state) => state.currentUser);
+  // useShallow performs a shallow equality check on the selected state object.
+  // This prevents re-renders if the object's properties haven't changed,
+  // which is crucial for breaking the render loop.
+  const { projects, revisionCycles, currentUser, runAgent, agentLoading, lastAgentRun, agentSummary, agentActions, agentError } = useStore(useShallow(selectDashboardState));
+  const openModalWithProject = useStore((state) => state.openModalWithProject);
+
   const isCeoUser = (user) => user?.email?.toString().trim().toLowerCase() === 'hola@cerezoperu.com';
-  const [activeTab, setActiveTab] = useState('general');
+  const canViewFinances = isCeoUser(currentUser);
+  const [activeView, setActiveView] = useState('resumen');
+
+  useEffect(() => {
+    if (!canViewFinances && activeView === 'finanzas') {
+      setActiveView('resumen');
+    }
+  }, [canViewFinances, activeView]);
+
+  useEffect(() => {
+    if (!runAgent || agentLoading) return;
+
+    const now = Date.now();
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    const shouldRun = !lastAgentRun || now - lastAgentRun > twentyFourHours;
+
+    if (shouldRun) {
+      runAgent();
+    }
+  }, [runAgent, lastAgentRun, agentLoading, currentUser]);
+
+  const handleRunAgent = useCallback(() => {
+    if (agentLoading || !runAgent) return;
+    runAgent();
+  }, [agentLoading, runAgent]);
+
+  const handleCardAction = (action) => {
+    if (!action.projectId) return;
+    const project = projects.find(p => p.id === action.projectId);
+    if (project) openModalWithProject(project);
+  };
+
   const {
     totals,
     avgDeliveryDays,
@@ -55,16 +107,22 @@ const VistaDashboard = () => {
     totalProjectsCompleted,
     lateEvents,
     managerLoad,
-  } = useMemo(() => buildDashboardData(projects), [projects]);
+    revisionMetrics = {
+      totalCycles: 0,
+      averageReviewDays: null,
+      pendingReviews: 0,
+      avgCyclesPerProject: 0,
+    },
+  } = useMemo(() => buildDashboardData(projects || [], revisionCycles || {}), [projects, revisionCycles]);
 
   const { carbonoProjectsThisMonth, variableProjectsCount } = useMemo(() => {
     const now = new Date();
-    const carbonoProjects = projects.filter(p => 
+    const carbonoProjects = (projects || []).filter(p => 
       (p.client?.toLowerCase() === 'carbono' || p.cliente?.toLowerCase() === 'carbono' || p.properties?.tag === 'carbono') &&
       p.startDate && isSameMonth(parseISO(p.startDate), now)
     );
 
-    const variableProjects = projects.filter(p => 
+    const variableProjects = (projects || []).filter(p => 
       !(p.client?.toLowerCase() === 'carbono' || p.cliente?.toLowerCase() === 'carbono' || p.properties?.tag === 'carbono')
     );
     return {
@@ -74,8 +132,87 @@ const VistaDashboard = () => {
   }, [projects]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 p-4 md:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-primary">Panel ejecutivo</h1>
+          <p className="text-sm text-secondary/80">
+            Monitorea el desempeño operativo y financiero del estudio.
+          </p>
+        </div>
+        {canViewFinances ? (
+          <div className="flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-white p-1 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setActiveView('resumen')}
+              className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+                activeView === 'resumen'
+                  ? 'bg-accent/10 text-accent shadow-none'
+                  : 'text-secondary hover:text-primary'
+              }`}
+            >
+              Resumen
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveView('finanzas')}
+              className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+                activeView === 'finanzas'
+                  ? 'bg-accent/10 text-accent shadow-none'
+                  : 'text-secondary hover:text-primary'
+              }`}
+            >
+              Finanzas
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      {activeView === 'finanzas' && canViewFinances ? (
+        <div className="glass-panel overflow-hidden p-0">
+          <VistaFinanzasCEO />
+        </div>
+      ) : (
       <>
+      {canViewFinances && (
+        <section className="glass-panel col-span-1 space-y-4 p-6">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-3">
+              <BrainCircuit className="h-8 w-8 text-accent" />
+              <div>
+                <h2 className="text-xl font-semibold text-primary">Análisis del Agente</h2>
+                <p className="text-sm text-secondary">Recomendaciones para optimizar el flujo de trabajo.</p>
+              </div>
+            </div>
+            <button
+              onClick={handleRunAgent}
+              disabled={agentLoading}
+              className="inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-semibold text-accent transition-all hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {agentLoading ? <Zap className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+              <span>{agentLoading ? 'Analizando...' : 'Ejecutar análisis'}</span>
+            </button>
+          </div>
+
+          {agentLoading && (!agentActions || agentActions.length === 0) ? (
+            <div className="flex h-24 items-center justify-center rounded-xl border-2 border-dashed border-border/40 bg-slate-900/40 text-secondary">
+              <p>El agente está analizando los proyectos...</p>
+            </div>
+          ) : agentError ? (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-200">{agentError}</div>
+          ) : agentActions && agentActions.length > 0 ? (
+            <div className="space-y-3">
+              <p className="text-sm text-secondary">{agentSummary}</p>
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {agentActions.map((action, index) => (
+                  <AgentActionCard key={index} action={action} onAction={handleCardAction} />
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </section>
+      )}
+
       {carbonoProjectsThisMonth > 6 && (
         <div className="bg-red-500/15 border border-red-400/30 text-red-300 p-4 rounded-lg flex items-center gap-3">
           <AlertTriangle />
@@ -84,93 +221,97 @@ const VistaDashboard = () => {
           </span>
         </div>
       )}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-2">
-        <MetricCard
-          title="Proyectos Carbono (Mes)"
-          value={`${carbonoProjectsThisMonth} / 6`}
-          description="Proyectos mensuales con Carbono"
-          icon={Briefcase}
-          accent="text-purple-300 bg-purple-500/15 border-purple-400/30"
-        />
-        <MetricCard
-          title="Clientes Variables"
-          value={variableProjectsCount}
-          description="Proyectos fuera del retainer de Carbono"
-          icon={Users}
-          accent="text-indigo-300 bg-indigo-500/15 border-indigo-400/30"
-        />
-      </section>
+
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           title="Proyectos activos"
           value={totals.active}
           description="Incluye pendientes y en progreso"
           icon={Activity}
-          accent="text-emerald-300 bg-emerald-500/15 border-emerald-400/30"
+          accent="border-transparent bg-[#E7F3FF] text-[#2563EB]"
         />
         <MetricCard
           title="En grabación"
           value={totals.recording}
           description="Proyectos con fecha de grabación vigente"
           icon={Video}
-          accent="text-sky-300 bg-sky-500/15 border-sky-400/30"
+          accent="border-transparent bg-[#E7F1FF] text-[#4C8EF7]"
         />
         <MetricCard
           title="En edición"
           value={totals.editing}
           description="Proyectos en etapa de post-producción"
           icon={PenSquare}
-          accent="text-amber-300 bg-amber-500/15 border-amber-400/30"
+          accent="border-transparent bg-[#EEF1FF] text-accent"
         />
         <MetricCard
           title="Entregados"
           value={totals.delivered}
           description="Proyectos marcados como completados"
           icon={CheckCircle2}
-          accent="text-lime-300 bg-lime-500/15 border-lime-400/30"
+          accent="border-transparent bg-[#E6F5EC] text-[#2F9E44]"
         />
       </section>
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-2">
+
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          title="Tiempo promedio de entrega"
-          value={avgDeliveryDays !== null ? `${avgDeliveryDays} días` : 'Sin datos'}
-          description="Días entre inicio del proyecto y su finalización"
-          icon={Clock}
-          accent="text-cyan-300 bg-cyan-500/15 border-cyan-400/30"
+          title="Proyectos Carbono (Mes)"
+          value={`${carbonoProjectsThisMonth} / 6`}
+          description="Proyectos mensuales con Carbono"
+          icon={Briefcase}
+          accent="border-transparent bg-[#EEF1FF] text-accent"
         />
         <MetricCard
-          title="Proyectos editados < 48h"
+          title="Proyectos en Revisión (Cliente)"
           value={
-            totalProjectsCompleted > 0
-              ? `${projectsUnder48h} / ${totalProjectsCompleted}`
-              : 'Sin entregas'
+            revisionMetrics.totalCycles > 0
+              ? `${revisionMetrics.pendingReviews} / ${revisionMetrics.totalCycles}`
+              : revisionMetrics.pendingReviews
           }
-          description="Proyectos completados en menos de 2 días desde su inicio"
-          icon={Activity}
-          accent="text-rose-300 bg-rose-500/15 border-rose-400/30"
+          icon={GaugeCircle}
+          accent="border-transparent bg-[#E7F3FF] text-[#2563EB]"
+        />
+        <MetricCard
+          title="Eficiencia de Revisión"
+          value={revisionMetrics.avgCyclesPerProject || 0}
+          icon={CalendarDays}
+          accent="border-transparent bg-[#EEF1FF] text-accent"
+        />
+        <MetricCard
+          title="Tiempo medio de feedback"
+          value={
+            revisionMetrics.averageReviewDays !== null
+              ? `${revisionMetrics.averageReviewDays} días`
+              : 'Sin datos'
+          }
+          description="Días entre envío y devolución del cliente"
+          icon={Clock}
+          accent="border-transparent bg-[#FFF4E6] text-[#FFB020]"
         />
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div className="glass-panel col-span-1 flex flex-col gap-4 rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all xl:col-span-1">
+        <div className="glass-panel col-span-1 flex flex-col gap-4 p-6 transition-all xl:col-span-1">
           <Header title="Proyectos por cliente" subtitle="Clientes con proyectos registrados" />
           <ChartContainer>
             {clientsData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={clientsData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                  <XAxis dataKey="client" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                  <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                  <XAxis dataKey="client" tick={{ fill: '#6B7280', fontSize: 12 }} />
+                  <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} />
                   <RechartsTooltip
                     contentStyle={{
-                      backgroundColor: '#0f172a',
+                      backgroundColor: '#FFFFFF',
                       borderRadius: '12px',
-                      border: '1px solid rgba(148,163,184,0.25)',
+                      border: '1px solid rgba(209,213,219,0.7)',
+                      boxShadow: '0 10px 24px rgba(15,23,42,0.08)',
+                      color: '#2E2E2E',
                     }}
                     formatter={(value) => [`${value} proyectos`, 'Total']}
                   />
-                  <Bar dataKey="total" fill="#60a5fa" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="total" fill="#6C63FF" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -179,7 +320,7 @@ const VistaDashboard = () => {
           </ChartContainer>
         </div>
 
-        <div className="glass-panel col-span-1 flex flex-col gap-4 rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all xl:col-span-2">
+        <div className="glass-panel col-span-1 flex flex-col gap-4 p-6 transition-all xl:col-span-2">
           <Header title="Grabaciones por semana" subtitle="Cantidad de grabaciones únicas" />
           <ChartContainer>
             {recordingsByWeek.length > 0 ? (
@@ -187,25 +328,27 @@ const VistaDashboard = () => {
                 <AreaChart data={recordingsByWeek}>
                   <defs>
                     <linearGradient id="colorRecording" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#34d399" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#4C8EF7" stopOpacity={0.85} />
+                      <stop offset="95%" stopColor="#4C8EF7" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                  <XAxis dataKey="week" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                  <YAxis allowDecimals={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                  <XAxis dataKey="week" tick={{ fill: '#6B7280', fontSize: 12 }} />
+                  <YAxis allowDecimals={false} tick={{ fill: '#6B7280', fontSize: 12 }} />
                   <RechartsTooltip
                     contentStyle={{
-                      backgroundColor: '#0f172a',
+                      backgroundColor: '#FFFFFF',
                       borderRadius: '12px',
-                      border: '1px solid rgba(148,163,184,0.25)',
+                      border: '1px solid rgba(209,213,219,0.7)',
+                      boxShadow: '0 10px 24px rgba(15,23,42,0.08)',
+                      color: '#2E2E2E',
                     }}
                     formatter={(value) => [`${value} grabaciones`, 'Total']}
                   />
                   <Area
                     type="monotone"
                     dataKey="total"
-                    stroke="#34d399"
+                    stroke="#4C8EF7"
                     fillOpacity={1}
                     fill="url(#colorRecording)"
                   />
@@ -219,24 +362,26 @@ const VistaDashboard = () => {
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div className="glass-panel col-span-1 flex flex-col gap-4 rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all">
+        <div className="glass-panel col-span-1 flex flex-col gap-4 p-6 transition-all">
           <Header title="Promedio de días de edición por tipo" subtitle="Cálculo entre la fecha de inicio y de finalización" />
           <ChartContainer>
             {editingAverageByType.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={editingAverageByType}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                  <XAxis dataKey="type" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                  <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                  <XAxis dataKey="type" tick={{ fill: '#6B7280', fontSize: 12 }} />
+                  <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} />
                   <RechartsTooltip
                     contentStyle={{
-                      backgroundColor: '#0f172a',
+                      backgroundColor: '#FFFFFF',
                       borderRadius: '12px',
-                      border: '1px solid rgba(148,163,184,0.25)',
+                      border: '1px solid rgba(209,213,219,0.7)',
+                      boxShadow: '0 10px 24px rgba(15,23,42,0.08)',
+                      color: '#2E2E2E',
                     }}
                     formatter={(value) => [`${value} días`, 'Promedio']}
                   />
-                  <Bar dataKey="avgDays" fill="#facc15" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="avgDays" fill="#6C63FF" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -244,12 +389,12 @@ const VistaDashboard = () => {
             )}
           </ChartContainer>
         </div>
-        <div className="glass-panel col-span-1 flex flex-col gap-4 rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all">
+        <div className="glass-panel col-span-1 flex flex-col gap-4 p-6 transition-all">
           <Header title="Semáforo de carga por persona" subtitle="Proyectos activos asignados" />
           {managerLoad.length > 0 ? (
             <ul className="space-y-3">
               {managerLoad.map(({ manager, total, level }) => (
-                <li key={manager} className="flex items-center justify-between rounded-2xl border border-slate-800/70 bg-slate-900/50 px-4 py-3">
+                <li key={manager} className="flex items-center justify-between rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3">
                   <div className="flex items-center gap-3">
                     <div className={`h-2.5 w-2.5 rounded-full ${getLoadColor(level)}`} />
                     <p className="text-sm font-medium text-primary">{manager}</p>
@@ -264,29 +409,31 @@ const VistaDashboard = () => {
           ) : (
             <EmptyState message="No hay encargados asignados" />
           )}
-          <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-slate-900/60 px-3 py-2 text-xs text-secondary/90">
-            <AlertTriangle size={14} className="text-amber-300" />
+          <div className="flex items-center gap-2 rounded-xl border border-[#FFE4C4] bg-[#FFF4E6] px-3 py-2 text-xs text-[#C07A00]">
+            <AlertTriangle size={14} className="text-[#FFB020]" />
             <span>Verifica la carga semanal para redistribuir si es necesario.</span>
           </div>
         </div>
-        <div className="glass-panel col-span-1 flex flex-col gap-4 rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all">
+        <div className="glass-panel col-span-1 flex flex-col gap-4 p-6 transition-all">
           <Header title="Proyectos activos por estado" subtitle="Incluye únicamente proyectos no entregados" />
           <ChartContainer>
             {activeStatusData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={activeStatusData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                  <XAxis dataKey="status" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                  <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                  <XAxis dataKey="status" tick={{ fill: '#6B7280', fontSize: 12 }} />
+                  <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} />
                   <RechartsTooltip
                     contentStyle={{
-                      backgroundColor: '#0f172a',
+                      backgroundColor: '#FFFFFF',
                       borderRadius: '12px',
-                      border: '1px solid rgba(148,163,184,0.25)',
+                      border: '1px solid rgba(209,213,219,0.7)',
+                      boxShadow: '0 10px 24px rgba(15,23,42,0.08)',
+                      color: '#2E2E2E',
                     }}
                     formatter={(value) => [`${value} proyectos`, 'Total']}
                   />
-                  <Bar dataKey="total" fill="#34d399" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="total" fill="#4CAF50" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -296,43 +443,8 @@ const VistaDashboard = () => {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="glass-panel flex flex-col gap-3 rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all">
-          <Header title="Eventos con entrega tardía" subtitle="Eventos cuya entrega ya venció" />
-          <div className="flex items-center justify-between rounded-2xl border border-slate-800/70 bg-slate-900/60 px-4 py-5">
-            <div className="flex items-center gap-3">
-              <AlertTriangle size={26} className="text-amber-300" />
-              <div>
-                <p className="text-lg font-semibold text-primary">{lateEvents}</p>
-                <p className="text-xs uppercase tracking-wide text-secondary/70">Eventos atrasados</p>
-              </div>
-            </div>
-            <p className="text-sm text-secondary/80">
-              Considera priorizar estas entregas para mejorar la satisfacción del cliente.
-            </p>
-          </div>
-        </div>
-
-        <div className="glass-panel flex flex-col gap-3 rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all">
-          <Header title="Resumen general de estados" subtitle="Todos los proyectos registrados" />
-          {statusData.length > 0 ? (
-            <ul className="space-y-3">
-              {statusData.map(({ status, total }) => (
-                <li key={status} className="flex items-center justify-between rounded-2xl border border-slate-800/70 bg-slate-900/50 px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <Users size={18} className="text-secondary" />
-                    <p className="text-sm font-medium text-primary">{status}</p>
-                  </div>
-                  <p className="text-sm font-semibold text-secondary">{total}</p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyState message="Sin proyectos registrados" />
-          )}
-        </div>
-      </section>
       </>
+      )}
     </div>
   );
 };
@@ -340,7 +452,7 @@ const VistaDashboard = () => {
 export default VistaDashboard;
 
 const MetricCard = ({ title, value, description, icon: Icon, accent }) => (
-  <div className="glass-panel flex flex-col justify-between rounded-3xl border border-white/5 bg-slate-950/60 p-5 transition-all hover:-translate-y-1 hover:border-accent/60 hover:shadow-[0_28px_60px_rgba(30,64,175,0.35)]">
+  <div className="glass-panel flex flex-col justify-between gap-4 p-6 transition-all hover:-translate-y-1 hover:shadow-[0_18px_32px_rgba(15,23,42,0.12)]">
     <div className="flex items-center justify-between">
       <div>
         <p className="text-xs uppercase tracking-[0.28em] text-secondary/60">
@@ -348,7 +460,7 @@ const MetricCard = ({ title, value, description, icon: Icon, accent }) => (
         </p>
         <p className="mt-3 text-3xl font-semibold text-primary">{value}</p>
       </div>
-      <div className={`rounded-2xl border px-3 py-3 ${accent}`}>
+      <div className={`rounded-lg border px-3 py-3 ${accent}`}>
         <Icon size={22} />
       </div>
     </div>
@@ -366,16 +478,78 @@ const Header = ({ title, subtitle }) => (
 );
 
 const ChartContainer = ({ children }) => (
-  <div className="h-64 rounded-3xl border border-slate-800/70 bg-slate-900/40 p-3">
+  <div className="h-64 rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[inset_0_1px_0_rgba(229,231,235,0.6)]">
     {children}
   </div>
 );
 
 const EmptyState = ({ message }) => (
-  <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-800/60 bg-slate-900/50 p-6 text-xs text-secondary/70">
+  <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-[#CBD5F5] bg-[#F9FAFF] p-6 text-xs text-secondary">
     {message}
   </div>
 );
+
+const getPhaseIcon = (phase) => {
+  const normPhase = phase?.toLowerCase() || '';
+  if (normPhase.includes('grabacion')) return '🎥';
+  if (normPhase.includes('edicion') || normPhase.includes('post')) return '✂️';
+  if (normPhase.includes('revision')) return '🔁';
+  if (normPhase.includes('entrega') || normPhase.includes('completado')) return '✅';
+  return '📝';
+};
+
+const AgentActionCard = ({ action, onAction }) => {
+  const priorityChipClasses = {
+    High: 'bg-[#FEE2E2] text-[#B42318]',
+    Medium: 'bg-[#FEF3C7] text-[#92400E]',
+    Low: 'bg-[#DBEAFE] text-[#1D4ED8]',
+  };
+
+  const phaseIcon = getPhaseIcon(action.phase);
+
+  return (
+    <div className="rounded-xl border border-border bg-background/50 p-4 transition-all hover:bg-background/80">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+            <span>{phaseIcon}</span>
+            <span className="truncate">{action.project || 'Proyecto sin nombre'}</span>
+            <span className="text-secondary/60">-</span>
+            <span className="font-medium text-secondary">{action.client || 'Sin cliente'}</span>
+          </div>
+          <p className="mt-1 text-xs text-secondary/80">
+            <span className="font-semibold">Fase:</span> {action.phase || 'N/A'}
+          </p>
+        </div>
+        <span className={`rounded-full px-3 py-1 text-xs font-medium ${priorityChipClasses[action.priority] || 'bg-[#F3F4F6] text-secondary'}`}>
+          {action.priority}
+        </span>
+      </div>
+      <div className="mt-3 space-y-3 border-t border-border pt-3 text-sm">
+        <p className="text-primary">{action.recommendation}</p>
+        <p className="text-xs text-secondary">{action.justification}</p>
+
+        {action.projectId && onAction && (
+          <div className="mt-4 flex items-center gap-2">
+            <button
+              onClick={() => onAction(action)}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-accent/10 px-3 py-1.5 text-sm font-semibold text-accent transition hover:bg-accent/20"
+            >
+              Ver proyecto <ChevronRight size={16} />
+            </button>
+            <button
+              type="button"
+              className="rounded-lg p-2 text-secondary transition-colors hover:bg-background"
+              title="Ignorar sugerencia"
+            >
+              <EyeOff size={16} />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const getLoadColor = (level) => {
   switch (level) {
@@ -388,7 +562,7 @@ const getLoadColor = (level) => {
   }
 };
 
-const buildDashboardData = (projects) => {
+const buildDashboardData = (projects, revisionCycles = {}) => {
   const now = new Date();
   const totals = { active: 0, recording: 0, editing: 0, delivered: 0 };
   let completedThisMonth = 0;
@@ -404,11 +578,26 @@ const buildDashboardData = (projects) => {
   let totalProjectsCompleted = 0;
   let lateEvents = 0;
   const upcomingEvents = [];
+  let totalCycleCount = 0;
+  let reviewSamples = 0;
+  let reviewDaysAccumulator = 0;
+  let pendingReviewCount = 0;
+  let projectsWithCycles = 0;
+
+  const editingStatusKeys = new Set([
+    'enprogreso',
+    'enrevision',
+    'revision',
+    'corrigiendo',
+    'esperandofeedback',
+    'editando',
+  ]);
 
   projects.forEach((project) => {
     const {
       id,
       statusLabel,
+      statusKey,
       isCompleted,
       stage,
       clientLabel,
@@ -429,8 +618,14 @@ const buildDashboardData = (projects) => {
       activeStatusCount.set(statusLabel, (activeStatusCount.get(statusLabel) || 0) + 1);
     }
 
-    if (stage === 'grabacion') totals.recording += 1;
-    if (stage === 'edicion') totals.editing += 1;
+    if (!isCompleted && stage === 'grabacion') totals.recording += 1;
+    if (
+      !isCompleted &&
+      (stage === 'edicion' || stage === 'postproduccion') &&
+      editingStatusKeys.has(statusKey)
+    ) {
+      totals.editing += 1;
+    }
     if (isCompleted) totals.delivered += 1;
 
     if (referenceCompletionDate && isSameMonth(referenceCompletionDate, now) && isCompleted) {
@@ -499,6 +694,37 @@ const buildDashboardData = (projects) => {
         description: 'Fecha comprometida con el cliente',
       });
     }
+
+    const projectCycles = Array.isArray(revisionCycles?.[id]) ? revisionCycles[id] : [];
+    if (projectCycles.length > 0) {
+      projectsWithCycles += 1;
+      totalCycleCount += projectCycles.length;
+
+      const orderedCycles = [...projectCycles].sort((a, b) => {
+        const numberA = Number(a.number) || 0;
+        const numberB = Number(b.number) || 0;
+        if (numberA !== numberB) return numberA - numberB;
+        const createdA = new Date(a.started_at || a.created_at || 0).getTime();
+        const createdB = new Date(b.started_at || b.created_at || 0).getTime();
+        return createdA - createdB;
+      });
+
+      const currentCycle = orderedCycles[orderedCycles.length - 1];
+      if (currentCycle && ['enviado', 'esperando_feedback'].includes(currentCycle.status)) {
+        pendingReviewCount += 1;
+      }
+
+      orderedCycles.forEach((cycle) => {
+        if (cycle.sent_at && cycle.client_returned_at) {
+          const start = parseISO(cycle.sent_at);
+          const end = parseISO(cycle.client_returned_at);
+          if (isValid(start) && isValid(end) && !isAfter(start, end)) {
+            reviewDaysAccumulator += Math.max(differenceInCalendarDays(end, start), 0);
+            reviewSamples += 1;
+          }
+        }
+      });
+    }
   });
 
   const avgDeliveryDays =
@@ -545,6 +771,9 @@ const buildDashboardData = (projects) => {
     .sort((a, b) => a.date.getTime() - b.date.getTime())
     .slice(0, 8);
 
+  const averageReviewDays = reviewSamples > 0 ? Number((reviewDaysAccumulator / reviewSamples).toFixed(1)) : null;
+  const avgCyclesPerProject = projectsWithCycles > 0 ? Number((totalCycleCount / projectsWithCycles).toFixed(1)) : 0;
+
   return {
     totals,
     completedThisMonth,
@@ -559,18 +788,25 @@ const buildDashboardData = (projects) => {
     lateEvents,
     upcomingEvents: upcoming,
     managerLoad: managerLoadData,
+    revisionMetrics: {
+      totalCycles: totalCycleCount,
+      averageReviewDays,
+      pendingReviews: pendingReviewCount,
+      avgCyclesPerProject,
+    },
   };
 };
 
 const extractProjectInfo = (project) => {
   const id = project.id || project.uuid || project._id || project.slug || String(Math.random());
   const statusLabel = buildLabel(project.status, 'Programado');
+  const statusKey = normalizeString(project.status || statusLabel || '').replace(/\s+/g, '');
   const isCompleted = statusLabel.toLowerCase() === 'completado';
-  const rawStage =
+  const rawStageValue =
     project.stage ||
     project.properties?.stage ||
     (project.fechaGrabacion || project.properties?.fechaGrabacion ? 'grabacion' : '');
-  const stage = buildLabel(rawStage, '').toLowerCase();
+  const stage = normalizeString(rawStageValue || '').replace(/\s+/g, '');
   const clientLabel = buildLabel(project.client || project.cliente, 'Sin cliente');
   const typeLabel = buildLabel(
     project.type || project.registrationType || project.properties?.registrationType,
@@ -614,6 +850,7 @@ const extractProjectInfo = (project) => {
   return {
     id,
     statusLabel,
+    statusKey,
     isCompleted,
     stage,
     clientLabel,

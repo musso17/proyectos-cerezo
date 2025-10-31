@@ -1,317 +1,134 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import useStore from '../../hooks/useStore';
-import { ExternalLink, File, FileText, LayoutGrid } from 'lucide-react';
-import { filterProjects } from '../../utils/filterProjects';
-import { getClientBadgeClass } from '../../utils/clientStyles';
-import { supabase } from '../../config/supabase';
+import { Link, Save, CheckCircle, ExternalLink, Edit } from 'lucide-react';
 
-const STORAGE_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET || 'project-files';
+const GalleryCard = ({ project }) => {
+  const updateProject = useStore((state) => state.updateProject);
+  
+  const initialLink = useMemo(() => project.properties?.deliverableLink || project.deliverableLink || '', [project]);
 
-const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']);
-const VIDEO_EXTENSIONS = new Set(['mp4', 'mov', 'webm', 'mkv', 'avi']);
-const PDF_EXTENSIONS = new Set(['pdf']);
-const DOC_EXTENSIONS = new Set(['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv']);
+  const [link, setLink] = useState(initialLink);
+  const [isEditing, setIsEditing] = useState(!initialLink);
+  const [isSaving, setIsSaving] = useState(false);
 
-const TYPE_BADGES = {
-  grabacion: {
-    label: 'Grabación',
-    className: 'bg-blue-500/10 text-blue-200 border border-blue-400/40',
-  },
-  edicion: {
-    label: 'Edición',
-    className: 'bg-emerald-500/10 text-emerald-200 border border-emerald-400/40',
-  },
-};
+  useEffect(() => {
+    // Sincroniza el estado si el proyecto cambia desde fuera
+    const newInitialLink = project.properties?.deliverableLink || project.deliverableLink || '';
+    setLink(newInitialLink);
+    // Si no estamos editando, o si el link se borra, ajustamos el modo de edición
+    if (!isEditing || !newInitialLink) {
+      setIsEditing(!newInitialLink);
+    }
+  }, [project, isEditing]);
 
-const getProjectTypeBadge = (project) => {
-  if (!project) return { label: 'Sin tipo', className: 'bg-slate-700/50 text-secondary border border-border/60' };
+  const handleSave = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
 
-  const rawStage = project.stage || project.properties?.stage || '';
-  const rawType = project.type || project.properties?.registrationType || '';
+    const updatedProperties = {
+      ...project.properties,
+      deliverableLink: link.trim(),
+    };
 
-  const normalizedStage = rawStage?.toString().trim().toLowerCase();
-  const normalizedType = rawType?.toString().trim().toLowerCase();
+    // Prepara el payload asegurando que solo se actualicen los campos necesarios
+    const payload = {
+      id: project.id,
+      properties: updatedProperties,
+    };
 
-  if (normalizedStage && TYPE_BADGES[normalizedStage]) {
-    return TYPE_BADGES[normalizedStage];
-  }
-  if (normalizedType && TYPE_BADGES[normalizedType]) {
-    return TYPE_BADGES[normalizedType];
-  }
+    await updateProject(payload, true); // El 'true' evita que se recargue toda la lista
 
-  const label = rawType || rawStage || 'Sin tipo';
-  return { label, className: 'bg-slate-700/50 text-secondary border border-border/60' };
-};
+    setIsSaving(false);
+    setIsEditing(false);
+  };
 
-const sanitizeSegment = (value) => {
-  if (!value) return 'sin-nombre';
   return (
-    value
-      .toString()
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'sin-nombre'
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md">
+      <div className="p-5">
+        <p className="text-sm font-semibold text-gray-800">{project.name}</p>
+        <p className="text-xs text-gray-500">{project.client}</p>
+      </div>
+      <div className="border-t border-gray-200 bg-gray-50/70 p-4">
+        <label htmlFor={`link-${project.id}`} className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-600">
+          <Link size={14} />
+          Enlace del entregable
+        </label>
+        {isEditing ? (
+          <div className="flex items-center gap-2">
+            <input
+              id={`link-${project.id}`}
+              type="url"
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+              placeholder="Pega el enlace aquí..."
+              className="w-full flex-grow rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800 shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+            />
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaving}
+              className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition-all ${
+                isSaving ? 'cursor-not-allowed bg-violet-400' : 'bg-violet-600 hover:bg-violet-500'
+              }`}
+            >
+              {isSaving ? <CheckCircle size={16} className="animate-spin" /> : <Save size={16} />}
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <a
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex flex-grow items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500"
+            >
+              <ExternalLink size={16} /> Ver entregable
+            </a>
+            <button
+              type="button"
+              onClick={() => setIsEditing(true)}
+              className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
+            >
+              <Edit size={16} /> Editar
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
-};
-
-const getProjectKey = (project) => {
-  if (!project) return null;
-  if (project.id) return project.id.toString();
-  if (project.slug) return sanitizeSegment(project.slug);
-  if (project.properties?.slug) return sanitizeSegment(project.properties.slug);
-  if (project.name) return sanitizeSegment(project.name);
-  return null;
-};
-
-const getProjectStoragePath = (project) => {
-  if (!project) return null;
-  if (project.storagePath) return project.storagePath;
-  if (project.properties?.storagePath) return project.properties.storagePath;
-  const key = getProjectKey(project);
-  if (!key) return null;
-  if (key.startsWith('projects/')) return key;
-  return `projects/${key}`;
-};
-
-const determineFileType = (fileName) => {
-  const extension = fileName?.split('.').pop()?.toLowerCase() || '';
-  if (IMAGE_EXTENSIONS.has(extension)) return 'image';
-  if (VIDEO_EXTENSIONS.has(extension)) return 'video';
-  if (PDF_EXTENSIONS.has(extension)) return 'pdf';
-  if (DOC_EXTENSIONS.has(extension)) return 'doc';
-  return 'other';
 };
 
 const VistaGaleria = () => {
   const projects = useStore((state) => state.projects);
-  const searchTerm = useStore((state) => state.searchTerm);
-  const openModal = useStore((state) => state.openModal);
-  const currentUser = useStore((state) => state.currentUser);
-
-  const isFranciscoUser = (user) => user?.email?.toString().trim().toLowerCase() === 'francisco@carbonomkt.com';
-
-  const displayedProjects = useMemo(() => {
-    if (isFranciscoUser(currentUser)) {
-      return projects.filter(p => 
-        (p.client?.toLowerCase() === 'carbono' || p.cliente?.toLowerCase() === 'carbono' || p.properties?.tag === 'carbono')
-      );
-    }
-    return projects;
-  }, [projects, currentUser]);
-
-  const filteredProjects = useMemo(
-    () => filterProjects(displayedProjects, searchTerm),
-    [displayedProjects, searchTerm]
-  );
 
   const completedProjects = useMemo(() => {
-    return filteredProjects.filter((project) => {
-      const statusLabel = project.status?.toString().trim().toLowerCase() || '';
-      return statusLabel === 'completado';
-    });
-  }, [filteredProjects]);
-
-  const [attachmentMap, setAttachmentMap] = useState({});
-  const [loadingAttachments, setLoadingAttachments] = useState(false);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadAttachments = async () => {
-      if (!completedProjects || completedProjects.length === 0 || !supabase) {
-        if (isMounted) {
-          setAttachmentMap({});
-          setLoadingAttachments(false);
-        }
-        return;
-      }
-
-      setLoadingAttachments(true);
-
-      try {
-        const results = await Promise.all(
-          completedProjects.map(async (project) => {
-            const key = getProjectKey(project);
-            if (!key) return null;
-            const path = getProjectStoragePath(project);
-            if (!path) return [key, null];
-
-            const { data, error } = await supabase.storage
-              .from(STORAGE_BUCKET)
-              .list(path, { limit: 50, sortBy: { column: 'created_at', order: 'desc' } });
-
-            if (error) {
-              console.error('Error al listar archivos de', path, error);
-              return [key, null];
-            }
-
-            if (!data || data.length === 0) {
-              return [key, null];
-            }
-
-            const sorted = [...data].sort(
-              (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            );
-            const file = sorted[0];
-            const fullPath = `${path}/${file.name}`;
-
-            const { data: publicData, error: urlError } = supabase.storage
-              .from(STORAGE_BUCKET)
-              .getPublicUrl(fullPath);
-
-            if (urlError) {
-              console.error('Error al obtener URL pública de', fullPath, urlError);
-            }
-
-            return [
-              key,
-              {
-                file,
-                url: publicData?.publicUrl || null,
-                type: determineFileType(file.name),
-                fullPath,
-              },
-            ];
-          })
-        );
-
-        if (!isMounted) return;
-
-        const entries = results?.filter(Boolean) ?? [];
-        setAttachmentMap(Object.fromEntries(entries));
-      } finally {
-        if (isMounted) {
-          setLoadingAttachments(false);
-        }
-      }
-    };
-
-    loadAttachments();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [completedProjects]);
-
-  if (completedProjects.length === 0) {
-    return (
-      <div className="flex h-full items-center justify-center p-6 text-center text-sm text-slate-400">
-        No hay proyectos finalizados disponibles en la galería.
-      </div>
-    );
-  }
+    return (projects || [])
+      .filter(p => p.status?.toLowerCase() === 'completado')
+      .sort((a, b) => new Date(b.deadline || b.updated_at) - new Date(a.deadline || a.updated_at));
+  }, [projects]);
 
   return (
-    <div className="grid grid-cols-1 gap-6 p-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {completedProjects.map((project) => {
-        const typeMeta = getProjectTypeBadge(project);
-        const key = getProjectKey(project);
-        const attachment = key ? attachmentMap[key] : null;
+    <div className="space-y-8 p-4 md:p-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Galería de entregables</h1>
+        <p className="mt-1 text-sm text-gray-600">
+          Repositorio de proyectos completados con sus enlaces finales.
+        </p>
+      </div>
 
-        const handleOpenAttachment = (event) => {
-          event.stopPropagation();
-          if (!attachment?.url) return;
-          window.open(attachment.url, '_blank', 'noopener');
-        };
-
-        const renderPreview = () => {
-          if (attachment && attachment.url && attachment.type === 'image') {
-            return (
-              <img
-                src={attachment.url}
-                alt={`Vista previa de ${project.name}`}
-                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                loading="lazy"
-              />
-            );
-          }
-
-          if (attachment && attachment.url && attachment.type === 'video') {
-            return (
-              <video
-                src={attachment.url}
-                className="h-full w-full object-cover"
-                controls
-                playsInline
-              />
-            );
-          }
-
-          if (attachment) {
-            const IconComponent = attachment.type === 'pdf' ? FileText : File;
-            return (
-              <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-slate-900/70 px-4 text-secondary">
-                <IconComponent size={44} />
-                <span className="max-w-[220px] truncate text-xs text-secondary/70">
-                  {attachment.file?.name || 'Archivo adjunto'}
-                </span>
-              </div>
-            );
-          }
-
-          return (
-            <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-slate-900/70 text-secondary">
-              <LayoutGrid size={44} />
-              <span className="text-xs text-secondary/60">
-                {loadingAttachments ? 'Buscando adjuntos…' : 'Archivo vacío'}
-              </span>
-            </div>
-          );
-        };
-
-        const clientLabel = project.client || 'Sin cliente';
-
-        return (
-          <div
-            key={project.id || key}
-            className="group ios-card cursor-pointer overflow-hidden rounded-2xl border border-border bg-surface/80 transition-all duration-200 hover:border-cyan-400/60"
-            onClick={() => openModal(project)}
-          >
-            <div className="flex h-48 items-center justify-center overflow-hidden bg-background text-secondary">
-              {renderPreview()}
-            </div>
-            <div className="space-y-4 p-4">
-              <div className="flex flex-wrap items-start gap-2">
-                <h3 className="flex-1 text-lg font-semibold text-primary">{project.name}</h3>
-                {typeMeta && (
-                  <span
-                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${typeMeta.className}`}
-                  >
-                    {typeMeta.label}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center justify-between text-xs text-slate-400">
-                <span className={getClientBadgeClass(clientLabel, 'sm')}>{clientLabel}</span>
-                <span>{project.deadline || 'Sin fecha'}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs text-slate-400">
-                <span className="rounded-full bg-white/5 px-2 py-1 text-[11px] uppercase tracking-wide">
-                  {project.status || 'Sin estado'}
-                </span>
-                <span>{project.manager || 'Sin responsable'}</span>
-              </div>
-              <button
-                type="button"
-                onClick={handleOpenAttachment}
-                disabled={!attachment?.url}
-                className={`flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition sm:w-auto sm:rounded-full ${
-                  attachment?.url
-                    ? 'border border-cyan-500/50 text-cyan-200 hover:border-cyan-300 hover:text-cyan-100'
-                    : 'cursor-not-allowed border border-border/60 text-secondary'
-                }`}
-              >
-                <ExternalLink size={16} />
-                Ver archivos
-              </button>
-            </div>
-          </div>
-        );
-      })}
+      {completedProjects.length > 0 ? (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {completedProjects.map((project) => (
+            <GalleryCard key={project.id} project={project} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex h-48 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50">
+          <p className="text-sm text-gray-500">No hay proyectos completados para mostrar.</p>
+        </div>
+      )}
     </div>
   );
 };
