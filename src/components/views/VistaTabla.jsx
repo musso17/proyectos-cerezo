@@ -498,7 +498,6 @@ const orderedProjects = useMemo(() => {
                       event.stopPropagation();
                       openModal(project);
                     }}
-                    className="w-full rounded-2xl border border-accent/70 bg-emerald-500/20 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:border-accent hover:bg-emerald-500/30"
                     className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
                   >
                     Ver detalles
