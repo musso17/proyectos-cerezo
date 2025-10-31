@@ -720,6 +720,7 @@ const useStore = create((set, get) => ({
   searchTerm: '',
   sidebarOpen: false,
   editingTasks: [],
+  isSidebarOpen: false, // Estado para el sidebar móvil
   revisionCycles: {},
   revisionCyclesLoading: {},
   revisionCyclesError: null,
@@ -738,8 +739,9 @@ const useStore = create((set, get) => ({
   closeModal: () => set({ isModalOpen: false, selectedProject: null }),
   setSearchTerm: (term) => set({ searchTerm: term }),
   openSidebar: () => set({ sidebarOpen: true }),
-  closeSidebar: () => set({ sidebarOpen: false }),
+  closeSidebar: () => set({ sidebarOpen: false, isSidebarOpen: false }), // Cierra ambos
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+  toggleMobileSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
 
   // Retainers (clientes fijos) helpers
   // ACCIÓN ORQUESTADORA PARA VISTA FINANZAS

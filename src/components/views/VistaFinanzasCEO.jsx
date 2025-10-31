@@ -368,7 +368,7 @@ const VistaFinanzasCEO = () => {
             <h2 className="text-xl font-semibold text-primary flex items-center gap-2">
               <FileText size={20} /> Proyectos variables activos
             </h2>
-            <div className="overflow-x-auto -mx-4 sm:-mx-6">
+            <div className="overflow-x-auto rounded-lg border border-gray-200 -mx-4 sm:-mx-6">
               <table className="min-w-full divide-y divide-[#E5E7EB] text-left">
                 <thead className="bg-[#F9FAFB] text-xs uppercase tracking-wider text-secondary">
                   <tr>

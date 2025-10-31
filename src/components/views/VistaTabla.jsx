@@ -332,7 +332,7 @@ const orderedProjects = useMemo(() => {
   };
 
   return (
-    <div className="soft-scroll flex h-full flex-col gap-4 overflow-auto">
+    <div className="soft-scroll flex h-full flex-col gap-4 overflow-auto p-4 md:p-0">
       <div className="glass-panel flex flex-wrap items-end gap-4 p-5 text-xs text-secondary">
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:gap-0">
           <label className="mb-1 font-semibold uppercase tracking-[0.26em] text-secondary/80">Tipo</label>
@@ -519,7 +519,7 @@ const orderedProjects = useMemo(() => {
         )}
       </div>
 
-      <div className="glass-panel overflow-hidden">
+      <div className="glass-panel overflow-hidden rounded-xl">
         <table className="hidden w-full border-collapse text-sm text-secondary sm:table">
           <thead>
             <tr className="bg-[#F9FAFB] text-xs uppercase tracking-[0.26em] text-secondary/80">
