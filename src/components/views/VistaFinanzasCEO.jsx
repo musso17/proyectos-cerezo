@@ -261,7 +261,7 @@ const VistaFinanzasCEO = () => {
         </div>
 
         {calculos.proyectosCarbonoRealizados > PROYECTOS_INCLUIDOS_RETAINER && (
-          <div className="flex items-center gap-3 rounded-xl border border-[#F4C7C7] bg-[#FDECEC] p-4 text-[#B91C1C]">
+          <div className="flex items-center gap-3 rounded-xl border border-[#F4C7C7] bg-[#FDECEC] p-4 text-[#B91C1C] dark:border-[#3A2424] dark:bg-[#2A1C1C] dark:text-red-300">
             <AlertCircle size={18} />
             <span>
               <strong>Alerta de retainer:</strong> Se han superado los {PROYECTOS_INCLUIDOS_RETAINER} proyectos de
@@ -307,18 +307,31 @@ const VistaFinanzasCEO = () => {
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={datosGrafico} layout="vertical" margin={{ top: 20, right: 20, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis type="number" tick={{ fill: '#6B7280', fontSize: 12 }} tickFormatter={(value) => `S/${value / 1000}k`} />
-                <YAxis type="category" dataKey="name" hide tick={{ fill: '#6B7280', fontSize: 12 }} />
+                <XAxis
+                  type="number"
+                  tick={{ fill: '#6B7280', fontSize: 12 }}
+                  tickFormatter={(value) => `S/${value / 1000}k`}
+                  axisLine={{ stroke: '#E5E7EB' }}
+                  tickLine={{ stroke: '#E5E7EB' }}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  hide
+                  tick={{ fill: '#6B7280', fontSize: 12 }}
+                  axisLine={{ stroke: '#E5E7EB' }}
+                  tickLine={{ stroke: '#E5E7EB' }}
+                />
                 <Tooltip
-                  cursor={{ fill: 'rgba(108, 99, 255, 0.06)' }}
+                  cursor={{ fill: 'rgba(108, 99, 255, 0.04)' }}
                   contentStyle={{
-                    backgroundColor: '#FFFFFF',
+                    backgroundColor: 'var(--color-surface-elevated)',
                     borderRadius: '12px',
-                    border: '1px solid rgba(209,213,219,0.7)',
-                    boxShadow: '0 10px 24px rgba(15,23,42,0.08)',
-                    color: '#2E2E2E',
+                    border: '1px solid var(--color-border)',
+                    boxShadow: '0 18px 36px rgba(5,6,8,0.32)',
+                    color: 'var(--color-text-primary)',
                   }}
-                  labelStyle={{ color: '#6B7280' }}
+                  labelStyle={{ color: 'var(--color-text-secondary)' }}
                 />
                 <Legend />
                 <Bar dataKey="value" name="Ingresos" stackId="a" barSize={40}>
@@ -333,7 +346,9 @@ const VistaFinanzasCEO = () => {
           <div className="glass-panel flex flex-col justify-center space-y-4 p-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-primary">Retainer: Carbono MKT</h2>
-              <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">Mensual</span>
+              <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent dark:bg-white/5 dark:text-white/70">
+                Mensual
+              </span>
             </div>
             <div className="text-center space-y-1">
               <p className="text-5xl font-bold text-accent">
@@ -341,7 +356,7 @@ const VistaFinanzasCEO = () => {
               </p>
               <p className="text-sm text-secondary">Proyectos realizados este mes</p>
             </div>
-            <div className="h-3.5 w-full rounded-full bg-[#E8EAF6]">
+            <div className="h-3.5 w-full rounded-full bg-[#E8EAF6] dark:bg-[#1B1C20]">
               <div
                 className="h-3.5 rounded-full bg-accent transition-all duration-500 ease-out"
                 style={{
@@ -358,7 +373,7 @@ const VistaFinanzasCEO = () => {
               ) : (
                 calculos.proyectosCarbonoUnicos.map((project) => (
                   <div key={project.id} className="flex items-center gap-2 text-secondary">
-                    <CheckCircle size={14} className="text-accent" />
+                    <CheckCircle size={14} className="text-accent dark:text-emerald-300" />
                     <span className="truncate">{project.name}</span>
                   </div>
                 ))
@@ -392,7 +407,7 @@ const VistaFinanzasCEO = () => {
                     </tr>
                   ) : (
                     calculos.proyectosVariables.map((project) => (
-                      <tr key={project.id} className="transition hover:bg-[#F7F8FA]">
+                      <tr key={project.id} className="transition hover:bg-[#F7F8FA] dark:hover:bg-white/10">
                         <td className="px-6 py-3 text-sm font-medium text-primary">
                           {project.client || project.cliente}
                         </td>
@@ -419,7 +434,7 @@ const VistaFinanzasCEO = () => {
                           <button
                             type="button"
                             onClick={() => handleSaveMonto(project.id)}
-                            className="rounded-full p-2 text-secondary transition hover:bg-accent/10 hover:text-accent"
+                            className="rounded-full p-2 text-secondary transition hover:bg-accent/10 hover:text-accent dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white/90"
                           >
                             <Save size={16} />
                           </button>
@@ -492,15 +507,15 @@ const KpiCard = ({ icon, title, value, subValue, color }) => {
 
 const SocioCard = ({ socio, rol, porcentaje, monto, color }) => {
   const palette = {
-    purple: 'border-l-accent',
-    blue: 'border-l-[#4C8EF7]',
-    green: 'border-l-[#2F9E44]',
+    purple: 'border-l-accent dark:border-l-purple-300',
+    blue: 'border-l-[#4C8EF7] dark:border-l-blue-300',
+    green: 'border-l-[#2F9E44] dark:border-l-emerald-300',
   };
 
   const selected = palette[color] || palette.purple;
 
   return (
-    <div className={`rounded-xl border border-[#E5E7EB] bg-white p-4 transition hover:shadow-[0_12px_24px_rgba(15,23,42,0.08)] border-l-4 ${selected}`}>
+    <div className={`rounded-xl border border-[#E5E7EB] bg-white p-4 transition hover:shadow-[0_12px_24px_rgba(15,23,42,0.08)] border-l-4 ${selected} dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:hover:bg-white/5`}>
       <div className="flex items-center justify-between">
         <div>
           <p className="text-lg font-semibold text-primary">{socio}</p>

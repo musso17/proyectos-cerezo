@@ -14,6 +14,8 @@ const inter = Inter({
 export default function RootLayout({ children }) {
   const fetchProjects = useStore((state) => state.fetchProjects);
   const checkAndAdvanceProjectStates = useStore((state) => state.checkAndAdvanceProjectStates);
+  const initializeTheme = useStore((state) => state.initializeTheme);
+  const theme = useStore((state) => state.theme);
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -25,9 +27,24 @@ export default function RootLayout({ children }) {
     initializeApp();
   }, [fetchProjects, checkAndAdvanceProjectStates]);
 
+  useEffect(() => {
+    initializeTheme();
+  }, [initializeTheme]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    root.dataset.theme = theme;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [theme]);
+
   return (
     <html lang="es">
-      <body className={`${inter.className} bg-[#F7F8FA] text-[#2E2E2E] antialiased`}>
+      <body className={`${inter.className} bg-background text-primary antialiased transition-colors duration-300`}>
         <div className="relative flex min-h-screen flex-col">{children}</div>
       </body>
     </html>

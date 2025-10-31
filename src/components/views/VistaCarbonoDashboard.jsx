@@ -82,28 +82,28 @@ const VistaCarbonoDashboard = () => {
           value={totals.active}
           description="Proyectos no completados"
           icon={Activity}
-          accent="border-transparent bg-[#E7F3FF] text-[#2563EB]"
+          accent="border-transparent bg-[#E7F3FF] text-[#2563EB] dark:border-[#2B2D31] dark:bg-[#212226] dark:text-blue-300"
         />
         <MetricCard
           title="En grabación"
           value={totals.recording}
           description="Proyectos en fase de grabación"
           icon={Video}
-          accent="border-transparent bg-[#E7F1FF] text-[#4C8EF7]"
+          accent="border-transparent bg-[#E7F1FF] text-[#4C8EF7] dark:border-[#2B2D31] dark:bg-[#212226] dark:text-blue-300"
         />
         <MetricCard
           title="En edición"
           value={totals.editing}
           description="Proyectos en post-producción"
           icon={PenSquare}
-          accent="border-transparent bg-[#EEF1FF] text-accent"
+          accent="border-transparent bg-[#EEF1FF] text-accent dark:border-[#2B2D31] dark:bg-[#212226] dark:text-purple-300"
         />
         <MetricCard
           title="Entregados"
           value={totals.delivered}
           description="Proyectos marcados como completados"
           icon={CheckCircle2}
-          accent="border-transparent bg-[#E6F5EC] text-[#2F9E44]"
+          accent="border-transparent bg-[#E6F5EC] text-[#2F9E44] dark:border-[#2B2D31] dark:bg-[#212226] dark:text-emerald-300"
         />
       </section>
 
@@ -113,7 +113,7 @@ const VistaCarbonoDashboard = () => {
           {managerLoad.length > 0 ? (
             <ul className="space-y-3">
               {managerLoad.map(({ manager, total, level }) => (
-                <li key={manager} className="flex flex-col gap-3 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <li key={manager} className="flex flex-col gap-3 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-[#2B2D31] dark:bg-[#1B1C20]">
                   <div className="flex items-center gap-3">
                     <div className={`h-2.5 w-2.5 rounded-full ${getLoadColor(level)}`} />
                     <p className="text-sm font-medium text-primary">{manager}</p>
@@ -157,7 +157,7 @@ const Header = ({ title, subtitle }) => (
 );
 
 const EmptyState = ({ message }) => (
-  <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-[#CBD5F5] bg-[#F9FAFF] p-6 text-xs text-secondary">
+  <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-[#CBD5F5] bg-[#F9FAFF] p-6 text-xs text-secondary dark:border-[#2B2D31] dark:bg-[#1B1C20] dark:text-white/50">
     {message}
   </div>
 );

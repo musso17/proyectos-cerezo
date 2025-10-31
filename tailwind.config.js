@@ -2,6 +2,7 @@
 import { fontFamily } from 'tailwindcss/defaultTheme';
 
 export default {
+  darkMode: 'class',
   content: [
     './src/app/**/*.{js,jsx,ts,tsx}',
     './src/components/**/*.{js,jsx,ts,tsx}',

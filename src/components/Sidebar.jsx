@@ -48,7 +48,7 @@ const Sidebar = () => {
           <button
             type="button"
             onClick={toggleMobileSidebar}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-secondary transition hover:bg-[#EEF1F6] hover:text-primary md:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-secondary transition hover:bg-[#EEF1F6] hover:text-primary md:hidden dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white/90"
             aria-label="Cerrar menú"
           >
             <ChevronLeft size={18} />
@@ -56,7 +56,7 @@ const Sidebar = () => {
           <button
             type="button"
             onClick={handleCollapse}
-            className="hidden rounded-full border border-[#E5E7EB] bg-white p-2 text-secondary transition hover:bg-[#EEF1F6] hover:text-primary md:block"
+            className="hidden rounded-full border border-[#E5E7EB] bg-white p-2 text-secondary transition hover:bg-[#EEF1F6] hover:text-primary md:block dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white/90"
           >
             {isCollapsed ? <Menu size={18} /> : <ChevronLeft size={18} />}
           </button>
@@ -72,24 +72,24 @@ const Sidebar = () => {
                 <li key={item.id} title={item.label}>
                   <button
                     type="button"
-                  onClick={() => handleNavigate(item.id)}
-                  className={`group relative flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition ${
-                    isActive
-                      ? 'bg-accent/10 text-accent shadow-none'
-                      : 'text-secondary hover:bg-[#EEF1F6] hover:text-primary'
-                  } ${isCollapsed ? 'justify-center px-0 py-3' : ''}`}
-                >
-                  <span
-                    className={`flex items-center justify-center rounded-lg border border-transparent bg-[#EEF1F6] p-2 text-secondary transition ${
+                    onClick={() => handleNavigate(item.id)}
+                    className={`group relative flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition ${
                       isActive
-                        ? 'bg-accent text-white shadow-[0_10px_22px_rgba(108,99,255,0.3)]'
-                        : 'group-hover:border-accent/30 group-hover:bg-accent/10 group-hover:text-accent'
-                    } ${isCollapsed ? 'h-10 w-10' : 'h-9 w-9'}`}
+                        ? 'bg-accent/10 text-accent shadow-none dark:bg-white/5 dark:text-white'
+                        : 'text-[#4B5563] hover:bg-[#EEF1F6] hover:text-primary dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white'
+                    } ${isCollapsed ? 'justify-center px-0 py-3' : ''}`}
                   >
-                    <item.icon size={isCollapsed ? 18 : 16} />
-                  </span>
-                  {!isCollapsed && <span>{item.label}</span>}
-                </button>
+                    <span
+                      className={`flex items-center justify-center rounded-lg border p-2 text-secondary transition ${
+                        isActive
+                          ? 'border-transparent bg-accent text-white shadow-[0_10px_22px_rgba(108,99,255,0.3)]'
+                          : 'border-[#E5E7EB] bg-[#F1F5F9] text-[#4B5563] group-hover:border-accent/30 group-hover:bg-accent/10 group-hover:text-accent dark:border-[#2B2D31] dark:bg-white/5 dark:text-white/50 dark:group-hover:bg-white/10 dark:group-hover:text-white'
+                      } ${isCollapsed ? 'h-10 w-10' : 'h-9 w-9'}`}
+                    >
+                      <item.icon size={isCollapsed ? 18 : 16} className={isActive ? 'text-white' : ''} />
+                    </span>
+                    {!isCollapsed && <span>{item.label}</span>}
+                  </button>
               </li>
             );
           })}
@@ -123,7 +123,7 @@ const Sidebar = () => {
             isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           )}
         >
-          <div className="flex w-full grow flex-col gap-y-5 overflow-y-auto bg-white p-6 pb-8 shadow-[0_22px_45px_rgba(15,23,42,0.28)]">
+          <div className="flex w-full grow flex-col gap-y-5 overflow-y-auto bg-white p-6 pb-8 shadow-[0_22px_45px_rgba(15,23,42,0.28)] dark:bg-[#17181C] dark:shadow-[0_26px_52px_rgba(5,6,8,0.55)]">
             <SidebarContent />
           </div>
         </div>

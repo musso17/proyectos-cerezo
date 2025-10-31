@@ -522,7 +522,7 @@ const orderedProjects = useMemo(() => {
         <div className="overflow-x-auto">
           <table className="hidden min-w-[720px] border-collapse text-sm text-secondary sm:table">
             <thead>
-              <tr className="bg-[#F9FAFB] text-xs uppercase tracking-[0.26em] text-secondary/80">
+              <tr className="bg-[#F9FAFB] text-xs uppercase tracking-[0.26em] text-secondary/80 dark:bg-[#1B1C20] dark:text-white/50">
                 {['Proyecto', 'Encargado', 'Estado', 'Inicio', 'Entrega', 'Cliente', 'Acciones'].map((header) => (
                   <th key={header} className="px-6 py-4 text-left font-semibold">
                     {header}
@@ -552,7 +552,7 @@ const orderedProjects = useMemo(() => {
                 return (
                   <tr
                     key={project.id || index}
-                    className="border-t border-[#E5E7EB] transition-colors duration-150 ease-out hover:bg-[#F7F8FA]"
+                    className="border-t border-[#E5E7EB] transition-colors duration-150 ease-out hover:bg-[#F7F8FA] dark:border-[#2B2D31] dark:odd:bg-white/5 dark:hover:bg-white/5"
                     onClick={() => openModal(project)}
                   >
                     <td className="px-6 py-5 text-sm font-semibold text-primary">
@@ -584,8 +584,8 @@ const orderedProjects = useMemo(() => {
                           disabled={calendarDisabled}
                           className={`flex h-8 w-8 items-center justify-center rounded-full transition focus:outline-none focus:ring-2 focus:ring-accent/30 ${
                             calendarDisabled
-                              ? 'cursor-not-allowed border border-[#E5E7EB] text-secondary'
-                              : 'border border-accent/40 text-accent hover:bg-accent/10'
+                              ? 'cursor-not-allowed border border-[#E5E7EB] text-secondary dark:border-[#2B2D31] dark:text-white/40'
+                              : 'border border-accent/40 text-accent hover:bg-accent/10 dark:border-[#2B2D31] dark:text-white/70 dark:hover:bg-white/10'
                           }`}
                           aria-label="Agendar entrega en Calendar"
                         >
@@ -604,14 +604,14 @@ const orderedProjects = useMemo(() => {
                         <button
                           type="button"
                           onClick={(event) => handleEdit(project, event)}
-                          className="rounded-full border border-[#D1D5DB] bg-white p-2 text-secondary transition hover:bg-[#EEF1F6] hover:text-accent"
+                          className="rounded-full border border-[#D1D5DB] bg-white p-2 text-secondary transition hover:bg-[#EEF1F6] hover:text-accent dark:border-[#2B2D31] dark:bg-[#212226] dark:text-white/70 dark:hover:bg-white/10"
                         >
                           <Edit2 size={14} />
                         </button>
                         <button
                           type="button"
                           onClick={(event) => handleDelete(project, event)}
-                          className="rounded-full border border-[#F4C7C7] bg-[#FDECEC] p-2 text-[#B91C1C] transition hover:shadow-sm"
+                          className="rounded-full border border-[#F4C7C7] bg-[#FDECEC] p-2 text-[#B91C1C] transition hover:shadow-sm dark:border-[#3A2424] dark:bg-[#2A1C1C] dark:text-red-300 dark:hover:bg-[#3A2020]"
                         >
                           <Trash2 size={14} />
                         </button>

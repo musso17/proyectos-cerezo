@@ -33,7 +33,7 @@ const HomeContent = ({ session }) => {
 
       <section className="flex w-full flex-1 flex-col gap-4 overflow-hidden lg:gap-6">
         <Navbar />
-        <div className="glass-panel flex-1 overflow-hidden rounded-3xl p-4 transition-all duration-200 ease-[var(--ease-ios-out)] hover:border-white/20 hover:shadow-[0_25px_55px_rgba(15,23,42,0.35)] sm:p-6">
+        <div className="glass-panel flex-1 overflow-hidden rounded-3xl p-4 transition-all duration-200 ease-[var(--ease-ios-out)] hover:border-white/20 hover:shadow-[0_25px_55px_rgba(15,23,42,0.35)] sm:p-6 dark:hover:border-white/10 dark:hover:shadow-[0_28px_60px_rgba(0,0,0,0.55)]">
           <div className="h-full overflow-y-auto soft-scroll pr-1 sm:pr-2">
             {loading ? <Loader /> : <ViewRenderer />}
           </div>

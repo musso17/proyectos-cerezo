@@ -12,6 +12,7 @@ const DEFAULT_ALLOWED_VIEWS = ['Table', 'Calendar', 'Timeline', 'Gallery', 'Cicl
 const AGENT_STORAGE_KEY = 'cerezo-agent-state';
 const FRANCISCO_EMAIL = 'francisco@carbonomkt.com';
 const CEO_EMAIL = 'hola@cerezoperu.com';
+const THEME_STORAGE_KEY = 'cerezo-theme';
 
 const isFranciscoUser = (user) => user?.email?.toString().trim().toLowerCase() === FRANCISCO_EMAIL;
 const isCeoUser = (user) => user?.email?.toString().trim().toLowerCase() === CEO_EMAIL;
@@ -55,6 +56,30 @@ const REVISION_STEP_LABELS = {
   esperando_feedback: 'Esperando feedback',
   corrigiendo: 'Corrigiendo',
   aprobado: 'Aprobado',
+};
+
+const applyThemeToDocument = (theme) => {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  root.dataset.theme = theme;
+  if (theme === 'dark') {
+    root.classList.add('dark');
+  } else {
+    root.classList.remove('dark');
+  }
+};
+
+const getInitialTheme = () => {
+  if (typeof window === 'undefined') return 'light';
+  const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+  if (stored === 'dark' || stored === 'light') {
+    return stored;
+  }
+  const prefersDark =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return prefersDark ? 'dark' : 'light';
 };
 
 const deriveStatusFromState = (state) => {
@@ -172,6 +197,12 @@ const applyRevisionMetaToProjects = (projects = [], revisionMap = {}) =>
     const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
     const step = revision.currentStep || '';
     const startDate = parseDateOnly(project.startDate);
+    const recordingDate = parseDateOnly(
+      project.recordingDate ||
+      project.fechaGrabacion ||
+      project.properties?.fechaGrabacion
+    );
+    const effectiveStart = startDate || recordingDate;
     const today = startOfDay(new Date());
 
     let derivedStatus = project.status;
@@ -179,7 +210,12 @@ const applyRevisionMetaToProjects = (projects = [], revisionMap = {}) =>
       derivedStatus = 'En revisión';
     } else if (step === 'corrigiendo' || step === 'editando') {
       derivedStatus = 'En progreso';
-    } else if (stage === 'edicion' && startDate && startDate <= today && normalizedStatus === 'programado') {
+    } else if (
+      (stage === 'edicion' || stage === 'grabacion') &&
+      effectiveStart &&
+      effectiveStart <= today &&
+      normalizedStatus === 'programado'
+    ) {
       derivedStatus = 'En progreso';
     }
 
@@ -739,6 +775,7 @@ const useStore = create((set, get) => ({
   revisionHistory: {},
   revisionHistoryLoading: {},
   revisionHistoryError: null,
+  theme: getInitialTheme(),
 
   lastUpdate: null, // Añadir para notificar actualizaciones en tiempo real
   setCurrentView: (view) =>
@@ -754,6 +791,27 @@ const useStore = create((set, get) => ({
   closeSidebar: () => set({ sidebarOpen: false, isSidebarOpen: false }), // Cierra ambos
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   toggleMobileSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+  initializeTheme: () => {
+    const theme = getInitialTheme();
+    applyThemeToDocument(theme);
+    set({ theme });
+  },
+  setTheme: (theme) => {
+    applyThemeToDocument(theme);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    }
+    set({ theme });
+  },
+  toggleTheme: () =>
+    set((state) => {
+      const nextTheme = state.theme === 'dark' ? 'light' : 'dark';
+      applyThemeToDocument(nextTheme);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+      }
+      return { theme: nextTheme };
+    }),
 
   // Retainers (clientes fijos) helpers
   // ACCIÓN ORQUESTADORA PARA VISTA FINANZAS
@@ -1259,14 +1317,6 @@ const useStore = create((set, get) => ({
       (cycle) => Number(cycle.number) > Number(current.number)
     );
 
-    const eventPayload = {
-      project_id: projectId,
-      cycle_id: current.id,
-      from_status: current.status,
-      to_status: 'editando',
-      occurred_at: new Date().toISOString(),
-    };
-
     if (!supabaseClient) {
       const resetCycle = normalizeRevisionCycle({
         ...current,
@@ -1286,9 +1336,12 @@ const useStore = create((set, get) => ({
           ...state.revisionCycles,
           [projectId]: updatedList,
         };
-        recordRevisionEventLocally(set, projectId, eventPayload);
         return {
           revisionCycles: nextRevisionCycles,
+          revisionHistory: {
+            ...state.revisionHistory,
+            [projectId]: [],
+          },
           ...buildProjectsStateSnapshot(state, state.projects, nextRevisionCycles),
         };
       });
@@ -1315,9 +1368,11 @@ const useStore = create((set, get) => ({
 
       await supabaseClient
         .from('revision_cycle_events')
-        .insert(eventPayload);
+        .delete()
+        .eq('project_id', projectId);
 
       await get().fetchRevisionCycles(projectId);
+      await get().fetchRevisionHistory(projectId);
 
       const project = get().projects.find((p) => p.id === projectId);
       if (project) {
@@ -1805,6 +1860,10 @@ const useStore = create((set, get) => ({
     }
   },
 }));
+
+if (typeof window !== 'undefined') {
+  applyThemeToDocument(useStore.getState().theme);
+}
 
 if (supabaseClient) {
   supabaseClient

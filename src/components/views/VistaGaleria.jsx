@@ -45,13 +45,16 @@ const GalleryCard = ({ project }) => {
   };
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md">
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:hover:shadow-[0_20px_36px_rgba(0,0,0,0.45)]">
       <div className="p-5">
-        <p className="text-sm font-semibold text-gray-800">{project.name}</p>
-        <p className="text-xs text-gray-500">{project.client}</p>
+        <p className="text-sm font-semibold text-gray-800 dark:text-white/90">{project.name}</p>
+        <p className="text-xs text-gray-500 dark:text-white/50">{project.client}</p>
       </div>
-      <div className="border-t border-gray-200 bg-gray-50/70 p-4">
-        <label htmlFor={`link-${project.id}`} className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-600">
+      <div className="border-t border-gray-200 bg-gray-50/70 p-4 dark:border-[#2B2D31] dark:bg-[#1B1C20]">
+        <label
+          htmlFor={`link-${project.id}`}
+          className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-white/60"
+        >
           <Link size={14} />
           Enlace del entregable
         </label>
@@ -63,14 +66,16 @@ const GalleryCard = ({ project }) => {
               value={link}
               onChange={(e) => setLink(e.target.value)}
               placeholder="Pega el enlace aquí..."
-              className="w-full flex-grow rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800 shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+              className="w-full flex-grow rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800 shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-[#2B2D31] dark:bg-[#0F0F11] dark:text-white/80 dark:focus:border-purple-400 dark:focus:ring-purple-400/40"
             />
             <button
               type="button"
               onClick={handleSave}
               disabled={isSaving}
               className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition-all ${
-                isSaving ? 'cursor-not-allowed bg-violet-400' : 'bg-violet-600 hover:bg-violet-500'
+                isSaving
+                  ? 'cursor-not-allowed bg-violet-400'
+                  : 'bg-violet-600 hover:bg-violet-500 dark:bg-purple-500 dark:hover:bg-purple-400'
               }`}
             >
               {isSaving ? <CheckCircle size={16} className="animate-spin" /> : <Save size={16} />}
@@ -82,14 +87,14 @@ const GalleryCard = ({ project }) => {
               href={link}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex flex-grow items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500"
+              className="inline-flex flex-grow items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 dark:bg-emerald-500 dark:hover:bg-emerald-400"
             >
               <ExternalLink size={16} /> Ver entregable
             </a>
             <button
               type="button"
               onClick={() => setIsEditing(true)}
-              className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
+              className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-[#2B2D31] dark:bg-[#0F0F11] dark:text-white/70 dark:hover:bg-white/10"
             >
               <Edit size={16} /> Editar
             </button>
@@ -112,8 +117,8 @@ const VistaGaleria = () => {
   return (
     <div className="space-y-8 px-3 py-4 sm:px-6 md:py-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Galería de entregables</h1>
-        <p className="mt-1 text-sm text-gray-600">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white/90">Galería de entregables</h1>
+        <p className="mt-1 text-sm text-gray-600 dark:text-white/60">
           Repositorio de proyectos completados con sus enlaces finales.
         </p>
       </div>
@@ -125,8 +130,8 @@ const VistaGaleria = () => {
           ))}
         </div>
       ) : (
-        <div className="flex h-48 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50">
-          <p className="text-sm text-gray-500">No hay proyectos completados para mostrar.</p>
+        <div className="flex h-48 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 dark:border-[#2B2D31] dark:bg-[#1B1C20]">
+          <p className="text-sm text-gray-500 dark:text-white/50">No hay proyectos completados para mostrar.</p>
         </div>
       )}
     </div>

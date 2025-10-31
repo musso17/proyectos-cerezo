@@ -427,8 +427,8 @@ const ModalDetalles = () => {
               leave="ease-in duration-200"
               leaveFrom="opacity-100 translate-y-0 scale-100"
               leaveTo="opacity-0 translate-y-4 scale-95">
-              <Dialog.Panel className="flex h-full w-full max-w-full transform overflow-hidden rounded-none border border-gray-200 bg-white text-left align-middle shadow-xl transition-all sm:h-auto sm:max-w-4xl sm:rounded-xl">
-                <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-4 py-4 sm:px-6 sm:py-5">
+              <Dialog.Panel className="flex h-full w-full max-w-full transform flex-col overflow-hidden rounded-none border border-gray-200 bg-white text-left align-middle shadow-xl transition-all sm:h-auto sm:max-w-4xl sm:rounded-xl dark:border-[#2B2D31] dark:bg-[#1E1F23]">
+                <div className="flex shrink-0 items-start justify-between gap-4 border-b border-gray-200 px-4 py-4 sm:px-6 sm:py-5">
                   <Dialog.Title className="flex-1">
                     <input
                       type="text"
@@ -451,7 +451,7 @@ const ModalDetalles = () => {
                   </button>
                 </div>
 
-                <div className="grid max-h-[68vh] gap-8 overflow-y-auto px-4 py-6 soft-scroll sm:px-6 md:grid-cols-2">
+                <div className="grid max-h-[68vh] flex-1 gap-8 overflow-y-auto px-4 py-6 soft-scroll sm:px-6 md:grid-cols-2">
                   <div className="space-y-5">
                     <div>
                       <label className="text-sm font-medium text-gray-600">Cliente</label>
@@ -546,16 +546,16 @@ const ModalDetalles = () => {
                                   className="inline-flex items-center gap-1.5 rounded-md bg-violet-100 px-2 py-1 text-xs font-medium text-violet-700"
                                 >
                                   {manager}
-                                  <span
+                                  <button
                                     type="button"
                                     onClick={(event) => {
                                       event.stopPropagation();
                                       handleManagerRemove(manager);
                                     }}
-                                    className="text-violet-500 transition hover:text-violet-700"
+                                    className="pointer-events-auto text-violet-500 transition hover:text-violet-700"
                                   >
                                     <X size={12} />
-                                  </span>
+                                  </button>
                                 </span>
                               ))
                             ) : (

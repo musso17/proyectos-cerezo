@@ -54,7 +54,6 @@ const selectDashboardState = (state) => ({
   lastAgentRun: state.agent?.lastRunAt || null,
   agentSummary: state.agent?.summary || '',
   agentActions: Array.isArray(state.agent?.suggestions) ? state.agent.suggestions : [],
-  lastUpdate: state.lastUpdate,
   agentError: state.agent?.error || null,
 });
 
@@ -62,7 +61,7 @@ const VistaDashboard = () => {
   // useShallow performs a shallow equality check on the selected state object.
   // This prevents re-renders if the object's properties haven't changed,
   // which is crucial for breaking the render loop.
-  const { projects, revisionCycles, currentUser, runAgent, agentLoading, lastAgentRun, agentSummary, agentActions, agentError, lastUpdate } = useStore(useShallow(selectDashboardState));
+  const { projects, revisionCycles, currentUser, runAgent, agentLoading, lastAgentRun, agentSummary, agentActions, agentError } = useStore(useShallow(selectDashboardState));
   const openModalWithProject = useStore((state) => state.openModalWithProject);
 
   const isCeoUser = (user) => user?.email?.toString().trim().toLowerCase() === 'hola@cerezoperu.com';
@@ -106,22 +105,6 @@ const VistaDashboard = () => {
       setActiveView('resumen');
     }
   }, [canViewFinances, activeView]);
-
-  useEffect(() => {
-    if (!runAgent || agentLoading) return;
-
-    const now = Date.now();
-    const twentyFourHours = 24 * 60 * 60 * 1000;
-    
-    // Condición 1: Han pasado más de 24 horas.
-    const shouldRunForTime = !lastAgentRun || now - lastAgentRun > twentyFourHours;
-    // Condición 2: Hubo una actualización de datos desde el último análisis.
-    const shouldRunForDataChange = lastAgentRun && lastUpdate && lastUpdate > lastAgentRun;
-
-    if (shouldRunForTime || shouldRunForDataChange) {
-      runAgent();
-    }
-  }, [runAgent, lastAgentRun, agentLoading, currentUser, lastUpdate]);
 
   const handleRunAgent = useCallback(() => {
     if (agentLoading || !runAgent) return;
@@ -298,28 +281,28 @@ const VistaDashboard = () => {
           value={totals.active}
           description="Incluye pendientes y en progreso"
           icon={Activity}
-          accent="border-transparent bg-[#E7F3FF] text-[#2563EB]"
+          accent="border-transparent bg-[#E7F3FF] text-[#2563EB] dark:border-[#2B2D31] dark:bg-[#212226] dark:text-blue-300"
         />
         <MetricCard
           title="En grabación"
           value={totals.recording}
           description="Proyectos con fecha de grabación vigente"
           icon={Video}
-          accent="border-transparent bg-[#E7F1FF] text-[#4C8EF7]"
+          accent="border-transparent bg-[#E7F1FF] text-[#4C8EF7] dark:border-[#2B2D31] dark:bg-[#212226] dark:text-blue-300"
         />
         <MetricCard
           title="En edición"
           value={totals.editing}
           description="Proyectos en etapa de post-producción"
           icon={PenSquare}
-          accent="border-transparent bg-[#EEF1FF] text-accent"
+          accent="border-transparent bg-[#EEF1FF] text-accent dark:border-[#2B2D31] dark:bg-[#212226] dark:text-purple-300"
         />
         <MetricCard
           title="Entregados"
           value={totals.delivered}
           description="Proyectos marcados como completados"
           icon={CheckCircle2}
-          accent="border-transparent bg-[#E6F5EC] text-[#2F9E44]"
+          accent="border-transparent bg-[#E6F5EC] text-[#2F9E44] dark:border-[#2B2D31] dark:bg-[#212226] dark:text-emerald-300"
         />
       </section>
 
@@ -330,7 +313,7 @@ const VistaDashboard = () => {
           value={`${carbonoProjectsThisMonth} / 6`}
           description="Proyectos mensuales con Carbono"
           icon={Briefcase}
-          accent="border-transparent bg-[#EEF1FF] text-accent"
+          accent="border-transparent bg-[#EEF1FF] text-accent dark:border-[#2B2D31] dark:bg-[#212226] dark:text-purple-300"
         />
         <MetricCard
           title="Proyectos en Revisión (Cliente)"
@@ -340,13 +323,13 @@ const VistaDashboard = () => {
               : revisionMetrics.pendingReviews
           }
           icon={GaugeCircle}
-          accent="border-transparent bg-[#E7F3FF] text-[#2563EB]"
+          accent="border-transparent bg-[#E7F3FF] text-[#2563EB] dark:border-[#2B2D31] dark:bg-[#212226] dark:text-amber-300"
         />
         <MetricCard
           title="Eficiencia de Revisión"
           value={revisionMetrics.avgCyclesPerProject || 0}
           icon={CalendarDays}
-          accent="border-transparent bg-[#EEF1FF] text-accent"
+          accent="border-transparent bg-[#EEF1FF] text-accent dark:border-[#2B2D31] dark:bg-[#212226] dark:text-purple-300"
         />
         <MetricCard
           title="Tiempo medio de feedback"
@@ -357,7 +340,7 @@ const VistaDashboard = () => {
           }
           description="Días entre envío y devolución del cliente"
           icon={Clock}
-          accent="border-transparent bg-[#FFF4E6] text-[#FFB020]"
+          accent="border-transparent bg-[#FFF4E6] text-[#FFB020] dark:border-[#2B2D31] dark:bg-[#212226] dark:text-amber-300"
         />
       </section>
 
@@ -548,13 +531,13 @@ const Header = ({ title, subtitle }) => (
 );
 
 const ChartContainer = ({ children }) => (
-  <div className="h-64 rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[inset_0_1px_0_rgba(229,231,235,0.6)]">
+  <div className="h-64 rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[inset_0_1px_0_rgba(229,231,235,0.6)] dark:border-[#2B2D31] dark:bg-[#1B1C20] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
     {children}
   </div>
 );
 
 const EmptyState = ({ message }) => (
-  <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-[#CBD5F5] bg-[#F9FAFF] p-6 text-xs text-secondary">
+  <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-[#CBD5F5] bg-[#F9FAFF] p-6 text-xs text-secondary dark:border-[#2B2D31] dark:bg-[#1B1C20] dark:text-white/50">
     {message}
   </div>
 );
@@ -578,7 +561,7 @@ const AgentActionCard = ({ action, onAction, onDismiss }) => {
   const phaseIcon = getPhaseIcon(action.phase);
 
   return (
-    <div className="rounded-xl border border-border bg-background/50 p-4 transition-all hover:bg-background/80">
+    <div className="elevated-panel rounded-xl p-4 transition-all hover:-translate-y-0.5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-primary">
@@ -587,20 +570,20 @@ const AgentActionCard = ({ action, onAction, onDismiss }) => {
             <span className="text-secondary/60">-</span>
             <span className="font-medium text-secondary">{action.client || 'Sin cliente'}</span>
           </div>
-          <p className="mt-1 text-xs text-secondary/80">
+          <p className="mt-1 text-xs text-secondary">
             <span className="font-semibold">Fase:</span> {action.phase || 'N/A'} | <span className="font-semibold">Prioridad:</span> {action.priority || 'Baja'}
           </p>
         </div>
         <button
           type="button"
           onClick={onDismiss}
-          className="rounded-lg p-2 text-secondary transition-colors hover:bg-background"
+          className="rounded-lg p-2 text-secondary transition-colors hover:bg-white/10 dark:hover:bg-white/10"
           title="Ignorar sugerencia"
         >
           <EyeOff size={16} />
         </button>
       </div>
-      <div className="mt-3 space-y-3 border-t border-border pt-3 text-sm">
+      <div className="mt-3 space-y-3 border-t border-border/70 pt-3 text-sm">
         <p className="text-primary">{action.recommendation}</p>
         <p className="text-xs text-secondary">{action.justification}</p>
 
@@ -608,7 +591,7 @@ const AgentActionCard = ({ action, onAction, onDismiss }) => {
           <div className="mt-4 flex items-center gap-2">
             <button
               onClick={() => onAction(action)}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-accent/10 px-3 py-1.5 text-sm font-semibold text-accent transition hover:bg-accent/20"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-accent/10 px-3 py-1.5 text-sm font-semibold text-accent transition hover:bg-accent/20 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
             >
               Ver proyecto <ChevronRight size={16} />
             </button>

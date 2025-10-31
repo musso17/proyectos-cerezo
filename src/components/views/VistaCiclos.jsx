@@ -103,8 +103,8 @@ const COLUMN_CONFIG = [
   },
   {
     id: 'enviado',
-    label: '2. Enviado',
-    description: 'Versión compartida con el cliente.',
+    label: '2. Primera versión',
+    description: 'Primera versión enviada al cliente.',
   },
   {
     id: 'esperando_feedback',
@@ -128,11 +128,14 @@ const STATUS_BADGES = {
 
 const REVISION_STEP_LABELS = {
   editando: 'Editando',
-  enviado: 'Enviado',
+  enviado: 'Primera versión',
   esperando_feedback: 'Esperando feedback',
   corrigiendo: 'Corrigiendo',
   aprobado: 'Aprobado',
 };
+
+const getStatusDisplayLabel = (status) =>
+  REVISION_STEP_LABELS[status] || status?.replace?.('_', ' ') || status;
 
 const formatTimestamp = (value) => {
   if (!value) return '—';
@@ -161,11 +164,16 @@ const CycleActionButtons = ({ status, onMove, onApprove, disabled }) => {
     const baseClasses =
       'flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-60';
     const stylesByVariant = {
-      primary: 'bg-accent text-white shadow-sm hover:shadow-md',
-      neutral: 'border border-[#D1D5DB] bg-white text-secondary hover:bg-[#F3F4F6]',
-      accent: 'bg-[#4C8EF7] text-white shadow-sm hover:shadow-md',
-      approve: 'bg-[#4CAF50] text-white font-semibold shadow-sm hover:shadow-md',
-      revert: 'border border-[#D1D5DB] bg-white text-secondary hover:bg-[#F3F4F6]',
+      primary:
+        'bg-accent text-white shadow-sm hover:shadow-md dark:bg-accent dark:text-white dark:hover:bg-accent/80',
+      neutral:
+        'border border-[#D1D5DB] bg-white text-secondary hover:bg-[#F3F4F6] dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:text-white/70 dark:hover:bg-white/10',
+      accent:
+        'bg-[#4C8EF7] text-white shadow-sm hover:shadow-md dark:bg-blue-500 dark:hover:bg-blue-400',
+      approve:
+        'bg-[#4CAF50] text-white font-semibold shadow-sm hover:shadow-md dark:bg-emerald-500 dark:hover:bg-emerald-400',
+      revert:
+        'border border-[#D1D5DB] bg-white text-secondary hover:bg-[#F3F4F6] dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:text-white/70 dark:hover:bg-white/10',
     };
 
     return (
@@ -187,23 +195,32 @@ const CycleActionButtons = ({ status, onMove, onApprove, disabled }) => {
       buttons.push(renderButton('Enviar versión al cliente', 'enviado', Send));
       break;
     case 'enviado':
-      buttons.push(renderButton('Mover a “Esperando feedback”', 'esperando_feedback', TimerReset, 'neutral'));
-      buttons.push(renderButton('Registrar feedback recibido', 'corrigiendo', MessageCircle, 'accent'));
+      buttons.push(renderButton('Registrar correcciones', 'corrigiendo', MessageCircle, 'accent'));
+      buttons.push(
+        <button
+          type="button"
+          key={`${status}-approve`}
+          onClick={onApprove}
+          disabled={disabled}
+          className="flex items-center justify-center gap-2 rounded-lg bg-[#4CAF50] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+        >
+          {disabled ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+          Marcar como completado
+        </button>
+      );
       break;
     case 'esperando_feedback':
       buttons.push(renderButton('Registrar feedback recibido', 'corrigiendo', MessageCircle, 'accent'));
-      buttons.push(renderButton('Volver a “Enviado”', 'enviado', RefreshCcw, 'revert'));
       break;
     case 'corrigiendo':
-      buttons.push(renderButton('Volver a “Esperando feedback”', 'esperando_feedback', TimerReset, 'revert'));
-      buttons.push(renderButton('Volver a “Enviado”', 'enviado', RefreshCcw, 'revert'));
+      buttons.push(renderButton('Mover a “Esperando feedback”', 'esperando_feedback', TimerReset, 'neutral'));
       buttons.push(
         <button
           type="button"
           key="approve"
           onClick={onApprove}
           disabled={disabled}
-          className="flex items-center justify-center gap-2 rounded-lg bg-[#4CAF50] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex items-center justify-center gap-2 rounded-lg bg-[#4CAF50] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-500 dark:hover:bg-emerald-400"
         >
           {disabled ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
           Marcar ciclo como aprobado
@@ -423,13 +440,13 @@ const VistaCiclos = () => {
             </p>
           </div>
           <div className="flex flex-col gap-2 text-sm md:flex-row md:items-center md:gap-3">
-            <div className="inline-flex items-center gap-3 rounded-full border border-[#E5E7EB] bg-white px-4 py-1.5 shadow-sm">
+            <div className="inline-flex items-center gap-3 rounded-full border border-[#E5E7EB] bg-white px-4 py-1.5 shadow-sm dark:border-[#2B2D31] dark:bg-[#1E1F23]">
               <span className="text-xs uppercase tracking-[0.22em] text-secondary/70">Proyecto</span>
               <select
                 id="project-selector"
                 value={selectedProjectId || ''}
                 onChange={handleProjectChange}
-                className="bg-transparent text-sm font-medium text-primary outline-none focus:border-none focus:outline-none"
+                className="bg-transparent text-sm font-medium text-primary outline-none focus:border-none focus:outline-none dark:text-white/80"
               >
                 {activeProjects.map((project) => (
                   <option key={project.id} value={project.id}>
@@ -445,35 +462,35 @@ const VistaCiclos = () => {
           <SummaryCard
             title="Ciclo actual"
             icon={RefreshCcw}
-            iconTone="bg-accent/10 text-accent"
+            iconTone="bg-accent/10 text-accent dark:bg-white/5 dark:text-white"
             value={currentCycleNumber || '—'}
             foot={
-              currentCycle ? currentCycle.status.replace('_', ' ') : 'Sin datos'
+              currentCycle ? getStatusDisplayLabel(currentCycle.status) : 'Sin datos'
             }
           />
           <SummaryCard
             title="Total de revisiones"
             icon={Clock4}
-            iconTone="bg-[#E7F1FF] text-[#4C8EF7]"
+            iconTone="bg-[#E7F1FF] text-[#4C8EF7] dark:bg-[#1B1C20] dark:text-blue-300"
             value={totalCycles}
             foot="Histórico completo"
           />
           <SummaryCard
             title="Aprobados"
             icon={ShieldCheck}
-            iconTone="bg-[#E6F5EC] text-[#2F9E44]"
+            iconTone="bg-[#E6F5EC] text-[#2F9E44] dark:bg-[#1B1C20] dark:text-emerald-300"
             value={approvedCycles.length}
             foot="Ciclos finalizados"
           />
           <SummaryCard
             title="Último movimiento"
             icon={Sparkles}
-            iconTone="bg-[#FFF4E6] text-[#FFB020]"
+            iconTone="bg-[#FFF4E6] text-[#FFB020] dark:bg-[#1B1C20] dark:text-amber-300"
             value={
               lastFeedbackAt
                 ? `Feedback ${formatRelative(lastFeedbackAt)}`
                 : lastSentAt
-                  ? `Enviado ${formatRelative(lastSentAt)}`
+                ? `Primera versión ${formatRelative(lastSentAt)}`
                   : 'Sin envíos registrados'
             }
             valueClassName="text-base font-semibold text-primary"
@@ -495,7 +512,7 @@ const VistaCiclos = () => {
             type="button"
             onClick={handleResetCycle}
             disabled={pendingAction}
-            className="inline-flex items-center gap-2 rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 text-sm font-medium text-secondary shadow-sm transition hover:bg-[#EEF1F6] hover:text-primary disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 text-sm font-medium text-secondary shadow-sm transition hover:bg-[#EEF1F6] hover:text-primary disabled:cursor-not-allowed disabled:opacity-70 dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white/90"
           >
             {pendingAction ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
             Resetear ciclo
@@ -503,14 +520,14 @@ const VistaCiclos = () => {
         </div>
 
         {isLoading ? (
-          <div className="flex h-64 items-center justify-center rounded-xl border-2 border-dashed border-[#CBD5F5] bg-[#F9FAFF]">
+          <div className="flex h-64 items-center justify-center rounded-xl border-2 border-dashed border-[#CBD5F5] bg-[#F9FAFF] dark:border-[#2B2D31] dark:bg-[#1B1C20]">
             <div className="flex items-center gap-3 text-secondary">
               <Loader2 className="h-5 w-5 animate-spin text-accent" />
               Cargando ciclos de revisión...
             </div>
           </div>
         ) : emptyState ? (
-          <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-[#CBD5F5] bg-[#F9FAFF] text-center">
+          <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-[#CBD5F5] bg-[#F9FAFF] text-center dark:border-[#2B2D31] dark:bg-[#1B1C20] dark:text-white/70">
             <RefreshCcw className="h-8 w-8 text-accent" />
             <div>
               <p className="text-lg font-medium text-primary">No hay ciclos activos</p>
@@ -522,7 +539,7 @@ const VistaCiclos = () => {
               type="button"
               onClick={handleResetCycle}
               disabled={pendingAction}
-              className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(108,99,255,0.25)] transition hover:shadow-[0_16px_32px_rgba(108,99,255,0.3)] disabled:cursor-not-allowed disabled:opacity-70"
+              className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(108,99,255,0.25)] transition hover:shadow-[0_16px_32px_rgba(108,99,255,0.3)] disabled:cursor-not-allowed disabled:opacity-70 dark:bg-accent dark:hover:bg-accent/80"
             >
               {pendingAction ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
               Resetear ciclo
@@ -533,7 +550,7 @@ const VistaCiclos = () => {
             {boardColumns.map((column) => (
               <div
                 key={column.id}
-                className="flex min-h-[260px] min-w-[260px] flex-col rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-4 snap-start md:min-w-0"
+                className="flex min-h-[260px] min-w-[260px] flex-col rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-4 snap-start md:min-w-0 dark:border-[#2B2D31] dark:bg-[#1E1F23]"
               >
                 <header className="flex flex-col gap-1">
                   <div className="flex items-center justify-between">
@@ -547,7 +564,7 @@ const VistaCiclos = () => {
 
                 <div className="mt-4 flex-1 space-y-3">
                   {column.items.length === 0 ? (
-                    <div className="flex h-full items-center justify-center rounded-lg border-2 border-dashed border-[#CBD5F5] bg-white text-center text-xs text-secondary">
+                    <div className="flex h-full items-center justify-center rounded-lg border-2 border-dashed border-[#CBD5F5] bg-white text-center text-xs text-secondary dark:border-[#2B2D31] dark:bg-[#0F0F11] dark:text-white/50">
                       Sin tarjetas
                     </div>
                   ) : (
@@ -555,7 +572,7 @@ const VistaCiclos = () => {
                       <article
                         key={cycle.id}
                         className={clsx(
-                          'rounded-xl border border-[#E5E7EB] bg-white p-4 shadow-sm',
+                          'rounded-xl border border-[#E5E7EB] bg-white p-4 shadow-sm dark:border-[#2B2D31] dark:bg-[#0F0F11] dark:shadow-[0_16px_32px_rgba(0,0,0,0.4)]',
                           pendingAction && 'opacity-60'
                         )}
                       >
@@ -574,13 +591,13 @@ const VistaCiclos = () => {
                               STATUS_BADGES[cycle.status] || STATUS_BADGES.editando
                             )}
                           >
-                            {cycle.status.replace('_', ' ')}
+                            {getStatusDisplayLabel(cycle.status)}
                           </span>
                         </div>
 
-                        <dl className="mt-4 space-y-3 text-xs text-secondary">
+                        <dl className="mt-4 space-y-3 text-xs text-secondary dark:text-white/60">
                           <div className="flex items-center justify-between">
-                            <dt>Enviado</dt>
+                            <dt>Primera versión</dt>
                             <dd className="text-right text-primary">
                               {formatTimestamp(cycle.sent_at)}
                             </dd>
@@ -633,8 +650,8 @@ const VistaCiclos = () => {
           </div>
         </header>
         <div className="overflow-hidden rounded-lg border border-[#E5E7EB]">
-          <table className="min-w-full divide-y divide-[#E5E7EB] text-sm text-secondary">
-            <thead className="bg-[#F9FAFB] text-xs uppercase tracking-wider text-secondary/80">
+          <table className="min-w-full divide-y divide-[#E5E7EB] text-sm text-secondary dark:divide-[#2B2D31] dark:text-white/70">
+            <thead className="bg-[#F9FAFB] text-xs uppercase tracking-wider text-secondary/80 dark:bg-[#1B1C20] dark:text-white/50">
               <tr>
                 <th className="px-4 py-3 text-left">Fecha</th>
                 <th className="px-4 py-3 text-left">Ciclo</th>
@@ -642,16 +659,16 @@ const VistaCiclos = () => {
                 <th className="px-4 py-3 text-left">Notas</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E5E7EB] bg-white">
+            <tbody className="divide-y divide-[#E5E7EB] bg-white dark:divide-[#2B2D31] dark:bg-[#1E1F23]">
               {historyEntries.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-secondary">
+                  <td colSpan={4} className="px-4 py-6 text-center text-secondary dark:text-white/60">
                     Sin movimientos registrados aún.
                   </td>
                 </tr>
               ) : (
                 historyEntries.map((entry) => (
-                  <tr key={entry.id} className="transition hover:bg-[#F7F8FA]">
+                  <tr key={entry.id} className="transition hover:bg-[#F7F8FA] dark:hover:bg-white/5">
                     <td className="px-4 py-3 font-medium text-primary">{formatTimestamp(entry.occurredAt)}</td>
                     <td className="px-4 py-3">{entry.cycleNumber ? `#${entry.cycleNumber}` : '—'}</td>
                     <td className="px-4 py-3">
@@ -682,9 +699,9 @@ const SummaryCard = ({
   foot,
   footClassName = 'mt-1 text-xs uppercase tracking-[0.3em] text-secondary/80',
 }) => (
-  <div className="flex h-full flex-col justify-between rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm">
+  <div className="flex h-full flex-col justify-between rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:shadow-[0_18px_34px_rgba(0,0,0,0.45)]">
     <div className="flex items-center justify-between">
-      <span className="text-sm font-semibold text-secondary">{title}</span>
+      <span className="text-sm font-semibold text-secondary dark:text-white/70">{title}</span>
       <span className={`flex h-9 w-9 items-center justify-center rounded-full ${iconTone}`}>
         <Icon className="h-4 w-4" />
       </span>

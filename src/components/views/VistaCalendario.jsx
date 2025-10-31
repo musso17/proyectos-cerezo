@@ -26,29 +26,40 @@ import VistaTimeline from './VistaTimeline';
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const MAX_ITEMS_PER_DAY = 3;
-const EDITING_TASK_PILL = 'border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF]';
+const EDITING_TASK_PILL =
+  'border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF] dark:border-purple-400/60 dark:bg-purple-500/15 dark:text-purple-300';
 const PROJECT_EVENT_PILLS = {
-  grabacion: 'border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7]',
-  edicion: 'border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF]',
-  entrega: 'border-[#C8E6C9] bg-[#F1FAF3] text-[#2F9E44]',
-  duracion: 'border-[#E5E7EB] bg-[#F9FAFB] text-secondary',
-  revision: 'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00]',
-  correccion: 'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00]',
+  grabacion:
+    'border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7] dark:border-blue-500/60 dark:bg-blue-500/15 dark:text-blue-300',
+  edicion:
+    'border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF] dark:border-purple-400/60 dark:bg-purple-500/15 dark:text-purple-300',
+  entrega:
+    'border-[#C8E6C9] bg-[#F1FAF3] text-[#2F9E44] dark:border-emerald-400/60 dark:bg-emerald-500/15 dark:text-emerald-300',
+  duracion:
+    'border-[#E5E7EB] bg-[#F9FAFB] text-secondary dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:text-white/60',
+  revision:
+    'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00] dark:border-amber-400/60 dark:bg-amber-500/15 dark:text-amber-300',
+  correccion:
+    'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00] dark:border-amber-400/60 dark:bg-amber-500/15 dark:text-amber-300',
 };
 
 const REVISION_EVENT_PILLS = {
-  sent: 'border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7]',
-  feedback: 'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00]',
+  sent:
+    'border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7] dark:border-blue-500/60 dark:bg-blue-500/15 dark:text-blue-300',
+  feedback:
+    'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00] dark:border-amber-400/60 dark:bg-amber-500/15 dark:text-amber-300',
 };
 
 const TYPE_BADGES = {
   grabacion: {
     label: 'Grabación',
-    className: 'border border-[#CDE5FF] bg-[#E7F3FF] text-[#2563EB]',
+    className:
+      'border border-[#CDE5FF] bg-[#E7F3FF] text-[#2563EB] dark:border-blue-500/60 dark:bg-blue-500/15 dark:text-blue-300',
   },
   edicion: {
     label: 'Edición',
-    className: 'border border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF]',
+    className:
+      'border border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF] dark:border-purple-400/60 dark:bg-purple-500/15 dark:text-purple-300',
   },
 };
 
@@ -567,24 +578,24 @@ const VistaCalendario = () => {
         <div className="flex items-center gap-3">
           <Calendar className="text-accent" size={28} />
           <div>
-            <h2 className="text-2xl font-bold text-primary">
+            <h2 className="text-2xl font-bold text-primary dark:text-white/90">
               {primaryView === 'timeline' ? 'Timeline de disponibilidad' : 'Calendario de Proyectos'}
             </h2>
-            <p className="text-secondary text-sm">
+            <p className="text-secondary text-sm dark:text-white/60">
               {primaryView === 'timeline'
                 ? 'Explora grabaciones y ediciones programadas en formato de línea de tiempo.'
                 : 'Visualiza entregas y responsabilidades por integrante.'}
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 rounded-full border border-[#E5E7EB] bg-[#F7F8FA] p-1">
+        <div className="flex flex-wrap items-center gap-2 rounded-full border border-[#E5E7EB] bg-[#F7F8FA] p-1 dark:border-[#2B2D31] dark:bg-[#1B1C20]">
           <button
             type="button"
             onClick={() => setPrimaryView('calendar')}
             className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
               primaryView === 'calendar'
-                ? 'bg-emerald-500/20 text-primary shadow-[inset_0_1px_0_rgba(34,197,94,0.35)]'
-                : 'text-secondary hover:text-primary'
+                ? 'bg-emerald-500/20 text-primary shadow-[inset_0_1px_0_rgba(34,197,94,0.35)] dark:bg-emerald-500/15 dark:text-white/85'
+                : 'text-secondary hover:text-primary dark:text-white/60 dark:hover:text-white'
             }`}
           >
             Calendario
@@ -594,8 +605,8 @@ const VistaCalendario = () => {
             onClick={() => setPrimaryView('timeline')}
             className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
               primaryView === 'timeline'
-                ? 'bg-emerald-500/20 text-primary shadow-[inset_0_1px_0_rgba(34,197,94,0.35)]'
-                : 'text-secondary hover:text-primary'
+                ? 'bg-emerald-500/20 text-primary shadow-[inset_0_1px_0_rgba(34,197,94,0.35)] dark:bg-emerald-500/15 dark:text-white/85'
+                : 'text-secondary hover:text-primary dark:text-white/60 dark:hover:text-white'
             }`}
           >
             Timeline
@@ -609,17 +620,17 @@ const VistaCalendario = () => {
             <button
               type="button"
               onClick={handlePrevMonth}
-              className="rounded-full border border-border p-2 text-secondary hover:border-accent hover:text-primary"
+              className="rounded-full border border-border p-2 text-secondary hover:border-accent hover:text-primary dark:border-[#2B2D31] dark:text-white/60 dark:hover:border-purple-400/60 dark:hover:text-white"
               aria-label="Mes anterior">
             <ChevronLeft size={18} />
           </button>
-          <span className="text-lg font-semibold text-primary capitalize">
+          <span className="text-lg font-semibold text-primary capitalize dark:text-white/85">
             {format(currentMonth, 'MMMM yyyy', { locale: es })}
           </span>
           <button
             type="button"
             onClick={handleNextMonth}
-            className="rounded-full border border-border p-2 text-secondary hover:border-accent hover:text-primary"
+            className="rounded-full border border-border p-2 text-secondary hover:border-accent hover:text-primary dark:border-[#2B2D31] dark:text-white/60 dark:hover:border-purple-400/60 dark:hover:text-white"
             aria-label="Mes siguiente">
             <ChevronRight size={18} />
           </button>
@@ -634,8 +645,8 @@ const VistaCalendario = () => {
                   onClick={() => setSelectedMember(option)}
                   className={`rounded-full border px-4 py-2 text-sm transition-colors ${
                     isActive
-                      ? 'border-accent bg-accent/20 text-primary'
-                      : 'border-border bg-[#F7F8FA] text-secondary hover:border-accent/40 hover:text-primary'
+                      ? 'border-accent bg-accent/20 text-primary dark:border-purple-400 dark:bg-purple-500/20 dark:text-white'
+                      : 'border-border bg-[#F7F8FA] text-secondary hover:border-accent/40 hover:text-primary dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:text-white/60 dark:hover:border-purple-400/60 dark:hover:text-white'
                   }`}>
                   {option === 'Todos' ? 'Todos los responsables' : option}
                 </button>
@@ -645,7 +656,7 @@ const VistaCalendario = () => {
 
         <div className="sm:hidden">
         {mobileEvents.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-[#E5E7EB] bg-white p-4 text-center text-sm text-secondary">
+          <div className="rounded-3xl border border-dashed border-[#E5E7EB] bg-white p-4 text-center text-sm text-secondary dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:text-white/60">
             No hay actividades programadas este mes.
           </div>
         ) : (
@@ -653,13 +664,13 @@ const VistaCalendario = () => {
             {mobileEvents.map((event) => (
               <div
                 key={`${event.id}-${event.sortTime}`}
-                className="space-y-3 rounded-3xl border border-[#E5E7EB] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.08)]"
+                className="space-y-3 rounded-3xl border border-[#E5E7EB] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.08)] dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:shadow-[0_20px_44px_rgba(0,0,0,0.45)]"
               >
-                <p className="text-sm font-medium uppercase tracking-wide text-secondary/70">
+                <p className="text-sm font-medium uppercase tracking-wide text-secondary/70 dark:text-white/50">
                   {format(event.date, "EEEE d 'de' MMMM", { locale: es })}
                 </p>
                 <div className="space-y-2">
-                  <h3 className="text-xl font-semibold text-primary">{event.title}</h3>
+                  <h3 className="text-xl font-semibold text-primary dark:text-white/90">{event.title}</h3>
                   {event.typeMeta && (
                     <span
                       className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${event.typeMeta.className}`}
@@ -669,44 +680,44 @@ const VistaCalendario = () => {
                   )}
                 </div>
                 {event.eventLabel && (
-                  <span className="inline-block rounded-full border border-[#E5E7EB] px-3 py-1 text-xs uppercase tracking-wide text-secondary">
+                  <span className="inline-block rounded-full border border-[#E5E7EB] px-3 py-1 text-xs uppercase tracking-wide text-secondary dark:border-[#2B2D31] dark:text-white/60">
                     {event.eventLabel}
                   </span>
                 )}
-                <div className="space-y-2 text-sm text-secondary">
+                <div className="space-y-2 text-sm text-secondary dark:text-white/70">
                   {event.timeLabel && (
                     <p>
-                      <span className="text-secondary/70">Horario: </span>
-                      <span className="text-primary">{event.timeLabel}</span>
+                      <span className="text-secondary/70 dark:text-white/50">Horario: </span>
+                      <span className="text-primary dark:text-white/85">{event.timeLabel}</span>
                     </p>
                   )}
                   {event.manager && (
                     <p>
-                      <span className="text-secondary/70">Responsable: </span>
-                      <span className="text-primary">{event.manager}</span>
+                      <span className="text-secondary/70 dark:text-white/50">Responsable: </span>
+                      <span className="text-primary dark:text-white/85">{event.manager}</span>
                     </p>
                   )}
                   {event.status && (
                     <p>
-                      <span className="text-secondary/70">Estado: </span>
-                      <span className="text-primary">{event.status}</span>
+                      <span className="text-secondary/70 dark:text-white/50">Estado: </span>
+                      <span className="text-primary dark:text-white/85">{event.status}</span>
                     </p>
                   )}
                   {event.client && (
                     <p>
-                      <span className="text-secondary/70">Cliente: </span>
-                      <span className="text-primary">{event.client}</span>
+                      <span className="text-secondary/70 dark:text-white/50">Cliente: </span>
+                      <span className="text-primary dark:text-white/85">{event.client}</span>
                     </p>
                   )}
                   {event.description && (
-                    <p className="text-secondary/80">{event.description}</p>
+                    <p className="text-secondary/80 dark:text-white/60">{event.description}</p>
                   )}
                 </div>
                 {event.project && (
                   <button
                     type="button"
                     onClick={() => openModal(event.project)}
-                    className="w-full rounded-2xl border border-accent/60 px-4 py-3 text-sm font-semibold text-accent transition hover:border-accent/80 hover:text-accent"
+                    className="w-full rounded-2xl border border-accent/60 px-4 py-3 text-sm font-semibold text-accent transition hover:border-accent/80 hover:text-accent dark:border-purple-400/60 dark:text-purple-300 dark:hover:border-purple-300"
                   >
                     Ver proyecto
                   </button>
@@ -721,7 +732,7 @@ const VistaCalendario = () => {
         {WEEKDAYS.map((weekday) => (
           <div
             key={weekday}
-            className="bg-white px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-secondary">
+            className="bg-white px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-secondary dark:bg-[#0F0F11] dark:text-white/60">
             {weekday}
           </div>
         ))}
@@ -740,19 +751,19 @@ const VistaCalendario = () => {
             <div
               key={key}
               onClick={() => handleDaySelect(day)}
-              className={`min-h-[110px] cursor-pointer bg-white p-2 shadow-[0_12px_24px_rgba(15,23,42,0.05)] transition-all duration-200 ease-[var(--ease-ios-out)] ${
-                isCurrentMonth ? 'text-primary' : 'text-secondary/60'
+              className={`min-h-[110px] cursor-pointer bg-white p-2 shadow-[0_12px_24px_rgba(15,23,42,0.05)] transition-all duration-200 ease-[var(--ease-ios-out)] dark:bg-[#0F0F11] dark:shadow-[0_14px_28px_rgba(0,0,0,0.45)] ${
+                isCurrentMonth ? 'text-primary dark:text-white/85' : 'text-secondary/60 dark:text-white/40'
               } ${
                 isToday
-                  ? 'border border-accent/60 bg-accent/10 shadow-[0_18px_40px_rgba(34,197,94,0.3)]'
-                  : 'border border-[#E5E7EB] hover:border-accent/60 hover:bg-white hover:shadow-[0_12px_30px_rgba(2,6,23,0.55)]'
-              } ${isSelected ? 'ring-2 ring-accent/60' : ''}`}>
+                  ? 'border border-accent/60 bg-accent/10 shadow-[0_18px_40px_rgba(34,197,94,0.3)] dark:border-purple-400/60 dark:bg-purple-500/20 dark:shadow-[0_20px_40px_rgba(128,90,213,0.35)]'
+                  : 'border border-[#E5E7EB] hover:border-accent/60 hover:bg-white hover:shadow-[0_12px_30px_rgba(2,6,23,0.55)] dark:border-[#2B2D31] dark:hover:border-purple-300/60 dark:hover:bg-white/10 dark:hover:shadow-[0_16px_30px_rgba(0,0,0,0.45)]'
+              } ${isSelected ? 'ring-2 ring-accent/60 dark:ring-purple-400/60' : ''}`}>
               <div className="flex items-center justify-between text-xs">
-                <span className={`text-sm font-semibold ${isCurrentMonth ? 'text-primary' : ''}`}>
+                <span className={`text-sm font-semibold ${isCurrentMonth ? 'text-primary dark:text-white/85' : ''}`}>
                   {format(day, 'd', { locale: es })}
                 </span>
                 {dayItems.length > 0 && (
-                  <span className="rounded-full bg-[#F7F8FA] px-2 py-0.5 text-[10px] text-secondary">
+                  <span className="rounded-full bg-[#F7F8FA] px-2 py-0.5 text-[10px] text-secondary dark:bg-[#1B1C20] dark:text-white/60">
                     {dayItems.length}
                   </span>
                 )}
@@ -875,7 +886,7 @@ const VistaCalendario = () => {
                   );
                 })}
                 {extraItems > 0 && (
-                  <div className="rounded-md bg-[#F7F8FA] px-2 py-1 text-[10px] text-secondary">
+                  <div className="rounded-md bg-[#F7F8FA] px-2 py-1 text-[10px] text-secondary dark:bg-[#1B1C20] dark:text-white/60">
                     +{extraItems} más
                   </div>
                 )}
@@ -886,32 +897,32 @@ const VistaCalendario = () => {
         </div>
 
         {selectedDayDate && (
-        <div className="mt-6 rounded-3xl border border-[#E5E7EB] bg-white p-6">
+        <div className="mt-6 rounded-3xl border border-[#E5E7EB] bg-white p-6 dark:border-[#2B2D31] dark:bg-[#1E1F23]">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-xl font-semibold text-primary">
+              <h3 className="text-xl font-semibold text-primary dark:text-white/90">
                 {format(selectedDayDate, "EEEE d 'de' MMMM yyyy", { locale: es })}
               </h3>
-              <p className="text-xs text-secondary">
+              <p className="text-xs text-secondary dark:text-white/60">
                 {selectedDayDetails.length} {selectedDayDetails.length === 1 ? 'actividad' : 'actividades'} programadas
               </p>
             </div>
             <button
               type="button"
               onClick={() => setSelectedDayKey(null)}
-              className="rounded-full border border-[#E5E7EB] px-3 py-1 text-xs text-secondary transition hover:border-accent/70 hover:text-accent">
+              className="rounded-full border border-[#E5E7EB] px-3 py-1 text-xs text-secondary transition hover:border-accent/70 hover:text-accent dark:border-[#2B2D31] dark:text-white/60 dark:hover:border-purple-400/60 dark:hover:text-white">
               Cerrar
             </button>
           </div>
 
           {selectedDayDetails.length === 0 ? (
-            <p className="mt-4 text-sm text-secondary">Sin eventos para este día.</p>
+            <p className="mt-4 text-sm text-secondary dark:text-white/60">Sin eventos para este día.</p>
           ) : (
             <div className="mt-4 flex flex-col gap-3">
               {selectedDayDetails.map((item) => (
                 <div
                   key={`${item.id}-${item.sortTime}`}
-                  className="rounded-2xl border border-[#E5E7EB] bg-white p-4 transition hover:border-accent/60 hover:bg-[#F1F5F9]">
+                  className="rounded-2xl border border-[#E5E7EB] bg-white p-4 transition hover:border-accent/60 hover:bg-[#F1F5F9] dark:border-[#2B2D31] dark:bg-[#0F0F11] dark:hover:border-purple-400/60 dark:hover:bg-white/10">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-[200px] max-w-full">
                       <div className="flex flex-wrap items-center gap-2">
@@ -920,10 +931,10 @@ const VistaCalendario = () => {
                           {item.eventLabel}
                         </span>
                         {item.timeLabel && (
-                          <span className="text-xs text-secondary">{item.timeLabel}</span>
+                          <span className="text-xs text-secondary dark:text-white/60">{item.timeLabel}</span>
                         )}
                       </div>
-                      <h4 className="mt-2 text-lg font-semibold text-primary">{item.title}</h4>
+                      <h4 className="mt-2 text-lg font-semibold text-primary dark:text-white/90">{item.title}</h4>
                       {item.typeMeta && (
                         <span
                           className={`mt-2 inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${item.typeMeta.className}`}
@@ -932,38 +943,39 @@ const VistaCalendario = () => {
                         </span>
                       )}
                     </div>
-                    <div className="text-right text-xs text-secondary">
+                    <div className="text-right text-xs text-secondary dark:text-white/60">
                       {item.manager && (
                         <p>
                           Responsable:{' '}
-                          <span className="text-primary">{item.manager}</span>
+                          <span className="text-primary dark:text-white/85">{item.manager}</span>
                         </p>
                       )}
                       {item.status && (
                         <p>
                           Estado:{' '}
-                          <span className="text-primary">{item.status}</span>
+                          <span className="text-primary dark:text-white/85">{item.status}</span>
                         </p>
                       )}
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-secondary">
                     {item.client && (
-                      <div className="flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-[#F7F8FA] px-3 py-1.5">
-                        <span className="text-[10px] uppercase tracking-wide text-secondary/70">Cliente</span>
+                      <div className="flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-[#F7F8FA] px-3 py-1.5 dark:border-[#2B2D31] dark:bg-[#1B1C20]">
+                        <span className="text-[10px] uppercase tracking-wide text-secondary/70 dark:text-white/50">Cliente</span>
                         <span className={getClientDetailBadgeClass(item.client)}>{item.client}</span>
                       </div>
                     )}
                   </div>
                   {item.description && (
-                    <p className="mt-3 text-sm text-secondary">{item.description}</p>
+                    <p className="mt-3 text-sm text-secondary dark:text-white/70">{item.description}</p>
                   )}
                   {item.project && (
                     <div className="mt-3">
                       <button
                         type="button"
                         onClick={() => openModal(item.project)}
-                        className="w-full rounded-2xl border border-accent/60 px-4 py-3 text-sm font-semibold text-accent transition hover:border-accent/80 hover:text-accent sm:w-auto sm:rounded-full sm:px-3 sm:py-1 sm:text-xs">
+                        className="w-full rounded-2xl border border-accent/60 px-4 py-3 text-sm font-semibold text-accent transition hover:border-accent/80 hover:text-accent sm:w-auto sm:rounded-full sm:px-3 sm:py-1 sm:text-xs dark:border-purple-400/60 dark:text-purple-300 dark:hover:border-purple-300"
+                      >
                         Ver proyecto
                       </button>
                     </div>
@@ -976,8 +988,8 @@ const VistaCalendario = () => {
       )}
 
         {unscheduledProjects.length > 0 && (
-        <div className="mt-6 rounded-xl border border-dashed border-[#E5E7EB] bg-[#F7F8FA] p-4 text-sm text-secondary">
-          <p className="font-semibold text-primary">
+        <div className="mt-6 rounded-xl border border-dashed border-[#E5E7EB] bg-[#F7F8FA] p-4 text-sm text-secondary dark:border-[#2B2D31] dark:bg-[#1B1C20] dark:text-white/70">
+          <p className="font-semibold text-primary dark:text-white/85">
             Proyectos sin fechas asignadas ({unscheduledProjects.length}):
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -986,7 +998,7 @@ const VistaCalendario = () => {
                 key={project.id}
                 type="button"
                 onClick={() => openModal(project)}
-                className="rounded-full border border-[#E5E7EB] px-3 py-1 text-xs text-secondary transition hover:border-accent/60 hover:text-accent">
+                className="rounded-full border border-[#E5E7EB] px-3 py-1 text-xs text-secondary transition hover:border-accent/60 hover:text-accent dark:border-[#2B2D31] dark:text-white/60 dark:hover:border-purple-400/60 dark:hover:text-white">
                 {project.name}
               </button>
             ))}
