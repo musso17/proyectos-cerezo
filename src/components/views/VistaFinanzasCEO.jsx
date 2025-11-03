@@ -22,6 +22,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { normalizeStatus } from '../../utils/statusHelpers';
 import useStore from '../../hooks/useStore';
 
 const RETAINER_FIJO_MENSUAL = 4000;
@@ -73,6 +74,7 @@ const resolveProjectMonth = (project) => {
     project.properties?.fechaGrabacion,
     project.properties?.month,
     project.created_at,
+    project.updated_at,
   ];
 
   for (const value of candidates) {
@@ -80,6 +82,35 @@ const resolveProjectMonth = (project) => {
     if (month) return month;
   }
   return null;
+};
+
+const resolveProjectCompletionMonth = (project) => {
+  if (!project) return null;
+  // Lista priorizada de campos que indican la fecha de finalización.
+  // Se ha eliminado startDate para evitar falsos positivos.
+  const candidates = [
+    project.completedAt,
+    project.completed_at,
+    project.fechaEntrega,
+    project.fecha_entrega,
+    project.deadline,
+    project.properties?.completedAt,
+    project.properties?.deadline,
+    project.endDate,
+    project.end_date,
+    project.updated_at, // Fallback importante para proyectos completados sin fecha explícita.
+  ];
+
+  for (const value of candidates) {
+    const month = getMonthFromDate(value);
+    if (month) return month;
+  }
+  return null;
+};
+
+const getProjectStartDateMonth = (project) => {
+  if (!project) return null;
+  return getMonthFromDate(project.startDate);
 };
 
 const isProjectInMonth = (project, month) => {
@@ -149,17 +180,20 @@ const VistaFinanzasCEO = () => {
         project.client?.toLowerCase() === 'carbono' || project.cliente?.toLowerCase() === 'carbono';
       if (!isCarbono) return false;
 
-      // Condición 1: El proyecto fue iniciado en el mes seleccionado.
-      let startedInMonth = false;
-      if (project.startDate) {
-      try {
-        const projectMonth = getMonthFromDate(project.startDate);
-          startedInMonth = projectMonth === selectedMonth;
-        } catch { /* ignore date parsing errors */ }
-      }
-      // Condición 2: El proyecto está completado.
-      const isCompleted = project.status?.toLowerCase() === 'completado';
-      return startedInMonth || isCompleted;
+      // Un proyecto de Carbono cuenta para el mes si:
+      // 1. Se inició en el mes seleccionado.
+      // 2. O se completó en el mes seleccionado.
+
+      const startDateMonth = getProjectStartDateMonth(project);
+      const startedInMonth = startDateMonth === selectedMonth;
+
+      // Para los proyectos completados, verificamos que su fecha de finalización (o similar)
+      // corresponda al mes seleccionado, para no contar proyectos completados en otros meses.
+      const projectEndDateMonth = resolveProjectCompletionMonth(project);
+      const isCompleted = normalizeStatus(project.status) === 'Completado';
+      const completedInMonth = isCompleted && projectEndDateMonth === selectedMonth;
+
+      return startedInMonth || completedInMonth;
     });
 
     // Lógica para la lista de proyectos de Carbono (evita duplicados por nombre)
@@ -234,6 +268,10 @@ const VistaFinanzasCEO = () => {
       return 'border-[#E5E7EB] bg-[#F4F5F7] text-secondary';
     }
     return 'border-[#E5E7EB] bg-[#F9FAFB] text-secondary';
+  };
+
+  const formatStatusLabel = (status) => {
+    return normalizeStatus(status);
   };
 
   return (
@@ -426,8 +464,8 @@ const VistaFinanzasCEO = () => {
                             className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${getStatusColor(
                               project.status
                             )}`}
-                          >
-                            {project.status || 'Sin estado'}
+                          > 
+                            {formatStatusLabel(project.status)}
                           </span>
                         </td>
                         <td className="px-6 py-3">

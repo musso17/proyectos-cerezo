@@ -1,8 +1,50 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { normalizeStatus } from '../../utils/statusHelpers';
 import useStore from '../../hooks/useStore';
-import { Link, Save, CheckCircle, ExternalLink, Edit } from 'lucide-react';
+import { Link, Save, CheckCircle, ExternalLink, Edit, Calendar, User, Clock } from 'lucide-react';
+
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  try {
+    return format(parseISO(dateString), 'd MMM, yyyy', { locale: es });
+  } catch (e) {
+    return 'Fecha inválida';
+  }
+};
+
+const getProjectStartDate = (project) => {
+  if (!project) return null;
+  const candidates = [
+    project.startDate,
+    project.start_date,
+    project.fecha_inicio,
+    project.properties?.startDate,
+    project.properties?.fecha_inicio,
+    project.created_at,
+  ];
+  return candidates.find(date => date) || null;
+};
+
+const getProjectCompletionDate = (project) => {
+  if (!project) return null;
+  const candidates = [
+    project.completedAt,
+    project.completed_at,
+    project.deadline,
+    project.fechaEntrega,
+    project.fecha_entrega,
+    project.endDate,
+    project.end_date,
+    project.properties?.completedAt,
+    project.properties?.deadline,
+    project.updated_at,
+  ];
+  return candidates.find(date => date) || null;
+};
 
 const GalleryCard = ({ project }) => {
   const updateProject = useStore((state) => state.updateProject);
@@ -44,13 +86,33 @@ const GalleryCard = ({ project }) => {
     setIsEditing(false);
   };
 
+  const startDate = getProjectStartDate(project);
+  const completionDate = getProjectCompletionDate(project);
+  const manager = project.manager || (Array.isArray(project.managers) && project.managers.join(', '));
+
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:hover:shadow-[0_20px_36px_rgba(0,0,0,0.45)]">
+    <div className="flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:hover:shadow-[0_20px_36px_rgba(0,0,0,0.45)]">
       <div className="p-5">
         <p className="text-sm font-semibold text-gray-800 dark:text-white/90">{project.name}</p>
         <p className="text-xs text-gray-500 dark:text-white/50">{project.client}</p>
       </div>
-      <div className="border-t border-gray-200 bg-gray-50/70 p-4 dark:border-[#2B2D31] dark:bg-[#1B1C20]">
+      <div className="flex-grow space-y-2 px-5 pb-4 text-xs text-gray-500 dark:text-white/50">
+        {manager && (
+          <div className="flex items-center gap-2">
+            <User size={14} />
+            <span>Encargado: <strong>{manager}</strong></span>
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <Calendar size={14} />
+          <span>Inició: <strong>{formatDate(startDate)}</strong></span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Clock size={14} />
+          <span>Completado: <strong>{formatDate(completionDate)}</strong></span>
+        </div>
+      </div>
+      <div className="mt-auto border-t border-gray-200 bg-gray-50/70 p-4 dark:border-[#2B2D31] dark:bg-[#1B1C20]">
         <label
           htmlFor={`link-${project.id}`}
           className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-white/60"
@@ -110,7 +172,7 @@ const VistaGaleria = () => {
 
   const completedProjects = useMemo(() => {
     return (projects || [])
-      .filter(p => p.status?.toLowerCase() === 'completado')
+      .filter(p => normalizeStatus(p.status) === 'Completado')
       .sort((a, b) => new Date(b.deadline || b.updated_at) - new Date(a.deadline || a.updated_at));
   }, [projects]);
 

@@ -5,8 +5,15 @@ export const normalizeStatus = (status) => {
   const value = status.toString().trim().toLowerCase();
   if (value === 'finalizado' || value === 'finalizada' || value === 'terminado' || value === 'completado')
     return 'Completado';
-  if (value === 'en curso' || value === 'en progreso' || value === 'progreso') return 'En progreso';
-  if (value === 'revision' || value === 'revisión' || value === 'en revisión' || value === 'en revision')
+  if (value === 'en curso' || value === 'en progreso' || value === 'progreso' || value === 'editando')
+    return 'En progreso';
+  if (
+    value === 'revision' ||
+    value === 'revisión' ||
+    value === 'en revisión' ||
+    value === 'en revision' ||
+    value === 'esperando feedback'
+  )
     return 'En revisión';
   return 'Programado';
 };
