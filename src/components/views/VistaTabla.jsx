@@ -220,8 +220,9 @@ const buildInitialFilters = () => {
   return base;
 };
 
-const VistaTabla = () => {
-  const projects = useStore((state) => state.projects);
+const VistaTabla = ({ projects: projectsProp }) => {
+  const projectsFromStore = useStore((state) => state.projects);
+  const projects = projectsProp !== undefined ? projectsProp : projectsFromStore;
   const openModal = useStore((state) => state.openModal);
   const deleteProject = useStore((state) => state.deleteProject);
   const searchTerm = useStore((state) => state.searchTerm);

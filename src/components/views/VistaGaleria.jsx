@@ -167,8 +167,9 @@ const GalleryCard = ({ project }) => {
   );
 };
 
-const VistaGaleria = () => {
-  const projects = useStore((state) => state.projects);
+const VistaGaleria = ({ projects: projectsProp }) => {
+  const projectsFromStore = useStore((state) => state.projects);
+  const projects = projectsProp !== undefined ? projectsProp : projectsFromStore;
 
   const completedProjects = useMemo(() => {
     return (projects || [])

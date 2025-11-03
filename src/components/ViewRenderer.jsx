@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import useStore from '../hooks/useStore';
 import VistaCarbonoDashboard from './views/VistaCarbonoDashboard';
 import VistaDashboard from './views/VistaDashboard';
@@ -28,36 +29,51 @@ const isFrancisco = (user) => {
 
 
 const ViewRenderer = () => {
-  const currentView = useStore((state) => state.currentView);
-  const currentUser = useStore((state) => state.currentUser);
+  const { currentView, currentUser, allProjects } = useStore(
+    useShallow((state) => ({
+      currentView: state.currentView,
+      currentUser: state.currentUser,
+      allProjects: state.projects,
+    }))
+  );
 
   const renderedView = useMemo(() => {
+    const isFranciscoUser = isFrancisco(currentUser);
+
+    const carbonoProjects = isFranciscoUser
+      ? (allProjects || []).filter(
+          (p) =>
+            p.client?.toLowerCase() === 'carbono' ||
+            p.cliente?.toLowerCase() === 'carbono' ||
+            p.properties?.tag === 'carbono'
+        )
+      : allProjects;
+
     switch (currentView) {
       case 'Dashboard':
-        if (isFrancisco(currentUser)) {
+        if (isFranciscoUser) {
           return <VistaCarbonoDashboard />;
         }
         else if (isCeo(currentUser)) {
           return <VistaDashboard />;
         } else {
-          // Por defecto, todos los demás ven el dashboard de agente.
           return <VistaAgenteDashboard />;
         }
       case 'Table':
-        return <VistaTabla />;
+        return <VistaTabla projects={isFranciscoUser ? carbonoProjects : undefined} />;
       case 'Calendar':
-        return <VistaCalendario />;
+        return <VistaCalendario projects={isFranciscoUser ? carbonoProjects : undefined} />;
       case 'Gallery':
-        return <VistaGaleria />;
+        return <VistaGaleria projects={isFranciscoUser ? carbonoProjects : undefined} />;
       case 'Ciclos':
-        if (isFrancisco(currentUser)) {
-          return <VistaTabla />; // Redirige a la tabla si es Francisco
+        if (isFranciscoUser) {
+          return <VistaTabla projects={carbonoProjects} />;
         }
-        return <VistaCiclos />;
+        return <VistaCiclos projects={isFranciscoUser ? carbonoProjects : undefined} />;
       default:
-        return <VistaTabla />;
+        return <VistaTabla projects={isFranciscoUser ? carbonoProjects : undefined} />;
     }
-  }, [currentView, currentUser]);
+  }, [currentView, currentUser, allProjects]);
 
   return (
     <div key={currentView}>

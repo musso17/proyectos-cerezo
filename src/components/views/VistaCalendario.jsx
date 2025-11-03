@@ -224,8 +224,9 @@ const getProjectEventLabel = (type) => {
   return 'Edición';
 };
 
-const VistaCalendario = () => {
-  const projects = useStore((state) => state.projects);
+const VistaCalendario = ({ projects: projectsProp }) => {
+  const projectsFromStore = useStore((state) => state.projects);
+  const projects = projectsProp !== undefined ? projectsProp : projectsFromStore;
   const searchTerm = useStore((state) => state.searchTerm);
   const openModal = useStore((state) => state.openModal);
   const teamMembers = useStore((state) => state.teamMembers);

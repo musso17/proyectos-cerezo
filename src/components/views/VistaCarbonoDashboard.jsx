@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import useStore from '../../hooks/useStore';
 import { useShallow } from 'zustand/react/shallow';
-import MetricCard from './MetricCard';
+import MetricCard from '../shared/MetricCard';
 
 const selectDashboardState = (state) => ({
   projects: state.projects,
