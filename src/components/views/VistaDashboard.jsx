@@ -41,7 +41,7 @@ import { es } from 'date-fns/locale';
 import { normalizeString } from '../../utils/normalize';
 import useStore from '../../hooks/useStore';
 import { useShallow } from 'zustand/react/shallow';
-import MetricCard from '../shared/MetricCard';
+import MetricCard from '../shared/MetricCard'; // La ruta ya es correcta, pero el error de Vercel indica un problema de resolución.
 import VistaFinanzasCEO from './VistaFinanzasCEO';
 
 // By defining the selector outside the component, we ensure it's a stable function reference.
