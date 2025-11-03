@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo } from 'react';
+import { isSameMonth, parseISO } from 'date-fns';
 import {
   ResponsiveContainer,
   BarChart,
@@ -11,6 +12,7 @@ import {
   Tooltip as RechartsTooltip,
 } from 'recharts';
 import {
+  Briefcase,
   Activity,
   Video,
   PenSquare,
@@ -19,6 +21,7 @@ import {
 } from 'lucide-react';
 import useStore from '../../hooks/useStore';
 import { useShallow } from 'zustand/react/shallow';
+import MetricCard from '../shared/MetricCard';
 
 const selectDashboardState = (state) => ({
   projects: state.projects,
@@ -37,6 +40,13 @@ const VistaCarbonoDashboard = () => {
 
     const totals = { active: 0, recording: 0, editing: 0, delivered: 0 };
     const managerLoad = new Map();
+    const now = new Date();
+
+    const carbonoProjectsThisMonth = carbonoProjects.filter(
+      (p) => p.startDate && isSameMonth(parseISO(p.startDate), now)
+    ).length;
+
+    const RETAINER_LIMIT = 6;
 
     carbonoProjects.forEach((p) => {
       const status = (p.status || '').toLowerCase();
@@ -62,7 +72,7 @@ const VistaCarbonoDashboard = () => {
       }))
       .sort((a, b) => b.total - a.total);
 
-    return { totals, managerLoad: managerLoadData };
+    return { totals, managerLoad: managerLoadData, carbonoProjectsThisMonth, RETAINER_LIMIT };
   }, [projects]);
 
   const { totals, managerLoad } = carbonoData;
@@ -77,6 +87,13 @@ const VistaCarbonoDashboard = () => {
       </div>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          title="Proyectos Carbono (Mes)"
+          value={`${carbonoData.carbonoProjectsThisMonth} / ${carbonoData.RETAINER_LIMIT}`}
+          description="Proyectos mensuales con Carbono"
+          icon={Briefcase}
+          accent="border-transparent bg-[#EEF1FF] text-accent dark:border-[#2B2D31] dark:bg-[#212226] dark:text-purple-300"
+        />
         <MetricCard
           title="Proyectos activos"
           value={totals.active}
@@ -133,21 +150,6 @@ const VistaCarbonoDashboard = () => {
     </div>
   );
 };
-
-const MetricCard = ({ title, value, description, icon: Icon, accent }) => (
-  <div className="glass-panel flex flex-col justify-between gap-4 p-4 transition-all hover:-translate-y-1 hover:shadow-[0_18px_32px_rgba(15,23,42,0.12)] sm:p-6">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-xs uppercase tracking-[0.28em] text-secondary/60">{title}</p>
-        <p className="mt-3 text-3xl font-semibold text-primary">{value}</p>
-      </div>
-      <div className={`rounded-lg border px-3 py-3 ${accent}`}>
-        <Icon size={22} />
-      </div>
-    </div>
-    <p className="mt-4 text-xs text-secondary/80">{description}</p>
-  </div>
-);
 
 const Header = ({ title, subtitle }) => (
   <div>

@@ -41,6 +41,7 @@ import { es } from 'date-fns/locale';
 import { normalizeString } from '../../utils/normalize';
 import useStore from '../../hooks/useStore';
 import { useShallow } from 'zustand/react/shallow';
+import MetricCard from '../shared/MetricCard';
 import VistaFinanzasCEO from './VistaFinanzasCEO';
 
 // By defining the selector outside the component, we ensure it's a stable function reference.
@@ -503,23 +504,6 @@ const VistaDashboard = () => {
 };
 
 export default VistaDashboard;
-
-const MetricCard = ({ title, value, description, icon: Icon, accent }) => (
-  <div className="glass-panel flex flex-col justify-between gap-4 p-6 transition-all hover:-translate-y-1 hover:shadow-[0_18px_32px_rgba(15,23,42,0.12)]">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-xs uppercase tracking-[0.28em] text-secondary/60">
-          {title}
-        </p>
-        <p className="mt-3 text-3xl font-semibold text-primary">{value}</p>
-      </div>
-      <div className={`rounded-lg border px-3 py-3 ${accent}`}>
-        <Icon size={22} />
-      </div>
-    </div>
-    <p className="mt-4 text-xs text-secondary/80">{description}</p>
-  </div>
-);
 
 const Header = ({ title, subtitle }) => (
   <div>
