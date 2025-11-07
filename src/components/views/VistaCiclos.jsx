@@ -196,6 +196,9 @@ const CycleActionButtons = ({ status, onMove, onApprove, disabled }) => {
       break;
     case 'enviado':
       buttons.push(renderButton('Registrar correcciones', 'corrigiendo', MessageCircle, 'accent'));
+      break;
+    case 'esperando_feedback':
+      buttons.push(renderButton('Registrar feedback recibido', 'corrigiendo', MessageCircle, 'accent'));
       buttons.push(
         <button
           type="button"
@@ -209,23 +212,8 @@ const CycleActionButtons = ({ status, onMove, onApprove, disabled }) => {
         </button>
       );
       break;
-    case 'esperando_feedback':
-      buttons.push(renderButton('Registrar feedback recibido', 'corrigiendo', MessageCircle, 'accent'));
-      break;
     case 'corrigiendo':
       buttons.push(renderButton('Mover a “Esperando feedback”', 'esperando_feedback', TimerReset, 'neutral'));
-      buttons.push(
-        <button
-          type="button"
-          key="approve"
-          onClick={onApprove}
-          disabled={disabled}
-          className="flex items-center justify-center gap-2 rounded-lg bg-[#4CAF50] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-500 dark:hover:bg-emerald-400"
-        >
-          {disabled ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-          Marcar ciclo como aprobado
-        </button>
-      );
       break;
     default:
       break;
