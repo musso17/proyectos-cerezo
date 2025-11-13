@@ -15,6 +15,7 @@ const Navbar = () => {
   const setProjects = useStore((state) => state.setProjects);
   const theme = useStore((state) => state.theme);
   const toggleTheme = useStore((state) => state.toggleTheme);
+  const setCurrentUser = useStore((state) => state.setCurrentUser);
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
 
@@ -24,16 +25,67 @@ const Navbar = () => {
 
   const handleSignOut = async () => {
     if (signingOut) return;
-    try {
-      setSigningOut(true);
-      await supabase.auth.signOut();
+    setSigningOut(true);
+
+    const clearLocalState = () => {
       setProjects([]);
       setSearchTerm('');
-      toast.success('Sesión cerrada');
+      setCurrentUser(null);
+
+      if (typeof window !== 'undefined') {
+        const keysToClear = ['cerezo-projects', 'cerezo-retainers', 'cerezo-agent-state'];
+        keysToClear.forEach((key) => {
+          try {
+            window.localStorage.removeItem(key);
+          } catch (storageError) {
+            console.warn(`No se pudo limpiar ${key}:`, storageError);
+          }
+        });
+
+        try {
+          Object.keys(window.localStorage).forEach((key) => {
+            if (key.startsWith('sb-')) {
+              window.localStorage.removeItem(key);
+            }
+          });
+        } catch (supabaseStorageError) {
+          console.warn('No se pudieron limpiar las credenciales de Supabase:', supabaseStorageError);
+        }
+        try {
+          Object.keys(window.sessionStorage || {}).forEach((key) => {
+            if (key.startsWith('sb-')) {
+              window.sessionStorage.removeItem(key);
+            }
+          });
+        } catch (sessionError) {
+          console.warn('No se pudieron limpiar los tokens de sesión de Supabase:', sessionError);
+        }
+      }
+    };
+
+    const redirectToLogin = () => {
       router.replace('/login');
+      if (typeof window !== 'undefined') {
+        window.setTimeout(() => {
+          window.location.assign('/login');
+        }, 150);
+      }
+    };
+
+    try {
+      if (supabase) {
+        await supabase.auth.signOut({ scope: 'global' });
+        await supabase.auth.signOut({ scope: 'local' });
+      }
+
+      clearLocalState();
+      toast.success('Sesión cerrada');
+      redirectToLogin();
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
-      toast.error('No se pudo cerrar la sesión');
+      clearLocalState();
+      toast.error('No se pudo cerrar la sesión (modo seguro)');
+      redirectToLogin();
     } finally {
       setSigningOut(false);
     }

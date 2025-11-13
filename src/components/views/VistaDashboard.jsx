@@ -448,14 +448,17 @@ const VistaDashboard = () => {
           {managerLoad.length > 0 ? (
             <ul className="space-y-3">
               {managerLoad.map(({ manager, total, level }) => (
-                <li key={manager} className="flex items-center justify-between rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3">
+                <li
+                  key={manager}
+                  className="flex items-center justify-between rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3 dark:border-white/10 dark:bg-white/5 dark:backdrop-blur"
+                >
                   <div className="flex items-center gap-3">
                     <div className={`h-2.5 w-2.5 rounded-full ${getLoadColor(level)}`} />
                     <p className="text-sm font-medium text-primary">{manager}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-semibold text-secondary">{total} activos</p>
-                    <p className="text-xs text-secondary/70">{level}</p>
+                    <p className="text-sm font-semibold text-secondary dark:text-white/70">{total} activos</p>
+                    <p className="text-xs text-secondary/70 dark:text-white/60">{level}</p>
                   </div>
                 </li>
               ))}
@@ -463,8 +466,8 @@ const VistaDashboard = () => {
           ) : (
             <EmptyState message="No hay encargados asignados" />
           )}
-          <div className="flex items-center gap-2 rounded-xl border border-[#FFE4C4] bg-[#FFF4E6] px-3 py-2 text-xs text-[#C07A00]">
-            <AlertTriangle size={14} className="text-[#FFB020]" />
+          <div className="flex items-center gap-2 rounded-xl border border-[#FFE4C4] bg-[#FFF4E6] px-3 py-2 text-xs text-[#C07A00] dark:border-[#FCD34D]/30 dark:bg-[#422006] dark:text-[#FCD34D]">
+            <AlertTriangle size={14} className="text-[#FFB020] dark:text-[#FCD34D]" />
             <span>Verifica la carga semanal para redistribuir si es necesario.</span>
           </div>
         </div>

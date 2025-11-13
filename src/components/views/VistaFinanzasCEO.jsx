@@ -256,18 +256,18 @@ const VistaFinanzasCEO = () => {
     const status = estado?.toLowerCase() || '';
 
     if (status.includes('cobrado') || status.includes('completado')) {
-      return 'border-[#C8E6C9] bg-[#F1FAF3] text-[#2F9E44]';
+      return 'border-[#C8E6C9] bg-[#F1FAF3] text-[#2F9E44] dark:border-[#34D399]/40 dark:bg-[#052E1D] dark:text-[#6EE7B7]';
     }
     if (status.includes('entregado')) {
-      return 'border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7]';
+      return 'border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7] dark:border-[#4C1D95]/40 dark:bg-[#1E1B4B] dark:text-[#C4B5FD]';
     }
     if (status.includes('curso') || status.includes('progreso')) {
-      return 'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00]';
+      return 'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00] dark:border-[#FCD34D]/40 dark:bg-[#422006] dark:text-[#FCD34D]';
     }
     if (status.includes('cotizado') || status.includes('programado')) {
-      return 'border-[#E5E7EB] bg-[#F4F5F7] text-secondary';
+      return 'border-[#E5E7EB] bg-[#F4F5F7] text-secondary dark:border-white/10 dark:bg-white/10 dark:text-white/80';
     }
-    return 'border-[#E5E7EB] bg-[#F9FAFB] text-secondary';
+    return 'border-[#E5E7EB] bg-[#F9FAFB] text-secondary dark:border-white/10 dark:bg-white/5 dark:text-white/80';
   };
 
   const formatStatusLabel = (status) => {
@@ -425,9 +425,9 @@ const VistaFinanzasCEO = () => {
             <h2 className="text-xl font-semibold text-primary flex items-center gap-2">
               <FileText size={20} /> Proyectos variables activos
             </h2>
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <table className="min-w-[640px] divide-y divide-[#E5E7EB] text-left">
-                <thead className="bg-[#F9FAFB] text-xs uppercase tracking-wider text-secondary">
+            <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-white/10 dark:bg-white/5">
+              <table className="min-w-[640px] divide-y divide-[#E5E7EB] text-left dark:divide-white/10">
+                <thead className="bg-[#F9FAFB] text-xs uppercase tracking-wider text-secondary dark:bg-white/[0.04] dark:text-white/60">
                   <tr>
                     <th className="px-6 py-3">Cliente</th>
                     <th className="px-6 py-3">Proyecto</th>
@@ -436,16 +436,16 @@ const VistaFinanzasCEO = () => {
                     <th className="px-6 py-3" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#F1F5F9]">
+                <tbody className="divide-y divide-[#F1F5F9] dark:divide-white/10">
                   {calculos.proyectosVariables.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-6 text-center text-sm text-secondary">
+                      <td colSpan={5} className="px-6 py-6 text-center text-sm text-secondary dark:text-white/60">
                         No hay proyectos variables registrados en {selectedMonthLabel}.
                       </td>
                     </tr>
                   ) : (
                     calculos.proyectosVariables.map((project) => (
-                      <tr key={project.id} className="transition hover:bg-[#F7F8FA] dark:hover:bg-white/10">
+                      <tr key={project.id} className="transition hover:bg-[#F7F8FA] dark:hover:bg-white/5">
                         <td className="px-6 py-3 text-sm font-medium text-primary">
                           {project.client || project.cliente}
                         </td>
@@ -456,7 +456,7 @@ const VistaFinanzasCEO = () => {
                             value={project.income ?? ''}
                             onChange={(event) => handleMontoChange(project.id, event.target.value)}
                             onBlur={() => handleSaveMonto(project.id)}
-                            className="w-32 rounded-lg border border-[#D1D5DB] bg-white p-2 text-right text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                            className="w-32 rounded-lg border border-[#D1D5DB] bg-white p-2 text-right text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/80"
                           />
                         </td>
                         <td className="px-6 py-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Fragment, useState, useEffect, useRef } from 'react';
+import React, { Fragment, useState, useEffect, useRef, useMemo } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { X, Plus, Trash2, Calendar, ChevronDown } from 'lucide-react';
 import useStore from '../../hooks/useStore';
@@ -26,9 +26,51 @@ const ModalDetalles = () => {
   const addProject = useStore((state) => state.addProject);
   const deleteProject = useStore((state) => state.deleteProject);
   const teamMembers = useStore((state) => state.teamMembers);
+  const projects = useStore((state) => state.projects);
+  const currentUser = useStore((state) => state.currentUser);
   const [editedProject, setEditedProject] = useState(null);
   const [isManagerDropdownOpen, setIsManagerDropdownOpen] = useState(false);
   const managerDropdownRef = useRef(null);
+  const [clientSelection, setClientSelection] = useState('');
+  const [isCustomClient, setIsCustomClient] = useState(false);
+
+  const isFranciscoUser = (user) =>
+    user?.email?.toString().trim().toLowerCase() === 'francisco@carbonomkt.com';
+
+  const normalizedClientOptions = useMemo(() => {
+    const seen = new Map();
+    (projects || []).forEach((project) => {
+      const candidates = [
+        project.client,
+        project.cliente,
+        project.properties?.client,
+        project.properties?.cliente,
+      ];
+      candidates.forEach((value) => {
+        const trimmed = value?.toString().trim();
+        if (!trimmed) return;
+        const normalized = trimmed.toLowerCase();
+        if (!seen.has(normalized)) {
+          seen.set(normalized, trimmed);
+        }
+      });
+    });
+    return Array.from(seen.values()).sort((a, b) => a.localeCompare(b, 'es'));
+  }, [projects]);
+
+  const enforceFranciscoClient = isFranciscoUser(currentUser);
+  const availableClientOptions = enforceFranciscoClient ? ['Carbono'] : normalizedClientOptions;
+  const canAddCustomClient = !enforceFranciscoClient;
+
+  const findMatchingClientOption = (value) => {
+    if (!value) return null;
+    const normalized = value.toString().trim().toLowerCase();
+    return (
+      availableClientOptions.find(
+        (option) => option.toString().trim().toLowerCase() === normalized
+      ) || null
+    );
+  };
 
   useEffect(() => {
     if (selectedProject) {
@@ -61,6 +103,13 @@ const ModalDetalles = () => {
       const stage = rawStage ? rawStage.toString().trim().toLowerCase() : STAGES.GRABACION;
       const registrationType =
         selectedProject.registrationType || properties.registrationType || selectedProject.type || 'spot';
+      const projectClient =
+        (selectedProject.client ||
+          selectedProject.cliente ||
+          properties.client ||
+          properties.cliente ||
+          '').toString().trim();
+      const enforcedClient = enforceFranciscoClient ? 'Carbono' : projectClient;
       const recordingDate =
         selectedProject.recordingDate ||
         selectedProject.fechaGrabacion ||
@@ -97,7 +146,8 @@ const ModalDetalles = () => {
         recordingDescription,
         deliverableLink,
         type: registrationType || selectedProject.type || '',
-  status: selectedProject.status || 'Programado',
+        status: selectedProject.status || 'Programado',
+        client: enforcedClient,
         properties: {
           ...properties,
           resources: existingResources,
@@ -109,15 +159,32 @@ const ModalDetalles = () => {
           recordingDescription,
           fechaGrabacion: recordingDate || properties.fechaGrabacion || '',
           deliverableLink,
+          client: enforcedClient,
         },
         resources: existingResources,
       });
       setIsManagerDropdownOpen(false);
+      const matchingOption = findMatchingClientOption(enforcedClient);
+      if (enforceFranciscoClient) {
+        setClientSelection('Carbono');
+        setIsCustomClient(false);
+      } else if (matchingOption) {
+        setClientSelection(matchingOption);
+        setIsCustomClient(false);
+      } else if (enforcedClient) {
+        setClientSelection('__new__');
+        setIsCustomClient(true);
+      } else {
+        setClientSelection('');
+        setIsCustomClient(false);
+      }
     } else {
       setEditedProject(null);
       setIsManagerDropdownOpen(false);
+      setClientSelection('');
+      setIsCustomClient(false);
     }
-  }, [selectedProject, teamMembers]);
+  }, [selectedProject, teamMembers, enforceFranciscoClient, availableClientOptions]);
 
   useEffect(() => {
     if (!isModalOpen) {
@@ -170,6 +237,35 @@ const ModalDetalles = () => {
       }
       return next;
     });
+  };
+
+  const handleClientSelectionChange = (event) => {
+    const { value } = event.target;
+    setClientSelection(value);
+    if (value === '__new__') {
+      setIsCustomClient(true);
+      setEditedProject((prev) => ({
+        ...prev,
+        client: prev?.client || '',
+        properties: { ...prev?.properties, client: prev?.client || '' },
+      }));
+      return;
+    }
+    setIsCustomClient(false);
+    setEditedProject((prev) => ({
+      ...prev,
+      client: value,
+      properties: { ...prev.properties, client: value },
+    }));
+  };
+
+  const handleCustomClientChange = (event) => {
+    const { value } = event.target;
+    setEditedProject((prev) => ({
+      ...prev,
+      client: value,
+      properties: { ...prev.properties, client: value },
+    }));
   };
 
   const handleRegistrationTypeChange = (event) => {
@@ -427,7 +523,7 @@ const ModalDetalles = () => {
               leave="ease-in duration-200"
               leaveFrom="opacity-100 translate-y-0 scale-100"
               leaveTo="opacity-0 translate-y-4 scale-95">
-              <Dialog.Panel className="flex h-full w-full max-w-full transform flex-col overflow-hidden rounded-none border border-gray-200 bg-white text-left align-middle shadow-xl transition-all sm:h-auto sm:max-w-4xl sm:rounded-xl dark:border-[#2B2D31] dark:bg-[#1E1F23]">
+              <Dialog.Panel className="flex h-full w-full max-w-full transform flex-col overflow-hidden rounded-none border border-gray-200 bg-white text-left align-middle shadow-xl transition-all sm:h-auto sm:max-w-4xl sm:rounded-xl dark:border-[#1f2030] dark:bg-[#10111c]/95 dark:shadow-[0_42px_88px_rgba(2,6,23,0.75)]">
                 <div className="flex shrink-0 items-start justify-between gap-4 border-b border-gray-200 px-4 py-4 sm:px-6 sm:py-5">
                   <Dialog.Title className="flex-1">
                     <input
@@ -455,14 +551,34 @@ const ModalDetalles = () => {
                   <div className="space-y-5">
                     <div>
                       <label className="text-sm font-medium text-gray-600">Cliente</label>
-                      <input
-                        type="text"
-                        name="client"
-                        value={editedProject.client || ''}
-                        onChange={handleInputChange}
-                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
-                        placeholder="Nombre del cliente"
-                      />
+                      <select
+                        value={clientSelection}
+                        onChange={handleClientSelectionChange}
+                        disabled={enforceFranciscoClient}
+                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+                      >
+                        {!enforceFranciscoClient && (
+                          <option value="">Selecciona un cliente</option>
+                        )}
+                        {availableClientOptions.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                        {canAddCustomClient && (
+                          <option value="__new__">Agregar nuevo cliente…</option>
+                        )}
+                      </select>
+                      {canAddCustomClient && isCustomClient && (
+                        <input
+                          type="text"
+                          name="client"
+                          value={editedProject.client || ''}
+                          onChange={handleCustomClientChange}
+                          className="mt-3 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                          placeholder="Ingresa un nuevo cliente"
+                        />
+                      )}
                     </div>
 
                     {isRecordingStage && (
@@ -625,13 +741,13 @@ const ModalDetalles = () => {
 
                   <div className="md:col-span-2 space-y-6">
                     {isRecordingStage && (
-                      <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-3">
+                      <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-4 dark:border-white/10 dark:bg-white/[0.03]">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-3 dark:border-white/10">
                           <div>
-                            <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-600">
+                            <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-600 dark:text-white/80">
                               Detalles de la grabación
                             </h3>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-500 dark:text-white/60">
                               Define fecha, hora, ubicación y contexto para coordinar el rodaje.
                             </p>
                           </div>
@@ -642,7 +758,7 @@ const ModalDetalles = () => {
                             className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold transition ${
                               editedProject.recordingDate 
                                 ? 'border-violet-300 text-violet-700 bg-violet-50 hover:bg-violet-100'
-                                : 'cursor-not-allowed border-gray-300 text-gray-400 bg-gray-100'
+                                : 'cursor-not-allowed border-gray-300 text-gray-400 bg-gray-100 dark:border-white/10 dark:text-white/30 dark:bg-white/5'
                             }`}
                           >
                             <Calendar size={14} />
@@ -651,40 +767,40 @@ const ModalDetalles = () => {
                         </div>
                         <div className="mt-4 grid gap-4 md:grid-cols-2">
                           <div>
-                            <label className="text-sm font-medium text-gray-600">Día de grabación</label>
+                            <label className="text-sm font-medium text-gray-600 dark:text-white/80">Día de grabación</label>
                             <input
                               type="date"
                               value={editedProject.recordingDate || ''}
                               onChange={handleRecordingDateChange}
-                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/80"
                             />
                           </div>
                           <div>
-                            <label className="text-sm font-medium text-gray-600">Hora</label>
+                            <label className="text-sm font-medium text-gray-600 dark:text-white/80">Hora</label>
                             <input
                               type="time"
                               value={editedProject.recordingTime || ''}
                               onChange={handleRecordingFieldChange('recordingTime')}
-                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/80"
                             />
                           </div>
                           <div>
-                            <label className="text-sm font-medium text-gray-600">Lugar</label>
+                            <label className="text-sm font-medium text-gray-600 dark:text-white/80">Lugar</label>
                             <input
                               type="text"
                               value={editedProject.recordingLocation || ''}
                               onChange={handleRecordingFieldChange('recordingLocation')}
-                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/80 dark:placeholder:text-white/40"
                               placeholder="Estudio, locación, referencia"
                             />
                           </div>
                           <div>
-                            <label className="text-sm font-medium text-gray-600">Descripción de la grabación</label>
+                            <label className="text-sm font-medium text-gray-600 dark:text-white/80">Descripción de la grabación</label>
                             <textarea
                               value={editedProject.recordingDescription || ''}
                               onChange={handleRecordingFieldChange('recordingDescription')}
                               rows={3}
-                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/80 dark:placeholder:text-white/40"
                               placeholder="Ángulos, requerimientos técnicos o mensajes clave"
                             />
                           </div>
@@ -819,32 +935,32 @@ const ModalDetalles = () => {
                   )}
                 </div>
 
-                <div className="flex flex-col gap-3 border-t border-gray-200 bg-gray-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <div className="flex flex-col gap-3 border-t border-gray-200 bg-gray-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-white/10 dark:bg-white/[0.03]">
                   {editedProject.id ? (
                     <button
                       type="button"
-                      className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-transparent px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+                      className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-transparent px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10"
                       onClick={handleDelete}
                     >
                       <Trash2 size={16} />
                       Eliminar proyecto
                     </button>
                   ) : (
-                    <span className="text-xs uppercase tracking-wide text-gray-500">
+                    <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-white/60">
                       Nuevo proyecto
                     </span>
                   )}
                   <div className="flex flex-wrap gap-3">
                     <button
                       type="button"
-                      className="min-h-[44px] rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                      className="min-h-[44px] rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-white/10 dark:bg-[#151623] dark:text-white/80 dark:hover:bg-white/5"
                       onClick={closeModal}
                     >
                       Cancelar
                     </button>
                     <button
                       type="button"
-                      className="min-h-[44px] rounded-lg border border-transparent bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-violet-700"
+                      className="min-h-[44px] rounded-lg border border-transparent bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-violet-700 dark:bg-[#7C3AED] dark:hover:bg-[#8B5CF6]"
                       onClick={handleSave}
                     >
                       {editedProject.id ? 'Guardar cambios' : 'Crear proyecto'}

@@ -10,20 +10,20 @@ import { getUIPreference, setUIPreference } from '../../utils/uiPreferences';
 
 const statusStyles = {
   Programado: {
-    badge: 'border-[#D1D5DB] bg-[#F4F5F7] text-secondary',
-    dot: 'bg-[#9CA3AF]',
+    badge: 'border-[#D1D5DB] bg-[#F4F5F7] text-secondary dark:border-white/10 dark:bg-white/5 dark:text-white/80',
+    dot: 'bg-[#9CA3AF] dark:bg-[#A5B4FC]',
   },
   'En progreso': {
-    badge: 'border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF]',
-    dot: 'bg-[#6C63FF]',
+    badge: 'border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF] dark:border-[#4C1D95]/50 dark:bg-[#1E1B4B] dark:text-[#C4B5FD]',
+    dot: 'bg-[#6C63FF] dark:bg-[#A78BFA]',
   },
   'En revisión': {
-    badge: 'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00]',
-    dot: 'bg-[#FFB020]',
+    badge: 'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00] dark:border-[#FCD34D]/40 dark:bg-[#422006] dark:text-[#FCD34D]',
+    dot: 'bg-[#FFB020] dark:bg-[#FBBF24]',
   },
   Completado: {
-    badge: 'border-[#C8E6C9] bg-[#F1FAF3] text-[#2F9E44]',
-    dot: 'bg-[#4CAF50]',
+    badge: 'border-[#C8E6C9] bg-[#F1FAF3] text-[#2F9E44] dark:border-[#34D399]/40 dark:bg-[#052E1D] dark:text-[#6EE7B7]',
+    dot: 'bg-[#4CAF50] dark:bg-[#6EE7B7]',
   },
 };
 
