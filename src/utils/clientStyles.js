@@ -32,8 +32,8 @@ export const getClientStyles = (client) => {
 };
 
 const baseBadges = {
-  md: 'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em]',
-  sm: 'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.24em]',
+  md: 'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] glass-pill',
+  sm: 'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.24em] glass-pill',
 };
 
 export const getClientBadgeClass = (client, size = 'md') => {

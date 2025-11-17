@@ -334,13 +334,13 @@ const orderedProjects = useMemo(() => {
 
   return (
     <div className="soft-scroll flex h-full flex-col gap-4 overflow-auto p-4 md:p-0">
-      <div className="glass-panel flex flex-wrap items-end gap-4 p-5 text-xs text-secondary">
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:gap-0">
+      <div className="glass-panel grid items-end gap-4 p-5 text-xs text-secondary sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
+        <div className="flex flex-col gap-2">
           <label className="mb-1 font-semibold uppercase tracking-[0.26em] text-secondary/80">Tipo</label>
           <select
             value={filters.type}
             onChange={handleFilterChange('type')}
-            className="rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+            className="w-full min-w-[160px] rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           >
             {filterOptions.types.map((option) => (
               <option key={option} value={option}>
@@ -350,12 +350,12 @@ const orderedProjects = useMemo(() => {
           </select>
         </div>
 
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:gap-0">
+        <div className="flex flex-col gap-2">
           <label className="mb-1 font-semibold uppercase tracking-[0.26em] text-secondary/80">Encargado</label>
           <select
             value={filters.manager}
             onChange={handleFilterChange('manager')}
-            className="rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+            className="w-full min-w-[160px] rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           >
             {filterOptions.managers.map((option) => (
               <option key={option} value={option}>
@@ -365,12 +365,12 @@ const orderedProjects = useMemo(() => {
           </select>
         </div>
 
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:gap-0">
+        <div className="flex flex-col gap-2">
           <label className="mb-1 font-semibold uppercase tracking-[0.26em] text-secondary/80">Estado</label>
           <select
             value={filters.status}
             onChange={handleFilterChange('status')}
-            className="rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+            className="w-full min-w-[160px] rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           >
             {filterOptions.statuses.map((option) => (
               <option key={option} value={option}>
@@ -380,12 +380,12 @@ const orderedProjects = useMemo(() => {
           </select>
         </div>
 
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:gap-0">
+        <div className="flex flex-col gap-2">
           <label className="mb-1 font-semibold uppercase tracking-[0.26em] text-secondary/80">Cliente</label>
           <select
             value={filters.client}
             onChange={handleFilterChange('client')}
-            className="rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+            className="w-full min-w-[160px] rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           >
             {filterOptions.clients.map((option) => (
               <option key={option} value={option}>
@@ -398,7 +398,7 @@ const orderedProjects = useMemo(() => {
         <button
           type="button"
           onClick={handleResetFilters}
-          className="w-full rounded-xl border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-semibold text-accent transition hover:shadow-sm sm:ml-auto sm:w-auto"
+          className="w-full rounded-xl border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-semibold text-accent transition hover:shadow-sm sm:w-auto sm:justify-self-end sm:self-end"
         >
           Limpiar filtros
         </button>
@@ -521,7 +521,7 @@ const orderedProjects = useMemo(() => {
 
       <div className="glass-panel overflow-hidden rounded-xl">
         <div className="overflow-x-auto">
-          <table className="hidden min-w-[720px] border-collapse text-sm text-secondary sm:table">
+          <table className="hidden w-full border-collapse text-sm text-secondary sm:table">
             <thead>
               <tr className="bg-[#F9FAFB] text-xs uppercase tracking-[0.26em] text-secondary/80 dark:bg-[#1B1C20] dark:text-white/50">
                 {['Proyecto', 'Encargado', 'Estado', 'Inicio', 'Entrega', 'Cliente', 'Acciones'].map((header) => (
@@ -605,14 +605,14 @@ const orderedProjects = useMemo(() => {
                         <button
                           type="button"
                           onClick={(event) => handleEdit(project, event)}
-                          className="rounded-full border border-[#D1D5DB] bg-white p-2 text-secondary transition hover:bg-[#EEF1F6] hover:text-accent dark:border-[#2B2D31] dark:bg-[#212226] dark:text-white/70 dark:hover:bg-white/10"
+                          className="glass-button rounded-full p-2 text-secondary transition hover:text-accent dark:text-white/80"
                         >
                           <Edit2 size={14} />
                         </button>
                         <button
                           type="button"
                           onClick={(event) => handleDelete(project, event)}
-                          className="rounded-full border border-[#F4C7C7] bg-[#FDECEC] p-2 text-[#B91C1C] transition hover:shadow-sm dark:border-[#3A2424] dark:bg-[#2A1C1C] dark:text-red-300 dark:hover:bg-[#3A2020]"
+                          className="glass-button rounded-full p-2 text-[#B91C1C] transition hover:text-red-500 dark:text-red-300"
                         >
                           <Trash2 size={14} />
                         </button>

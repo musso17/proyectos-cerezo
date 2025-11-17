@@ -18,12 +18,19 @@ import { es } from 'date-fns/locale';
 import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import useStore from '../../hooks/useStore';
 import { ensureMemberName, TEAM_STYLES } from '../../constants/team';
+import { computeIsaAverages, buildIsaMilestones, applyIsaOverridesToMilestones } from '../../utils/isaEstimates';
 import { filterProjects } from '../../utils/filterProjects';
 import { getUIPreference, setUIPreference } from '../../utils/uiPreferences';
 
 const STAGE_STYLES = {
   grabacion: 'bg-blue-500/80 border border-blue-300/60 text-white',
   edicion: 'bg-green-500/80 border border-green-300/60 text-white',
+  isa_first_version:
+    'border border-dashed border-indigo-300/70 bg-indigo-200/20 text-indigo-900 dark:border-indigo-300/60 dark:bg-indigo-300/15 dark:text-indigo-200',
+  isa_review:
+    'border border-dashed border-amber-300/70 bg-amber-200/20 text-amber-900 dark:border-amber-300/60 dark:bg-amber-300/15 dark:text-amber-200',
+  isa_final_delivery:
+    'border border-dashed border-emerald-300/70 bg-emerald-200/20 text-emerald-900 dark:border-emerald-300/60 dark:bg-emerald-300/15 dark:text-emerald-200',
 };
 
 const parseDate = (value) => {
@@ -38,25 +45,38 @@ const getProjectStage = (project) =>
   (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
 
 const getStoredTimelineViewMode = () => {
-  const stored = getUIPreference('timelineViewMode', 'month');
-  if (typeof stored !== 'string') return 'month';
+  const stored = getUIPreference('timelineViewMode', 'week');
+  if (typeof stored !== 'string') return 'week';
   const normalized = stored.trim().toLowerCase();
-  return normalized === 'week' ? 'week' : 'month';
+  return normalized === 'month' ? 'month' : 'week';
 };
 
-const VistaTimeline = () => {
+const VistaTimeline = ({ isaOverrides = {} }) => {
   const projects = useStore((state) => state.projects);
   const searchTerm = useStore((state) => state.searchTerm);
   const openModal = useStore((state) => state.openModal);
   const teamMembers = useStore((state) => state.teamMembers);
   const currentUser = useStore((state) => state.currentUser);
+  const revisionCycles = useStore((state) => state.revisionCycles);
 
   const [viewMode, setViewMode] = useState(() => getStoredTimelineViewMode());
-  const [currentDate, setCurrentDate] = useState(() => startOfMonth(new Date()));
+  const [currentDate, setCurrentDate] = useState(() => {
+    const initialMode = getStoredTimelineViewMode();
+    const today = new Date();
+    return initialMode === 'week'
+      ? startOfWeek(today, { weekStartsOn: 1 })
+      : startOfMonth(today);
+  });
 
   useEffect(() => {
     setUIPreference('timelineViewMode', viewMode);
   }, [viewMode]);
+
+  useEffect(() => {
+    const today = new Date();
+    setViewMode('week');
+    setCurrentDate(startOfWeek(today, { weekStartsOn: 1 }));
+  }, []);
 
   const isFranciscoUser = (user) => user?.email?.toString().trim().toLowerCase() === 'francisco@carbonomkt.com';
 
@@ -76,8 +96,10 @@ const VistaTimeline = () => {
     });
   }, [displayedProjects, searchTerm]);
 
+  const isaStats = useMemo(() => computeIsaAverages(revisionCycles), [revisionCycles]);
+
   const processedAssignments = useMemo(() => {
-    return filteredProjects
+    const baseAssignments = filteredProjects
       .map((project) => {
         const start = parseDate(project.startDate);
         const end = parseDate(project.deadline);
@@ -93,7 +115,32 @@ const VistaTimeline = () => {
         };
       })
       .filter(Boolean);
-  }, [filteredProjects]);
+
+    if (!isaStats?.totalEstimatedDays) {
+      return baseAssignments;
+    }
+
+    const isaAssignments = filteredProjects.flatMap((project) => {
+      if (getProjectStage(project) !== 'grabacion') return [];
+      const milestones = applyIsaOverridesToMilestones(
+        project,
+        buildIsaMilestones(project, isaStats),
+        isaOverrides
+      );
+      return milestones.map((milestone) => ({
+        project,
+        stage: milestone.key,
+        manager: ensureMemberName(project.manager),
+        range: { start: milestone.date, end: milestone.date },
+        isaMeta: {
+          ...isaStats,
+          milestoneLabel: milestone.label,
+        },
+      }));
+    });
+
+    return [...baseAssignments, ...isaAssignments];
+  }, [filteredProjects, isaStats, isaOverrides]);
 
   const memberOrder = useMemo(() => {
     const predefined = teamMembers || [];
@@ -144,6 +191,7 @@ const VistaTimeline = () => {
           cell.items.push({
             project: assignment.project,
             stage: assignment.stage,
+            isaMeta: assignment.isaMeta,
           });
         }
       });
@@ -288,17 +336,27 @@ const VistaTimeline = () => {
                           className="border-b border-l border-[#E5E7EB] px-1 py-2"
                         >
                           <div className="flex flex-col gap-1">
-                            {cell.items.map(({ project, stage }) => {
+                            {cell.items.map(({ project, stage, isaMeta }) => {
                               const style = STAGE_STYLES[stage] || 'bg-slate-700/70 border border-slate-600/60 text-slate-100';
+                              const title = project.name || 'Proyecto sin título';
+                              const isIsaStage = typeof stage === 'string' && stage.startsWith('isa_');
+                              const displayTitle = isIsaStage
+                                ? `${isaMeta?.milestoneLabel || 'ISA'} · ${title}`
+                                : title;
                               return (
                                 <button
-                                  key={`${project.id}-${cell.key}`}
+                                  key={`${project.id || title}-${cell.key}-${stage}`}
                                   type="button"
                                   onClick={() => openModal(project)}
                                   className={`line-clamp-2 rounded-xl px-2 py-1 text-[11px] font-medium transition hover:-translate-y-0.5 hover:shadow-lg ${style}`}
-                                  title={project.name}
+                                  title={displayTitle}
                                 >
-                                  {project.name || 'Proyecto sin título'}
+                                  <span className="block truncate">{displayTitle}</span>
+                                  {isIsaStage && isaMeta && (
+                                    <span className="mt-0.5 block text-[10px] opacity-80">
+                                      Referencia ISA
+                                    </span>
+                                  )}
                                 </button>
                               );
                             })}

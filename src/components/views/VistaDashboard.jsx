@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -21,12 +21,6 @@ import {
   Clock,
   AlertTriangle,
   GaugeCircle,
-  BrainCircuit,
-  ChevronRight,
-  Zap,
-  EyeOff,
-  ChevronUp,
-  ChevronDown
 } from 'lucide-react';
 import {
   differenceInCalendarDays,
@@ -50,85 +44,23 @@ const selectDashboardState = (state) => ({
   projects: state.projects,
   revisionCycles: state.revisionCycles,
   currentUser: state.currentUser,
-  runAgent: state.runAgent,
-  agentLoading: state.agent?.running || false,
-  lastAgentRun: state.agent?.lastRunAt || null,
-  agentSummary: state.agent?.summary || '',
-  agentActions: Array.isArray(state.agent?.suggestions) ? state.agent.suggestions : [],
-  agentError: state.agent?.error || null,
 });
 
 const VistaDashboard = () => {
   // useShallow performs a shallow equality check on the selected state object.
   // This prevents re-renders if the object's properties haven't changed,
   // which is crucial for breaking the render loop.
-  const { projects, revisionCycles, currentUser, runAgent, agentLoading, lastAgentRun, agentSummary, agentActions, agentError } = useStore(useShallow(selectDashboardState));
-  const openModalWithProject = useStore((state) => state.openModalWithProject);
+  const { projects, revisionCycles, currentUser } = useStore(useShallow(selectDashboardState));
 
   const isCeoUser = (user) => user?.email?.toString().trim().toLowerCase() === 'hola@cerezoperu.com';
   const canViewFinances = isCeoUser(currentUser);
   const [activeView, setActiveView] = useState('resumen');
-  const [dismissedActionIndices, setDismissedActionIndices] = useState(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const stored = window.localStorage.getItem('dismissedAgentActions');
-      return stored ? JSON.parse(stored) : [];
-    } catch (e) {
-      console.error("Failed to load dismissed actions from localStorage", e);
-      return [];
-    }
-  });
-  const [isAgentSectionExpanded, setIsAgentSectionExpanded] = useState(true);
-  const prevLastAgentRunRef = useRef();
-
-  // Limpia las tarjetas descartadas cuando se ejecuta un nuevo análisis del agente.
-  useEffect(() => {
-    // En el primer render, prevLastAgentRunRef.current es undefined.
-    // Solo actualizamos la referencia y evitamos ejecutar la lógica de limpieza.
-    if (prevLastAgentRunRef.current === undefined) {
-      prevLastAgentRunRef.current = lastAgentRun;
-      return;
-    }
-
-    // Solo limpiar si lastAgentRun ha cambiado a un valor nuevo y diferente.
-    // Esto evita que se limpie en la carga inicial de la página.
-    if (lastAgentRun && prevLastAgentRunRef.current !== lastAgentRun) {
-      setDismissedActionIndices([]);
-      if (typeof window !== 'undefined') {
-        window.localStorage.removeItem('dismissedAgentActions');
-      }
-    }
-    prevLastAgentRunRef.current = lastAgentRun;
-  }, [lastAgentRun]);
 
   useEffect(() => {
     if (!canViewFinances && activeView === 'finanzas') {
       setActiveView('resumen');
     }
   }, [canViewFinances, activeView]);
-
-  const handleRunAgent = useCallback(() => {
-    if (agentLoading || !runAgent) return;
-    runAgent();
-  }, [agentLoading, runAgent]);
-
-  const handleDismissAction = (index) => {
-    if (window.confirm('¿Estás seguro de que deseas ocultar esta sugerencia? No volverá a aparecer hasta el próximo análisis.')) {
-      setDismissedActionIndices(prev => {
-        const newDismissed = [...prev, index];
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem('dismissedAgentActions', JSON.stringify(newDismissed));
-        }
-        return newDismissed;
-      });
-    }
-  };
-
-  const handleCardAction = (action) => {
-    if (!action.projectId) return;
-    const project = projects.find(p => p.id === action.projectId);
-    if (project) openModalWithProject(project);
-  };
 
   const {
     totals,
@@ -209,64 +141,6 @@ const VistaDashboard = () => {
         </div>
       ) : (
       <>
-      {canViewFinances && (
-        <section className="glass-panel col-span-1 space-y-4 p-6">
-          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-            <div className="flex flex-1 items-center gap-4">
-              <div className="flex items-center gap-3">
-                <BrainCircuit className="h-8 w-8 text-accent" />
-                <div>
-                  <h2 className="text-xl font-semibold text-primary">Análisis del Agente</h2>
-                  <p className="text-sm text-secondary">Recomendaciones para optimizar el flujo de trabajo.</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAgentSectionExpanded(prev => !prev)}
-                className="rounded-lg p-2 text-secondary transition-colors hover:bg-background"
-                title={isAgentSectionExpanded ? 'Replegar sección' : 'Desplegar sección'}
-              >
-                {isAgentSectionExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-              </button>
-            </div>
-            <button
-              onClick={handleRunAgent}
-              disabled={agentLoading}
-              className="inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-semibold text-accent transition-all hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {agentLoading ? <Zap className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-              <span>{agentLoading ? 'Analizando...' : 'Ejecutar análisis'}</span>
-            </button>
-          </div>
-
-          {isAgentSectionExpanded && (
-            agentLoading && (!agentActions || agentActions.length === 0) ? (
-              <div className="flex h-24 items-center justify-center rounded-xl border-2 border-dashed border-border/40 bg-slate-900/40 text-secondary">
-                <p>El agente está analizando los proyectos...</p>
-              </div>
-            ) : agentError ? (
-              <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-200">{agentError}</div>
-            ) : agentActions && agentActions.length > 0 ? (
-              <div className="space-y-3">
-                <p className="text-sm text-secondary">{agentSummary}</p>
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                  {agentActions.map((action, index) => (
-                    !dismissedActionIndices.includes(index) && (
-                      <AgentActionCard 
-                        key={index} 
-                        action={action} 
-                        onAction={handleCardAction} 
-                        onDismiss={() => handleDismissAction(index)}
-                      />
-                    )
-                  ))}
-                </div>
-              </div>
-            ) : null
-          )}
-        </section>
-      )}
-
       {carbonoProjectsThisMonth > 6 && (
         <div className="bg-red-500/15 border border-red-400/30 text-red-300 p-4 rounded-lg flex items-center gap-3">
           <AlertTriangle />
@@ -528,66 +402,6 @@ const EmptyState = ({ message }) => (
     {message}
   </div>
 );
-
-const getPhaseIcon = (phase) => {
-  const normPhase = phase?.toLowerCase() || '';
-  if (normPhase.includes('grabacion')) return '🎥';
-  if (normPhase.includes('edicion') || normPhase.includes('post')) return '✂️';
-  if (normPhase.includes('revision')) return '🔁';
-  if (normPhase.includes('entrega') || normPhase.includes('completado')) return '✅';
-  return '📝';
-};
-
-const AgentActionCard = ({ action, onAction, onDismiss }) => {
-  const priorityChipClasses = {
-    High: 'bg-[#FEE2E2] text-[#B42318]',
-    Medium: 'bg-[#FEF3C7] text-[#92400E]',
-    Low: 'bg-[#DBEAFE] text-[#1D4ED8]',
-  };
-
-  const phaseIcon = getPhaseIcon(action.phase);
-
-  return (
-    <div className="elevated-panel rounded-xl p-4 transition-all hover:-translate-y-0.5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-            <span>{phaseIcon}</span>
-            <span className="truncate">{action.project || 'Proyecto sin nombre'}</span>
-            <span className="text-secondary/60">-</span>
-            <span className="font-medium text-secondary">{action.client || 'Sin cliente'}</span>
-          </div>
-          <p className="mt-1 text-xs text-secondary">
-            <span className="font-semibold">Fase:</span> {action.phase || 'N/A'} | <span className="font-semibold">Prioridad:</span> {action.priority || 'Baja'}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="rounded-lg p-2 text-secondary transition-colors hover:bg-white/10 dark:hover:bg-white/10"
-          title="Ignorar sugerencia"
-        >
-          <EyeOff size={16} />
-        </button>
-      </div>
-      <div className="mt-3 space-y-3 border-t border-border/70 pt-3 text-sm">
-        <p className="text-primary">{action.recommendation}</p>
-        <p className="text-xs text-secondary">{action.justification}</p>
-
-        {action.projectId && onAction && (
-          <div className="mt-4 flex items-center gap-2">
-            <button
-              onClick={() => onAction(action)}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-accent/10 px-3 py-1.5 text-sm font-semibold text-accent transition hover:bg-accent/20 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
-            >
-              Ver proyecto <ChevronRight size={16} />
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
 
 const getLoadColor = (level) => {
   switch (level) {

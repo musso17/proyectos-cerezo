@@ -3,85 +3,48 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import useStore from '../../hooks/useStore';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
-import {
-  addDays,
-  addMonths,
-  differenceInCalendarDays,
-  endOfMonth,
-  endOfWeek,
-  format,
-  isSameDay,
-  isSameMonth,
-  parseISO,
-  startOfDay,
-  startOfMonth,
-  startOfWeek,
-} from 'date-fns';
+import { addDays, addMonths, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, parseISO, startOfDay, startOfMonth, startOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ensureMemberName } from '../../constants/team';
 import { filterProjects } from '../../utils/filterProjects';
 import { getClientStyles } from '../../utils/clientStyles';
 import { getUIPreference, setUIPreference } from '../../utils/uiPreferences';
+import {
+  computeIsaAverages,
+  buildIsaMilestones,
+  getProjectRecordingDate,
+  applyIsaOverridesToMilestones,
+  getIsaProjectKey,
+  isAllowedIsaMilestoneDay,
+} from '../../utils/isaEstimates';
 import VistaTimeline from './VistaTimeline';
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const MAX_ITEMS_PER_DAY = 3;
-const EDITING_TASK_PILL =
-  'border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF] dark:border-purple-400/60 dark:bg-purple-500/15 dark:text-purple-300';
-const PROJECT_EVENT_PILLS = {
-  grabacion:
-    'border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7] dark:border-blue-500/60 dark:bg-blue-500/15 dark:text-blue-300',
-  edicion:
-    'border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF] dark:border-purple-400/60 dark:bg-purple-500/15 dark:text-purple-300',
-  entrega:
-    'border-[#C8E6C9] bg-[#F1FAF3] text-[#2F9E44] dark:border-emerald-400/60 dark:bg-emerald-500/15 dark:text-emerald-300',
-  duracion:
-    'border-[#E5E7EB] bg-[#F9FAFB] text-secondary dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:text-white/60',
-  revision:
-    'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00] dark:border-amber-400/60 dark:bg-amber-500/15 dark:text-amber-300',
-  correccion:
-    'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00] dark:border-amber-400/60 dark:bg-amber-500/15 dark:text-amber-300',
+
+const ISA_ESTIMATE_PILL =
+  'border border-dashed border-[#9CD7FF] bg-[#ECF7FF] text-[#0A5E86] dark:border-cyan-300/60 dark:bg-cyan-500/15 dark:text-cyan-200';
+const RECORDING_PILL =
+  'border border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7] dark:border-blue-500/60 dark:bg-blue-500/15 dark:text-blue-300';
+
+const ISA_EVENT_PILLS = {
+  isa_first_version:
+    'border border-dashed border-[#A5B4FC] bg-[#EEF2FF] text-[#4338CA] dark:border-indigo-300/60 dark:bg-indigo-400/15 dark:text-indigo-200',
+  isa_review:
+    'border border-dashed border-[#FCD34D] bg-[#FFF7DB] text-[#B45309] dark:border-amber-300/60 dark:bg-amber-300/15 dark:text-amber-200',
+  isa_final_delivery:
+    'border border-dashed border-[#6EE7B7] bg-[#ECFDF5] text-[#047857] dark:border-emerald-300/60 dark:bg-emerald-300/15 dark:text-emerald-200',
 };
 
-const REVISION_EVENT_PILLS = {
-  sent:
-    'border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7] dark:border-blue-500/60 dark:bg-blue-500/15 dark:text-blue-300',
-  feedback:
-    'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00] dark:border-amber-400/60 dark:bg-amber-500/15 dark:text-amber-300',
-};
+const CALENDAR_LEGEND = [
+  { label: 'Grabación', className: RECORDING_PILL },
+  { label: 'ISA · 1ra versión', className: ISA_EVENT_PILLS.isa_first_version },
+  { label: 'ISA · Revisión', className: ISA_EVENT_PILLS.isa_review },
+  { label: 'ISA · Entrega final', className: ISA_EVENT_PILLS.isa_final_delivery },
+];
 
-const TYPE_BADGES = {
-  grabacion: {
-    label: 'Grabación',
-    className:
-      'border border-[#CDE5FF] bg-[#E7F3FF] text-[#2563EB] dark:border-blue-500/60 dark:bg-blue-500/15 dark:text-blue-300',
-  },
-  edicion: {
-    label: 'Edición',
-    className:
-      'border border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF] dark:border-purple-400/60 dark:bg-purple-500/15 dark:text-purple-300',
-  },
-};
-
-const getProjectTypeBadge = (project) => {
-  if (!project) return { label: 'Sin tipo', className: 'border border-[#D1D5DB] bg-[#EEF1FF] text-accent' };
-
-  const rawStage = project.stage || project.properties?.stage || '';
-  const rawType = project.type || project.properties?.registrationType || '';
-
-  const normalizedStage = rawStage?.toString().trim().toLowerCase();
-  const normalizedType = rawType?.toString().trim().toLowerCase();
-
-  if (normalizedStage && TYPE_BADGES[normalizedStage]) {
-    return TYPE_BADGES[normalizedStage];
-  }
-  if (normalizedType && TYPE_BADGES[normalizedType]) {
-    return TYPE_BADGES[normalizedType];
-  }
-
-  const label = rawType || rawStage || 'Sin tipo';
-  return { label, className: 'border border-[#D1D5DB] bg-[#EEF1FF] text-accent' };
-};
+const ISA_OVERRIDES_PREF_KEY = 'calendarIsaOverrides';
+const ISA_DRAG_TYPE = 'application/cerezo-isa';
 
 const getClientDetailBadgeClass = (client) => {
   const styles = getClientStyles(client);
@@ -109,133 +72,23 @@ const parseDate = (value) => {
   return startOfDay(date);
 };
 
-const parseDateTime = (value) => {
-  if (!value) return null;
-  const stringValue = value.toString();
-  const parsed = parseISO(stringValue);
-  if (!Number.isNaN(parsed.getTime())) return parsed;
-  const fallback = new Date(stringValue);
-  if (Number.isNaN(fallback.getTime())) return null;
-  return fallback;
-};
-
-const getCalendarRange = (project) => {
-  const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
-  const start = parseDate(project.startDate);
-  const end = parseDate(project.deadline);
-
-  if (stage === 'edicion' && end) {
-    return { start: end, end };
-  }
-
-  if (start && end) {
-    const normalizedStart = start <= end ? start : end;
-    const normalizedEnd = end >= start ? end : start;
-    return { start: normalizedStart, end: normalizedEnd };
-  }
-
-  const single = start || end;
-  if (!single) return null;
-  return { start: single, end: single };
-};
-
-const getTaskRange = (task) => {
-  if (!task) return null;
-  const start = parseDateTime(task.fechaInicio);
-  const end = parseDateTime(task.fechaFin || task.fechaInicio);
-  if (!start || !end) return null;
-  const normalizedStart = start <= end ? start : end;
-  const normalizedEnd = end >= start ? end : start;
-  return { start: normalizedStart, end: normalizedEnd };
-};
-
-const getProjectRecordingDate = (project) => {
-  if (!project) return null;
-  const value =
-    project.fechaGrabacion ||
-    project.fecha_grabacion ||
-    project.fechaGrabación ||
-    project.properties?.fechaGrabacion ||
-    project.properties?.fecha_grabacion ||
-    null;
-  if (!value) return null;
-  return parseDate(value);
-};
-
-const getProjectEventTypeForDay = (project, range, day) => {
-  if (!project || !range || !day) return 'duracion';
-
-  const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
-  const revisionStep = project.revision?.currentStep || '';
-  if (revisionStep === 'enviado' || revisionStep === 'esperando_feedback') {
-    return 'revision';
-  }
-  if (revisionStep === 'corrigiendo') {
-    return 'correccion';
-  }
-  if (revisionStep === 'editando') {
-    return 'edicion';
-  }
-  if (revisionStep === 'aprobado') {
-    return 'entrega';
-  }
-
-  const isStartDay = range.start && isSameDay(range.start, day);
-  const isEndDay = range.end && isSameDay(range.end, day);
-  const deadline = project.deadline ? parseDate(project.deadline) : null;
-  const isDeadlineDay = deadline ? isSameDay(deadline, day) : false;
-
-  if (stage === 'edicion') {
-    // If there is no explicit deadline, treat it as an ongoing editing event
-    if (!project.deadline) return 'edicion';
-    const durationDays = differenceInCalendarDays(range.end, range.start) + 1;
-    if (durationDays <= 1) {
-      return 'entrega';
-    }
-    if (isEndDay || isDeadlineDay) {
-      return 'entrega';
-    }
-    return 'edicion';
-  }
-
-  const recordingDate = getProjectRecordingDate(project);
-  if (recordingDate && isSameDay(recordingDate, day)) {
-    return 'grabacion';
-  }
-  if (stage === 'grabacion' || !stage) {
-    if (isStartDay) {
-      return 'grabacion';
-    }
-  }
-  if (isDeadlineDay) {
-    return 'entrega';
-  }
-  if (isEndDay) {
-    return 'entrega';
-  }
-  return 'duracion';
-};
-
-const getProjectEventLabel = (type) => {
-  if (type === 'grabacion') return 'Grabación';
-  if (type === 'entrega') return 'Entrega';
-  if (type === 'revision') return 'En revisión';
-  if (type === 'correccion') return 'Corrección';
-  return 'Edición';
-};
-
 const VistaCalendario = ({ projects: projectsProp }) => {
   const projectsFromStore = useStore((state) => state.projects);
   const projects = projectsProp !== undefined ? projectsProp : projectsFromStore;
   const searchTerm = useStore((state) => state.searchTerm);
   const openModal = useStore((state) => state.openModal);
   const teamMembers = useStore((state) => state.teamMembers);
-  const editingTasks = useStore((state) => state.editingTasks);
   const revisionCycles = useStore((state) => state.revisionCycles);
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [primaryView, setPrimaryView] = useState(() => getStoredCalendarPrimaryView());
   const [selectedMember, setSelectedMember] = useState(() => getStoredCalendarMember());
   const [selectedDayKey, setSelectedDayKey] = useState(null);
+  const [isaOverrides, setIsaOverrides] = useState(() => {
+    const stored = getUIPreference(ISA_OVERRIDES_PREF_KEY, {});
+    return stored && typeof stored === 'object' ? stored : {};
+  });
+  const [draggingIsaPayload, setDraggingIsaPayload] = useState(null);
+  const isDraggingIsa = Boolean(draggingIsaPayload);
 
   useEffect(() => {
     setUIPreference('calendarPrimaryView', primaryView);
@@ -244,6 +97,78 @@ const VistaCalendario = ({ projects: projectsProp }) => {
   useEffect(() => {
     setUIPreference('calendarSelectedMember', selectedMember);
   }, [selectedMember]);
+
+  useEffect(() => {
+    setUIPreference(ISA_OVERRIDES_PREF_KEY, isaOverrides);
+  }, [isaOverrides]);
+
+  const updateIsaOverride = useCallback((projectKey, milestoneType, date) => {
+    if (!projectKey || !milestoneType || !date) return;
+    const normalizedDate = startOfDay(date);
+    setIsaOverrides((prev) => {
+      const next = { ...(prev || {}) };
+      const projectEntry = { ...(next[projectKey] || {}) };
+      projectEntry[milestoneType] = normalizedDate.toISOString();
+      next[projectKey] = projectEntry;
+      return next;
+    });
+  }, []);
+
+  const handleIsaDragStart = useCallback((event, payload) => {
+    if (!payload?.projectKey || !payload?.milestoneType) return;
+    try {
+      event.dataTransfer.setData(ISA_DRAG_TYPE, JSON.stringify(payload));
+      event.dataTransfer.effectAllowed = 'move';
+      setDraggingIsaPayload(payload);
+    } catch (error) {
+      console.error('No se pudo iniciar el arrastre ISA', error);
+    }
+  }, []);
+
+  const handleIsaDragEnd = useCallback(() => {
+    setDraggingIsaPayload(null);
+  }, []);
+
+  const handleDayDragOver = useCallback(
+    (day) => (event) => {
+      if (!draggingIsaPayload || !event.dataTransfer?.types?.includes(ISA_DRAG_TYPE)) return;
+      const allowed = isAllowedIsaMilestoneDay(draggingIsaPayload.milestoneType, day);
+      if (!allowed) {
+        event.dataTransfer.dropEffect = 'none';
+        return;
+      }
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+    },
+    [draggingIsaPayload]
+  );
+
+  const handleDayDrop = useCallback(
+    (day) => (event) => {
+      if (!event.dataTransfer?.types?.includes(ISA_DRAG_TYPE)) return;
+      event.preventDefault();
+      let payload = draggingIsaPayload;
+      if (!payload) {
+        try {
+          const raw = event.dataTransfer.getData(ISA_DRAG_TYPE);
+          payload = raw ? JSON.parse(raw) : null;
+        } catch {
+          payload = null;
+        }
+      }
+      if (!payload?.projectKey || !payload?.milestoneType) {
+        setDraggingIsaPayload(null);
+        return;
+      }
+      if (!isAllowedIsaMilestoneDay(payload.milestoneType, day)) {
+        setDraggingIsaPayload(null);
+        return;
+      }
+      updateIsaOverride(payload.projectKey, payload.milestoneType, day);
+      setDraggingIsaPayload(null);
+    },
+    [draggingIsaPayload, updateIsaOverride]
+  );
 
   const today = startOfDay(new Date());
 
@@ -265,146 +190,64 @@ const VistaCalendario = ({ projects: projectsProp }) => {
     return projects.filter((project) => (project?.status || '').toString().trim().toLowerCase() !== 'completado');
   }, [projects]);
 
-  const filteredProjects = useMemo(
-    () => filterProjects(activeProjects, searchTerm),
-    [activeProjects, searchTerm]
-  );
-
-  const processedProjects = useMemo(
-    () =>
-      filteredProjects.map((project) => {
-        let range = getCalendarRange(project);
-        const memberName = ensureMemberName(project.manager);
-
-        // If the project is in editing stage and has no deadline and is not completed,
-        // show it in the calendar as an 'edicion' in progress. Use startDate or today as the date.
-        const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
-        const isCompleted = (project.status || '').toString().trim().toLowerCase() === 'completado';
-        if (!range && stage === 'edicion' && !project.deadline && !isCompleted) {
-          const start = getProjectRecordingDate(project) || parseDate(project.startDate) || startOfDay(new Date());
-          range = { start, end: start };
-        }
-
-        return { project, range, memberName };
-      }),
-    [filteredProjects]
-  );
-
   const visibleProjects = useMemo(
     () =>
-      processedProjects.filter((item) =>
-        selectedMember === 'Todos' ? true : item.memberName === selectedMember
-      ),
-    [processedProjects, selectedMember]
+      filterProjects(activeProjects, searchTerm)
+        .map((project) => ({
+          project,
+          memberName: ensureMemberName(project.manager),
+        }))
+        .filter((item) => (selectedMember === 'Todos' ? true : item.memberName === selectedMember)),
+    [activeProjects, searchTerm, selectedMember]
   );
 
-  const visibleEditingTaskItems = useMemo(() => {
-    if (!editingTasks || editingTasks.length === 0) return [];
-
-    const allowedIds = new Set();
-    const allowedNames = new Set();
-
-    visibleProjects.forEach(({ project }) => {
-      if (project.id) {
-        allowedIds.add(project.id);
-      }
-      if (project.name) {
-        allowedNames.add(project.name.toLowerCase());
-      }
-    });
-
-    const items = [];
-
-    editingTasks.forEach((task) => {
-      const hasName = typeof task.relatedProjectName === 'string' && task.relatedProjectName.length > 0;
-      const matchesId = task.relatedProjectId && allowedIds.has(task.relatedProjectId);
-      const matchesName = hasName && allowedNames.has(task.relatedProjectName.toLowerCase());
-
-      if (!matchesId && !matchesName) return;
-
-      const memberName = ensureMemberName(task.manager);
-      if (selectedMember !== 'Todos' && memberName !== selectedMember) return;
-
-      const range = getTaskRange(task);
-      if (!range) return;
-
-      const relatedProject =
-        visibleProjects.find(
-          (item) =>
-            (task.relatedProjectId && item.project.id === task.relatedProjectId) ||
-            (hasName &&
-              item.project.name &&
-              item.project.name.toLowerCase() === task.relatedProjectName.toLowerCase())
-        )?.project || null;
-
-      items.push({
-        type: 'task',
-        task,
-        project: relatedProject,
-        range,
-        memberName,
-      });
-    });
-
-    return items;
-  }, [editingTasks, visibleProjects, selectedMember]);
-
-  const revisionCycleItems = useMemo(() => {
-    if (!revisionCycles || Object.keys(revisionCycles).length === 0) return [];
-
-    const projectLookup = new Map();
-    visibleProjects.forEach(({ project, memberName }) => {
-      if (project?.id) {
-        projectLookup.set(project.id, { project, memberName });
-      }
-    });
-
-    const items = [];
-
-    Object.entries(revisionCycles || {}).forEach(([projectId, cycles]) => {
-      const context = projectLookup.get(projectId);
-      if (!context) return;
-      const { project, memberName } = context;
-      const list = Array.isArray(cycles) ? cycles : [];
-
-      list.forEach((cycle) => {
-        const pushEvent = (eventType, value) => {
-          if (!value) return;
-          const timestamp = parseDateTime(value);
-          if (!timestamp) return;
-          const dayStart = startOfDay(timestamp);
-          if (selectedMember !== 'Todos' && memberName !== selectedMember) return;
-          items.push({
-            type: 'revision_event',
-            eventType,
-            cycle,
-            project,
-            timestamp,
-            range: { start: dayStart, end: dayStart },
-            memberName,
-          });
+  const recordingItems = useMemo(() => {
+    return visibleProjects
+      .map(({ project, memberName }) => {
+        const recordingDate = getProjectRecordingDate(project);
+        if (!recordingDate) return null;
+        return {
+          type: 'recording_event',
+          project,
+          memberName,
+          range: { start: recordingDate, end: recordingDate },
         };
+      })
+      .filter(Boolean);
+  }, [visibleProjects]);
 
-        pushEvent('sent', cycle.sent_at);
-        pushEvent('feedback', cycle.client_returned_at);
-      });
+  const isaStats = useMemo(() => computeIsaAverages(revisionCycles), [revisionCycles]);
+
+  const isaEstimatedItems = useMemo(() => {
+    if (!isaStats?.totalEstimatedDays) return [];
+    return visibleProjects.flatMap(({ project, memberName }) => {
+      const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
+      if (stage !== 'grabacion') return [];
+      const projectKey = getIsaProjectKey(project);
+      if (!projectKey) return [];
+      const milestones = applyIsaOverridesToMilestones(
+        project,
+        buildIsaMilestones(project, isaStats),
+        isaOverrides
+      );
+      return milestones.map((milestone) => ({
+        type: 'isa_estimate',
+        milestoneType: milestone.key,
+        project,
+        memberName,
+        range: { start: milestone.date, end: milestone.date },
+        isaMeta: {
+          ...isaStats,
+          milestoneLabel: milestone.label,
+          milestoneDescription: milestone.description,
+        },
+        projectKey,
+      }));
     });
-
-    return items;
-  }, [revisionCycles, visibleProjects, selectedMember]);
-  const scheduledProjects = useMemo(
-    () => visibleProjects.filter((item) => item.range),
-    [visibleProjects]
-  );
-
-  const unscheduledProjects = useMemo(
-    () => visibleProjects.filter((item) => !item.range),
-    [visibleProjects]
-  );
-
+  }, [visibleProjects, isaStats, isaOverrides]);
   const scheduledItems = useMemo(
-    () => [...scheduledProjects, ...visibleEditingTaskItems, ...revisionCycleItems],
-    [scheduledProjects, visibleEditingTaskItems, revisionCycleItems]
+    () => [...recordingItems, ...isaEstimatedItems],
+    [recordingItems, isaEstimatedItems]
   );
 
   const calendarItemsByDay = useMemo(() => {
@@ -444,107 +287,62 @@ const VistaCalendario = ({ projects: projectsProp }) => {
   const buildEventSummary = useCallback((item, dayDate) => {
     if (!dayDate) return null;
 
-    if (item.type === 'task') {
-      const { task, project, range, memberName } = item;
-      const startLabel = format(range.start, 'HH:mm');
-      const endLabel = format(range.end, 'HH:mm');
+    if (item.type === 'recording_event') {
+      const { project, memberName, range } = item;
       const managersLabel = project?.managers?.length
         ? project.managers.join(', ')
         : memberName;
-
       return {
-        id: `task-${task.id}-${dayDate.toISOString()}`,
+        id: `recording-${project?.id || project?.name || range.start.toISOString()}-${dayDate.toISOString()}`,
         sortTime: range.start.getTime(),
-        type: 'edicion',
-        title: `Edición de ${task.projectName || project?.name || 'proyecto'}`,
-        description: task.descripcion,
-        eventLabel: 'Edición',
-        timeLabel: `${startLabel} - ${endLabel}`,
+        type: 'recording_event',
+        title: project?.name || 'Grabación',
+        description: project?.description || '',
+        eventLabel: 'Grabación',
+        timeLabel: format(range.start, "EEEE d 'de' MMMM", { locale: es }),
         manager: managersLabel,
-        colorClass: EDITING_TASK_PILL,
+        colorClass: RECORDING_PILL,
         project,
         client: project?.client || '',
         status: project?.status || '',
-        typeMeta: getProjectTypeBadge(project),
+        typeMeta: { label: 'Grabación', className: RECORDING_PILL },
         date: dayDate,
       };
     }
 
-    if (item.type === 'revision_event') {
-      const { project, cycle, eventType, timestamp, memberName } = item;
-      const eventLabel = eventType === 'feedback' ? 'Feedback recibido' : 'Versión enviada';
-      const baseDate = timestamp ? new Date(timestamp) : new Date(dayDate);
-      const sortedDate = new Date(baseDate);
-      if (eventType === 'feedback') {
-        sortedDate.setHours(17, 0, 0, 0);
-      } else {
-        sortedDate.setHours(9, 0, 0, 0);
-      }
+    if (item.type === 'isa_estimate') {
+      const { project, range, memberName, isaMeta, milestoneType } = item;
       const managersLabel = project?.managers?.length
         ? project.managers.join(', ')
-        : ensureMemberName(project?.manager) || memberName;
+        : memberName;
+      const eventLabel = isaMeta?.milestoneLabel || 'Estimación ISA';
+      const description =
+        isaMeta?.milestoneDescription ||
+        'Estimación generada automáticamente a partir del histórico de ciclos.';
+      const pillClass = ISA_EVENT_PILLS[milestoneType] || ISA_ESTIMATE_PILL;
 
       return {
-        id: `${project?.id || cycle.id}-revision-${eventType}-${dayDate.toISOString()}`,
-        sortTime: sortedDate.getTime(),
-        type: `revision_${eventType}`,
-        title: project?.name || `Proyecto ciclo ${cycle.number}`,
-        description: cycle.notes || project?.description || '',
+        id: `isa-${milestoneType}-${project?.id || project?.name || range.start.toISOString()}-${dayDate.toISOString()}`,
+        sortTime: range.start.getTime(),
+        type: 'isa_estimate',
+        title: project?.name || 'Proyecto sin título',
+        description,
         eventLabel,
-        timeLabel: `Ciclo ${cycle.number}`,
+        timeLabel: format(range.start, "EEEE d 'de' MMMM", { locale: es }),
         manager: managersLabel,
-        colorClass: REVISION_EVENT_PILLS[eventType] || PROJECT_EVENT_PILLS.edicion,
+        colorClass: pillClass,
         project,
         client: project?.client || '',
         status: project?.status || '',
-        typeMeta: getProjectTypeBadge(project),
+        typeMeta: { label: eventLabel, className: pillClass },
         date: dayDate,
-        cycle,
+        isaMeta,
+        milestoneType,
+        projectKey: item.projectKey || getIsaProjectKey(project),
       };
     }
 
-    const { project, range, memberName } = item;
-    if (!project || !range) return null;
-    const eventType = getProjectEventTypeForDay(project, range, dayDate);
-    const eventLabel = getProjectEventLabel(eventType);
-    const slot = new Date(dayDate);
-    if (eventType === 'grabacion') {
-      slot.setHours(8, 0, 0, 0);
-    } else if (eventType === 'entrega') {
-      slot.setHours(18, 0, 0, 0);
-    } else {
-      slot.setHours(12, 0, 0, 0);
-    }
-
-    let scheduleLabel = null;
-    if (eventType === 'grabacion' && project.fechaGrabacion) {
-      scheduleLabel = `Grabación: ${project.fechaGrabacion}`;
-    } else if (eventType === 'entrega' && project.deadline) {
-      scheduleLabel = `Entrega: ${project.deadline}`;
-    } else if (project.startDate || project.deadline) {
-      scheduleLabel = `${project.startDate || 'Sin inicio'} → ${project.deadline || 'Sin entrega'}`;
-    }
-
-    const managersLabel = project.managers?.length
-      ? project.managers.join(', ')
-      : memberName;
-
-    return {
-      id: project.id ? `${project.id}-${eventType}-${dayDate.toISOString()}` : `${project.name}-${eventType}-${dayDate.toISOString()}`,
-      sortTime: slot.getTime(),
-      type: eventType,
-      title: project.name,
-      description: project.description,
-      eventLabel,
-      timeLabel: scheduleLabel,
-      manager: managersLabel,
-      colorClass: PROJECT_EVENT_PILLS[eventType] || PROJECT_EVENT_PILLS.duracion,
-      project,
-      client: project.client,
-      status: project.status,
-      typeMeta: getProjectTypeBadge(project),
-      date: dayDate,
-    };
+    return null;
   }, []);
 
   const selectedDayDetails = useMemo(() => {
@@ -587,6 +385,16 @@ const VistaCalendario = ({ projects: projectsProp }) => {
                 ? 'Explora grabaciones y ediciones programadas en formato de línea de tiempo.'
                 : 'Visualiza entregas y responsabilidades por integrante.'}
             </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {CALENDAR_LEGEND.map((item) => (
+                <span
+                  key={item.label}
+                  className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${item.className}`}
+                >
+                  {item.label}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 rounded-full border border-[#E5E7EB] bg-[#F7F8FA] p-1 dark:border-[#2B2D31] dark:bg-[#1B1C20]">
@@ -666,6 +474,16 @@ const VistaCalendario = ({ projects: projectsProp }) => {
               <div
                 key={`${event.id}-${event.sortTime}`}
                 className="space-y-3 rounded-3xl border border-[#E5E7EB] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.08)] dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:shadow-[0_20px_44px_rgba(0,0,0,0.45)]"
+                draggable={event.type === 'isa_estimate'}
+                onDragStart={(ev) => {
+                  if (event.type === 'isa_estimate') {
+                    handleIsaDragStart(ev, {
+                      projectKey: event.projectKey,
+                      milestoneType: event.milestoneType,
+                    });
+                  }
+                }}
+                onDragEnd={event.type === 'isa_estimate' ? handleIsaDragEnd : undefined}
               >
                 <p className="text-sm font-medium uppercase tracking-wide text-secondary/70 dark:text-white/50">
                   {format(event.date, "EEEE d 'de' MMMM", { locale: es })}
@@ -747,18 +565,29 @@ const VistaCalendario = ({ projects: projectsProp }) => {
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isToday = isSameDay(day, today);
           const isSelected = selectedDayKey === key;
+          const isaDropAllowed = draggingIsaPayload
+            ? isAllowedIsaMilestoneDay(draggingIsaPayload.milestoneType, day)
+            : true;
 
           return (
             <div
               key={key}
               onClick={() => handleDaySelect(day)}
+              onDragOver={handleDayDragOver(day)}
+              onDrop={handleDayDrop(day)}
               className={`min-h-[110px] cursor-pointer bg-white p-2 shadow-[0_12px_24px_rgba(15,23,42,0.05)] transition-all duration-200 ease-[var(--ease-ios-out)] dark:bg-[#0F0F11] dark:shadow-[0_14px_28px_rgba(0,0,0,0.45)] ${
                 isCurrentMonth ? 'text-primary dark:text-white/85' : 'text-secondary/60 dark:text-white/40'
               } ${
                 isToday
                   ? 'border border-accent/60 bg-accent/10 shadow-[0_18px_40px_rgba(34,197,94,0.3)] dark:border-purple-400/60 dark:bg-purple-500/20 dark:shadow-[0_20px_40px_rgba(128,90,213,0.35)]'
                   : 'border border-[#E5E7EB] hover:border-accent/60 hover:bg-white hover:shadow-[0_12px_30px_rgba(2,6,23,0.55)] dark:border-[#2B2D31] dark:hover:border-purple-300/60 dark:hover:bg-white/10 dark:hover:shadow-[0_16px_30px_rgba(0,0,0,0.45)]'
-              } ${isSelected ? 'ring-2 ring-accent/60 dark:ring-purple-400/60' : ''}`}>
+              } ${isSelected ? 'ring-2 ring-accent/60 dark:ring-purple-400/60' : ''} ${
+                isDraggingIsa
+                  ? isaDropAllowed
+                    ? 'outline outline-1 outline-dashed outline-accent/30 dark:outline-purple-400/40'
+                    : 'opacity-50'
+                  : ''
+              }`}>
               <div className="flex items-center justify-between text-xs">
                 <span className={`text-sm font-semibold ${isCurrentMonth ? 'text-primary dark:text-white/85' : ''}`}>
                   {format(day, 'd', { locale: es })}
@@ -771,17 +600,12 @@ const VistaCalendario = ({ projects: projectsProp }) => {
               </div>
               <div className="mt-2 flex flex-col gap-1">
                 {visibleItems.map((item) => {
-                  const { range, memberName } = item;
-                  if (item.type === 'task') {
-                    const { task, project } = item;
-                    const startLabel = format(range.start, 'HH:mm');
-                    const endLabel = format(range.end, 'HH:mm');
-                    const title = `Edición de ${task.projectName || project?.name || 'proyecto'}`;
-                    const typeMeta = getProjectTypeBadge(project);
-
+                  if (item.type === 'recording_event') {
+                    const { project } = item;
+                    const title = project?.name || 'Grabación';
                     return (
                       <button
-                        key={task.id}
+                        key={`recording-${project?.id || title}-${day.toISOString()}`}
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation();
@@ -789,40 +613,26 @@ const VistaCalendario = ({ projects: projectsProp }) => {
                             openModal(project);
                           }
                         }}
-                        className={`group rounded-md border px-2 py-1 text-left text-xs shadow-sm transition-all duration-200 ease-[var(--ease-ios-out)] hover:shadow-lg hover:-translate-y-0.5 ${EDITING_TASK_PILL}`}>
+                        className={`group rounded-md border px-2 py-1 text-left text-xs shadow-sm transition-all duration-200 ease-[var(--ease-ios-out)] hover:shadow-lg hover:-translate-y-0.5 ${RECORDING_PILL}`}
+                      >
                         <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <span className="truncate font-semibold">{title}</span>
-                            {typeMeta && (
-                              <span
-                                className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${typeMeta.className}`}
-                              >
-                                {typeMeta.label}
-                              </span>
-                            )}
-                          </div>
+                          <span className="truncate font-semibold">{title}</span>
                           <span className="whitespace-nowrap text-[10px] opacity-75">
-                            {startLabel} - {endLabel}
+                            {format(item.range.start, 'dd/MM')}
                           </span>
                         </div>
-                        <p className="mt-0.5 text-[10px] uppercase tracking-wide opacity-70">
-                          {task.descripcion}
-                        </p>
-                        {memberName && (
-                          <p className="text-[10px] opacity-60">{memberName}</p>
-                        )}
                       </button>
                     );
                   }
 
-                  if (item.type === 'revision_event') {
-                    const { project, eventType, cycle } = item;
-                    const pillClass = REVISION_EVENT_PILLS[eventType] || PROJECT_EVENT_PILLS.revision;
-                    const title = project?.name || `Proyecto ciclo ${cycle?.number || ''}`;
-                    const label = eventType === 'feedback' ? 'Feedback recibido' : 'Versión enviada';
+                  if (item.type === 'isa_estimate') {
+                    const { project, isaMeta, milestoneType } = item;
+                    const title = project?.name || 'Proyecto sin título';
+                    const label = isaMeta?.milestoneLabel || 'Estimación ISA';
+                    const pillClass = ISA_EVENT_PILLS[milestoneType] || ISA_ESTIMATE_PILL;
                     return (
                       <button
-                        key={`${project?.id || cycle?.id}-${eventType}-${day.toISOString()}`}
+                        key={`isa-${project?.id || title}-${milestoneType}-${day.toISOString()}`}
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation();
@@ -830,6 +640,14 @@ const VistaCalendario = ({ projects: projectsProp }) => {
                             openModal(project);
                           }
                         }}
+                        draggable
+                        onDragStart={(event) =>
+                          handleIsaDragStart(event, {
+                            projectKey: item.projectKey,
+                            milestoneType: item.milestoneType,
+                          })
+                        }
+                        onDragEnd={handleIsaDragEnd}
                         className={`group rounded-md border px-2 py-1 text-left text-xs shadow-sm transition-all duration-200 ease-[var(--ease-ios-out)] hover:shadow-lg hover:-translate-y-0.5 ${pillClass}`}
                       >
                         <div className="flex items-center justify-between gap-2">
@@ -840,51 +658,14 @@ const VistaCalendario = ({ projects: projectsProp }) => {
                             </span>
                           </div>
                           <span className="whitespace-nowrap text-[10px] opacity-75">
-                            Ciclo {cycle?.number || '—'}
+                            {format(item.range.start, 'dd/MM')}
                           </span>
                         </div>
                       </button>
                     );
                   }
 
-                  const { project } = item;
-                  const eventType = getProjectEventTypeForDay(project, range, day);
-                  const pillClass = PROJECT_EVENT_PILLS[eventType] || PROJECT_EVENT_PILLS.duracion;
-                  const eventLabel = getProjectEventLabel(eventType);
-                  const typeMeta = getProjectTypeBadge(project);
-
-                  return (
-                    <button
-                      key={project.id}
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        openModal(project);
-                      }}
-                      className={`group rounded-md border px-2 py-1 text-left text-xs shadow-sm transition-all duration-200 ease-[var(--ease-ios-out)] hover:shadow-lg hover:-translate-y-0.5 ${pillClass}`}>
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <span className="truncate font-semibold">{project.name}</span>
-                          {typeMeta && (
-                            <span
-                              className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${typeMeta.className}`}
-                            >
-                              {typeMeta.label}
-                            </span>
-                          )}
-                        </div>
-                        <span className="whitespace-nowrap text-[10px] opacity-75">
-                          {memberName}
-                        </span>
-                      </div>
-                      <p className="mt-0.5 text-[10px] uppercase tracking-wide opacity-70">
-                        {eventLabel}
-                      </p>
-                      {project.status && (
-                        <p className="text-[10px] opacity-60">{project.status}</p>
-                      )}
-                    </button>
-                  );
+                  return null;
                 })}
                 {extraItems > 0 && (
                   <div className="rounded-md bg-[#F7F8FA] px-2 py-1 text-[10px] text-secondary dark:bg-[#1B1C20] dark:text-white/60">
@@ -923,7 +704,18 @@ const VistaCalendario = ({ projects: projectsProp }) => {
               {selectedDayDetails.map((item) => (
                 <div
                   key={`${item.id}-${item.sortTime}`}
-                  className="rounded-2xl border border-[#E5E7EB] bg-white p-4 transition hover:border-accent/60 hover:bg-[#F1F5F9] dark:border-[#2B2D31] dark:bg-[#0F0F11] dark:hover:border-purple-400/60 dark:hover:bg-white/10">
+                  className="rounded-2xl border border-[#E5E7EB] bg-white p-4 transition hover:border-accent/60 hover:bg-[#F1F5F9] dark:border-[#2B2D31] dark:bg-[#0F0F11] dark:hover:border-purple-400/60 dark:hover:bg-white/10"
+                  draggable={item.type === 'isa_estimate'}
+                  onDragStart={(event) => {
+                    if (item.type === 'isa_estimate') {
+                      handleIsaDragStart(event, {
+                        projectKey: item.projectKey,
+                        milestoneType: item.milestoneType,
+                      });
+                    }
+                  }}
+                  onDragEnd={item.type === 'isa_estimate' ? handleIsaDragEnd : undefined}
+                >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-[200px] max-w-full">
                       <div className="flex flex-wrap items-center gap-2">
@@ -988,27 +780,9 @@ const VistaCalendario = ({ projects: projectsProp }) => {
         </div>
       )}
 
-        {unscheduledProjects.length > 0 && (
-        <div className="mt-6 rounded-xl border border-dashed border-[#E5E7EB] bg-[#F7F8FA] p-4 text-sm text-secondary dark:border-[#2B2D31] dark:bg-[#1B1C20] dark:text-white/70">
-          <p className="font-semibold text-primary dark:text-white/85">
-            Proyectos sin fechas asignadas ({unscheduledProjects.length}):
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {unscheduledProjects.map(({ project }) => (
-              <button
-                key={project.id}
-                type="button"
-                onClick={() => openModal(project)}
-                className="rounded-full border border-[#E5E7EB] px-3 py-1 text-xs text-secondary transition hover:border-accent/60 hover:text-accent dark:border-[#2B2D31] dark:text-white/60 dark:hover:border-purple-400/60 dark:hover:text-white">
-                {project.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
         </>
       ) : (
-        <VistaTimeline />
+        <VistaTimeline isaOverrides={isaOverrides} />
       )}
     </div>
   );
