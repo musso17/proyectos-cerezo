@@ -84,8 +84,13 @@ export const getProjectRecordingDate = (project) => {
     project.fechaGrabación,
     project.recordingDate,
     project.recording_date,
+    project.startDate,
+    project.start_date,
+    project.fecha_inicio,
     project.properties?.fechaGrabacion,
     project.properties?.fecha_grabacion,
+    project.properties?.startDate,
+    project.properties?.start_date,
   ];
   for (const candidate of candidates) {
     const parsed = parseToDay(candidate);

@@ -52,6 +52,45 @@ const getClientDetailBadgeClass = (client) => {
   return `inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${paletteClass}`;
 };
 
+const normalizeStageValue = (value) => {
+  if (!value) return '';
+  return value
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+};
+
+const isIsaEligibleProject = (project) => {
+  const recordingDate = getProjectRecordingDate(project);
+  if (!recordingDate) return false;
+
+  const stageCandidates = [
+    project?.stage,
+    project?.properties?.stage,
+    project?.state,
+    project?.properties?.state,
+  ];
+  const statusCandidates = [project?.status, project?.properties?.status];
+
+  const normalizedStages = stageCandidates.map((value) => normalizeStageValue(value)).filter(Boolean);
+  const normalizedStatuses = statusCandidates
+    .map((value) => normalizeStageValue(value))
+    .filter(Boolean);
+
+  const completedLabels = ['completado', 'completada', 'entregado', 'entregada', 'finalizado', 'finalizada'];
+  if (
+    normalizedStages.some((value) => completedLabels.includes(value)) ||
+    normalizedStatuses.some((value) => completedLabels.includes(value))
+  ) {
+    return false;
+  }
+
+  // Permitimos ISA tanto en grabación como en etapas posteriores, siempre que no esté completado.
+  return true;
+};
+
 const getStoredCalendarMember = () => {
   const stored = getUIPreference('calendarSelectedMember', 'Todos');
   if (typeof stored !== 'string') return 'Todos';
@@ -221,8 +260,7 @@ const VistaCalendario = ({ projects: projectsProp }) => {
   const isaEstimatedItems = useMemo(() => {
     if (!isaStats?.totalEstimatedDays) return [];
     return visibleProjects.flatMap(({ project, memberName }) => {
-      const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
-      if (stage !== 'grabacion') return [];
+      if (!isIsaEligibleProject(project)) return [];
       const projectKey = getIsaProjectKey(project);
       if (!projectKey) return [];
       const milestones = applyIsaOverridesToMilestones(
