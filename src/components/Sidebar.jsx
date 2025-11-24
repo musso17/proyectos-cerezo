@@ -17,7 +17,11 @@ const Sidebar = () => {
   const allowedViews = useStore((state) => state.allowedViews);
   const isSidebarOpen = useStore((state) => state.isSidebarOpen);
   const toggleMobileSidebar = useStore((state) => state.toggleMobileSidebar);
+  const currentUser = useStore((state) => state.currentUser);
   useStore((state) => state.projects); // keep subscription
+
+  const isFranciscoUser = (user) =>
+    user?.email?.toString().trim().toLowerCase() === 'francisco@carbonomkt.com';
 
   const navItems = [
     { id: 'Dashboard', icon: Activity, label: 'Dashboard' },
@@ -85,19 +89,21 @@ const Sidebar = () => {
         </ul>
       </nav>
 
-      <a
-        href="https://cotizacionescr.netlify.app/"
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => {
-          if (isSidebarOpen) {
-            toggleMobileSidebar();
-          }
-        }}
-        className="flex items-center justify-center rounded-2xl bg-gradient-to-r from-[#A855F7] via-[#7C3AED] to-[#6366F1] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_40px_rgba(111,76,255,0.35)] transition-all duration-200 hover:brightness-105"
-      >
-        Cotización
-      </a>
+      {!isFranciscoUser(currentUser) && (
+        <a
+          href="https://cotizacionescr.netlify.app/"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => {
+            if (isSidebarOpen) {
+              toggleMobileSidebar();
+            }
+          }}
+          className="flex items-center justify-center rounded-2xl bg-gradient-to-r from-[#A855F7] via-[#7C3AED] to-[#6366F1] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_40px_rgba(111,76,255,0.35)] transition-all duration-200 hover:brightness-105"
+        >
+          Cotización
+        </a>
+      )}
     </>
   );
 
