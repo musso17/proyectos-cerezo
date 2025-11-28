@@ -109,7 +109,6 @@ const ModalDetalles = () => {
           properties.client ||
           properties.cliente ||
           '').toString().trim();
-      const enforcedClient = enforceFranciscoClient ? 'Carbono' : projectClient;
       const recordingDate =
         selectedProject.recordingDate ||
         selectedProject.fechaGrabacion ||
@@ -134,7 +133,7 @@ const ModalDetalles = () => {
       setEditedProject({
         ...selectedProject,
         manager: managers[0] || '',
-        managers,        
+        managers,
         startDate: selectedProject.startDate || '',
         deadline: selectedProject.deadline || '',
         team: normalizedTeam,
@@ -147,7 +146,7 @@ const ModalDetalles = () => {
         deliverableLink,
         type: registrationType || selectedProject.type || '',
         status: selectedProject.status || 'Programado',
-        client: enforcedClient,
+        client: projectClient,
         properties: {
           ...properties,
           resources: existingResources,
@@ -159,32 +158,53 @@ const ModalDetalles = () => {
           recordingDescription,
           fechaGrabacion: recordingDate || properties.fechaGrabacion || '',
           deliverableLink,
-          client: enforcedClient,
+          client: projectClient,
         },
         resources: existingResources,
       });
       setIsManagerDropdownOpen(false);
-      const matchingOption = findMatchingClientOption(enforcedClient);
-      if (enforceFranciscoClient) {
-        setClientSelection('Carbono');
-        setIsCustomClient(false);
-      } else if (matchingOption) {
-        setClientSelection(matchingOption);
-        setIsCustomClient(false);
-      } else if (enforcedClient) {
-        setClientSelection('__new__');
-        setIsCustomClient(true);
-      } else {
-        setClientSelection('');
-        setIsCustomClient(false);
-      }
     } else {
       setEditedProject(null);
       setIsManagerDropdownOpen(false);
       setClientSelection('');
       setIsCustomClient(false);
     }
-  }, [selectedProject, teamMembers, enforceFranciscoClient, availableClientOptions]);
+  }, [selectedProject, teamMembers]);
+
+  useEffect(() => {
+    if (editedProject && enforceFranciscoClient) {
+      setEditedProject(prev => {
+        if (prev.client === 'Carbono') return prev;
+        return {
+          ...prev,
+          client: 'Carbono',
+          properties: {
+            ...prev.properties,
+            client: 'Carbono',
+          }
+        }
+      });
+    }
+  }, [enforceFranciscoClient, editedProject?.id]);
+
+  useEffect(() => {
+    if (editedProject) {
+      const matchingOption = findMatchingClientOption(editedProject.client);
+      if (enforceFranciscoClient) {
+        setClientSelection('Carbono');
+        setIsCustomClient(false);
+      } else if (matchingOption) {
+        setClientSelection(matchingOption);
+        setIsCustomClient(false);
+      } else if (editedProject.client) {
+        setClientSelection('__new__');
+        setIsCustomClient(true);
+      } else {
+        setClientSelection('');
+        setIsCustomClient(false);
+      }
+    }
+  }, [editedProject?.client, enforceFranciscoClient, availableClientOptions]);
 
   useEffect(() => {
     if (!isModalOpen) {
