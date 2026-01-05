@@ -27,7 +27,6 @@ const Sidebar = () => {
     { id: 'Dashboard', icon: Activity, label: 'Dashboard' },
     { id: 'Table', icon: FolderOpen, label: 'Proyectos' },
     { id: 'Calendar', icon: CalendarIcon, label: 'Calendar' },
-    { id: 'Ciclos', icon: RefreshCcw, label: 'Ciclos' },
     { id: 'Gallery', icon: Images, label: 'Gallery' },
   ];
 

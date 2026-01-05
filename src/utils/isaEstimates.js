@@ -194,11 +194,21 @@ export const getIsaProjectKey = (project) => {
 
 export const applyIsaOverridesToMilestones = (project, milestones = [], overrides = {}) => {
   const projectKey = getIsaProjectKey(project);
-  if (!projectKey || !overrides || typeof overrides !== 'object') return milestones;
-  const projectOverrides = overrides[projectKey];
-  if (!projectOverrides || typeof projectOverrides !== 'object') return milestones;
+
+  // 1. Obtener overrides de las propiedades del proyecto (Compartido/Supabase)
+  const sharedOverrides = project?.properties?.isaOverrides || {};
+
+  // 2. Obtener overrides del objeto local/global (Legacy o UI local)
+  const localOverrides = (projectKey && overrides && overrides[projectKey]) || {};
+
+  // 3. Fusionar: local toma preferencia si hay conflicto (útil para edits en curso),
+  // pero generalmente ahora usaremos shared.
+  const effectiveOverrides = { ...sharedOverrides, ...localOverrides };
+
+  if (Object.keys(effectiveOverrides).length === 0) return milestones;
+
   return milestones.map((milestone) => {
-    const overrideValue = projectOverrides[milestone.key];
+    const overrideValue = effectiveOverrides[milestone.key];
     if (!overrideValue) return milestone;
     const overrideDate = parseToDay(overrideValue);
     if (!overrideDate) return milestone;

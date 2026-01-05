@@ -9,7 +9,6 @@ import VistaAgenteDashboard from './views/VistaAgenteDashboard'; // Importar el 
 import VistaTabla from './views/VistaTabla';
 import VistaGaleria from './views/VistaGaleria';
 import VistaCalendario from './views/VistaCalendario';
-import VistaCiclos from './views/VistaCiclos';
 
 // Helpers para identificar roles de usuario por email
 const isCeo = (user) => {
@@ -42,11 +41,11 @@ const ViewRenderer = () => {
 
     const carbonoProjects = isFranciscoUser
       ? (allProjects || []).filter(
-          (p) =>
-            p.client?.toLowerCase() === 'carbono' ||
-            p.cliente?.toLowerCase() === 'carbono' ||
-            p.properties?.tag === 'carbono'
-        )
+        (p) =>
+          p.client?.toLowerCase() === 'carbono' ||
+          p.cliente?.toLowerCase() === 'carbono' ||
+          p.properties?.tag === 'carbono'
+      )
       : allProjects;
 
     switch (currentView) {
@@ -65,11 +64,6 @@ const ViewRenderer = () => {
         return <VistaCalendario projects={isFranciscoUser ? carbonoProjects : undefined} />;
       case 'Gallery':
         return <VistaGaleria projects={isFranciscoUser ? carbonoProjects : undefined} />;
-      case 'Ciclos':
-        if (isFranciscoUser) {
-          return <VistaTabla projects={carbonoProjects} />;
-        }
-        return <VistaCiclos projects={isFranciscoUser ? carbonoProjects : undefined} />;
       default:
         return <VistaTabla projects={isFranciscoUser ? carbonoProjects : undefined} />;
     }

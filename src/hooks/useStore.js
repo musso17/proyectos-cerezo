@@ -8,7 +8,7 @@ import { normalizeStatus, ALLOWED_STATUSES } from '../utils/statusHelpers';
 
 const LOCAL_STORAGE_KEY = 'cerezo-projects';
 const RETAINERS_KEY = 'cerezo-retainers';
-const DEFAULT_ALLOWED_VIEWS = ['Table', 'Calendar', 'Timeline', 'Gallery', 'Ciclos'];
+const DEFAULT_ALLOWED_VIEWS = ['Table', 'Calendar', 'Timeline', 'Gallery'];
 const AGENT_STORAGE_KEY = 'cerezo-agent-state';
 const FRANCISCO_EMAIL = 'francisco@carbonomkt.com';
 const CEO_EMAIL = 'hola@cerezoperu.com';
@@ -363,10 +363,10 @@ const prepareProjectForSupabase = (project) => {
 
   const recordingDate = normalizeDate(
     project.fechaGrabacion ||
-      project.fecha_grabacion ||
-      project.fechaGrabación ||
-      project.recordingDate ||
-      project.recording_date
+    project.fecha_grabacion ||
+    project.fechaGrabación ||
+    project.recordingDate ||
+    project.recording_date
   );
   const registrationType =
     (project.registrationType ||
@@ -1410,10 +1410,10 @@ const useStore = create((set, get) => ({
         const updated = cycles.map((cycle) =>
           cycle.id === cycleId
             ? normalizeRevisionCycle({
-                ...cycle,
-                approved: true,
-                status: 'aprobado',
-              })
+              ...cycle,
+              approved: true,
+              status: 'aprobado',
+            })
             : cycle
         );
         recordRevisionEventLocally(set, projectId, eventPayload);
@@ -1562,12 +1562,12 @@ const useStore = create((set, get) => ({
     const { projects, updateProject } = get();
     const today = startOfDay(new Date());
     const projectsToAdvance = projects.filter(p => {
-        const stage = (p.stage || p.properties?.stage || '').toString().trim().toLowerCase();
-        const state = (p.state || p.properties?.state || '').toString().trim().toLowerCase();
-        if (stage !== 'grabacion' && state !== 'grabacion') return false;
+      const stage = (p.stage || p.properties?.stage || '').toString().trim().toLowerCase();
+      const state = (p.state || p.properties?.state || '').toString().trim().toLowerCase();
+      if (stage !== 'grabacion' && state !== 'grabacion') return false;
 
-        const recordingDate = parseDateOnly(p.fechaGrabacion || p.startDate);
-        return recordingDate && recordingDate < today;
+      const recordingDate = parseDateOnly(p.fechaGrabacion || p.startDate);
+      return recordingDate && recordingDate < today;
     });
 
     if (projectsToAdvance.length === 0) return;
@@ -1575,25 +1575,25 @@ const useStore = create((set, get) => ({
     console.log(`[Agent] Found ${projectsToAdvance.length} projects to advance from 'grabacion' to 'edicion'.`);
 
     for (const project of projectsToAdvance) {
-        const recordingDate = parseDateOnly(project.fechaGrabacion || project.startDate);
-        const registrationType = getRegistrationType(project);
-        const durationDays = computeEditingDurationDays(registrationType);
-        
-        const newStartDate = addDays(recordingDate, 1);
-        const newDeadline = addDays(newStartDate, Math.max(0, durationDays - 1));
+      const recordingDate = parseDateOnly(project.fechaGrabacion || project.startDate);
+      const registrationType = getRegistrationType(project);
+      const durationDays = computeEditingDurationDays(registrationType);
 
-        const patch = {
-            state: 'edicion',
-            stage: 'edicion',
-            startDate: formatDateOnly(newStartDate),
-            deadline: formatDateOnly(newDeadline),
-            // Opcional: limpiar campos específicos de la grabación si es necesario
-            // fechaGrabacion: null, 
-        };
+      const newStartDate = addDays(recordingDate, 1);
+      const newDeadline = addDays(newStartDate, Math.max(0, durationDays - 1));
 
-        console.log(`[Agent] Advancing project ${project.id}:`, patch);
-        // Usamos el ID del proyecto existente para actualizarlo
-        await updateProject({ ...project, ...patch }, { skipLoading: true });
+      const patch = {
+        state: 'edicion',
+        stage: 'edicion',
+        startDate: formatDateOnly(newStartDate),
+        deadline: formatDateOnly(newDeadline),
+        // Opcional: limpiar campos específicos de la grabación si es necesario
+        // fechaGrabacion: null, 
+      };
+
+      console.log(`[Agent] Advancing project ${project.id}:`, patch);
+      // Usamos el ID del proyecto existente para actualizarlo
+      await updateProject({ ...project, ...patch }, { skipLoading: true });
     }
   },
 
@@ -1605,7 +1605,7 @@ const useStore = create((set, get) => ({
     const { skipAutoEditingGeneration = true } = options; // Default to true to disable old logic
     const isNewProject = !project?.id;
     const wantsAutoEditing = false; // Disabled globally
-      // isNewProject && !skipAutoEditingGeneration && shouldGenerateEditingProject(project);
+    // isNewProject && !skipAutoEditingGeneration && shouldGenerateEditingProject(project);
 
     if (!supabaseClient) {
       const baseId = project.id || generateLocalId();
@@ -1698,8 +1698,8 @@ const useStore = create((set, get) => ({
           .sort((a, b) => {
             const startA = a.startDate ? new Date(a.startDate).getTime() : 0;
             const startB = b.startDate ? new Date(b.startDate).getTime() : 0;
-          return startB - startA;
-        });
+            return startB - startA;
+          });
         persistLocalProjects(projects);
         return buildProjectsStateSnapshot(state, projects);
       });
@@ -1831,7 +1831,7 @@ const useStore = create((set, get) => ({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || 'Error al ejecutar el agente');
-      
+
       const agentState = {
         lastRunAt: Date.now(),
         summary: data.summary || '',

@@ -118,14 +118,14 @@ const VistaCalendario = ({ projects: projectsProp }) => {
   const openModal = useStore((state) => state.openModal);
   const teamMembers = useStore((state) => state.teamMembers);
   const revisionCycles = useStore((state) => state.revisionCycles);
+  const updateProject = useStore((state) => state.updateProject);
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [primaryView, setPrimaryView] = useState(() => getStoredCalendarPrimaryView());
   const [selectedMember, setSelectedMember] = useState(() => getStoredCalendarMember());
   const [selectedDayKey, setSelectedDayKey] = useState(null);
-  const [isaOverrides, setIsaOverrides] = useState(() => {
-    const stored = getUIPreference(ISA_OVERRIDES_PREF_KEY, {});
-    return stored && typeof stored === 'object' ? stored : {};
-  });
+
+  // Removed local isaOverrides logic as we now sync to Supabase project properties
+
   const [draggingIsaPayload, setDraggingIsaPayload] = useState(null);
   const isDraggingIsa = Boolean(draggingIsaPayload);
 
@@ -137,21 +137,36 @@ const VistaCalendario = ({ projects: projectsProp }) => {
     setUIPreference('calendarSelectedMember', selectedMember);
   }, [selectedMember]);
 
-  useEffect(() => {
-    setUIPreference(ISA_OVERRIDES_PREF_KEY, isaOverrides);
-  }, [isaOverrides]);
 
-  const updateIsaOverride = useCallback((projectKey, milestoneType, date) => {
-    if (!projectKey || !milestoneType || !date) return;
-    const normalizedDate = startOfDay(date);
-    setIsaOverrides((prev) => {
-      const next = { ...(prev || {}) };
-      const projectEntry = { ...(next[projectKey] || {}) };
-      projectEntry[milestoneType] = normalizedDate.toISOString();
-      next[projectKey] = projectEntry;
-      return next;
-    });
-  }, []);
+  // Removed local isaOverrides logic as we now sync to Supabase project properties
+
+  const updateProjectIsaOverride = useCallback(
+    async (projectKey, milestoneType, date) => {
+      if (!projectKey || !milestoneType || !date) return;
+
+      const project = projects.find(p => getIsaProjectKey(p) === projectKey);
+      if (!project) return;
+
+      const normalizedDate = startOfDay(date);
+      const currentOverrides = project.properties?.isaOverrides || {};
+
+      const newProperties = {
+        ...project.properties,
+        isaOverrides: {
+          ...currentOverrides,
+          [milestoneType]: normalizedDate.toISOString(),
+        },
+      };
+
+      const updatedProject = {
+        ...project,
+        properties: newProperties,
+      };
+
+      await updateProject(updatedProject, { skipLoading: true });
+    },
+    [projects, updateProject]
+  );
 
   const handleIsaDragStart = useCallback((event, payload) => {
     if (!payload?.projectKey || !payload?.milestoneType) return;
@@ -203,10 +218,11 @@ const VistaCalendario = ({ projects: projectsProp }) => {
         setDraggingIsaPayload(null);
         return;
       }
-      updateIsaOverride(payload.projectKey, payload.milestoneType, day);
+      // Use the new sync function instead of local overrides
+      updateProjectIsaOverride(payload.projectKey, payload.milestoneType, day);
       setDraggingIsaPayload(null);
     },
-    [draggingIsaPayload, updateIsaOverride]
+    [draggingIsaPayload, updateProjectIsaOverride]
   );
 
   const today = startOfDay(new Date());
@@ -265,8 +281,7 @@ const VistaCalendario = ({ projects: projectsProp }) => {
       if (!projectKey) return [];
       const milestones = applyIsaOverridesToMilestones(
         project,
-        buildIsaMilestones(project, isaStats),
-        isaOverrides
+        buildIsaMilestones(project, isaStats)
       );
       return milestones.map((milestone) => ({
         type: 'isa_estimate',
@@ -282,7 +297,7 @@ const VistaCalendario = ({ projects: projectsProp }) => {
         projectKey,
       }));
     });
-  }, [visibleProjects, isaStats, isaOverrides]);
+  }, [visibleProjects, isaStats]);
   const scheduledItems = useMemo(
     () => [...recordingItems, ...isaEstimatedItems],
     [recordingItems, isaEstimatedItems]
@@ -439,22 +454,20 @@ const VistaCalendario = ({ projects: projectsProp }) => {
           <button
             type="button"
             onClick={() => setPrimaryView('calendar')}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
-              primaryView === 'calendar'
-                ? 'bg-emerald-500/20 text-primary shadow-[inset_0_1px_0_rgba(34,197,94,0.35)] dark:bg-emerald-500/15 dark:text-white/85'
-                : 'text-secondary hover:text-primary dark:text-white/60 dark:hover:text-white'
-            }`}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${primaryView === 'calendar'
+              ? 'bg-emerald-500/20 text-primary shadow-[inset_0_1px_0_rgba(34,197,94,0.35)] dark:bg-emerald-500/15 dark:text-white/85'
+              : 'text-secondary hover:text-primary dark:text-white/60 dark:hover:text-white'
+              }`}
           >
             Calendario
           </button>
           <button
             type="button"
             onClick={() => setPrimaryView('timeline')}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
-              primaryView === 'timeline'
-                ? 'bg-emerald-500/20 text-primary shadow-[inset_0_1px_0_rgba(34,197,94,0.35)] dark:bg-emerald-500/15 dark:text-white/85'
-                : 'text-secondary hover:text-primary dark:text-white/60 dark:hover:text-white'
-            }`}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${primaryView === 'timeline'
+              ? 'bg-emerald-500/20 text-primary shadow-[inset_0_1px_0_rgba(34,197,94,0.35)] dark:bg-emerald-500/15 dark:text-white/85'
+              : 'text-secondary hover:text-primary dark:text-white/60 dark:hover:text-white'
+              }`}
           >
             Timeline
           </button>
@@ -469,19 +482,19 @@ const VistaCalendario = ({ projects: projectsProp }) => {
               onClick={handlePrevMonth}
               className="rounded-full border border-border p-2 text-secondary hover:border-accent hover:text-primary dark:border-[#2B2D31] dark:text-white/60 dark:hover:border-purple-400/60 dark:hover:text-white"
               aria-label="Mes anterior">
-            <ChevronLeft size={18} />
-          </button>
-          <span className="text-lg font-semibold text-primary capitalize dark:text-white/85">
-            {format(currentMonth, 'MMMM yyyy', { locale: es })}
-          </span>
-          <button
-            type="button"
-            onClick={handleNextMonth}
-            className="rounded-full border border-border p-2 text-secondary hover:border-accent hover:text-primary dark:border-[#2B2D31] dark:text-white/60 dark:hover:border-purple-400/60 dark:hover:text-white"
-            aria-label="Mes siguiente">
-            <ChevronRight size={18} />
-          </button>
-        </div>
+              <ChevronLeft size={18} />
+            </button>
+            <span className="text-lg font-semibold text-primary capitalize dark:text-white/85">
+              {format(currentMonth, 'MMMM yyyy', { locale: es })}
+            </span>
+            <button
+              type="button"
+              onClick={handleNextMonth}
+              className="rounded-full border border-border p-2 text-secondary hover:border-accent hover:text-primary dark:border-[#2B2D31] dark:text-white/60 dark:hover:border-purple-400/60 dark:hover:text-white"
+              aria-label="Mes siguiente">
+              <ChevronRight size={18} />
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {filterOptions.map((option) => {
               const isActive = option === selectedMember;
@@ -490,333 +503,329 @@ const VistaCalendario = ({ projects: projectsProp }) => {
                   key={option}
                   type="button"
                   onClick={() => setSelectedMember(option)}
-                  className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-                    isActive
-                      ? 'border-accent bg-accent/20 text-primary dark:border-purple-400 dark:bg-purple-500/20 dark:text-white'
-                      : 'border-border bg-[#F7F8FA] text-secondary hover:border-accent/40 hover:text-primary dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:text-white/60 dark:hover:border-purple-400/60 dark:hover:text-white'
-                  }`}>
+                  className={`rounded-full border px-4 py-2 text-sm transition-colors ${isActive
+                    ? 'border-accent bg-accent/20 text-primary dark:border-purple-400 dark:bg-purple-500/20 dark:text-white'
+                    : 'border-border bg-[#F7F8FA] text-secondary hover:border-accent/40 hover:text-primary dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:text-white/60 dark:hover:border-purple-400/60 dark:hover:text-white'
+                    }`}>
                   {option === 'Todos' ? 'Todos los responsables' : option}
                 </button>
               );
             })}
           </div>
 
-        <div className="sm:hidden">
-        {mobileEvents.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-[#E5E7EB] bg-white p-4 text-center text-sm text-secondary dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:text-white/60">
-            No hay actividades programadas este mes.
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {mobileEvents.map((event) => (
-              <div
-                key={`${event.id}-${event.sortTime}`}
-                className="space-y-3 rounded-3xl border border-[#E5E7EB] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.08)] dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:shadow-[0_20px_44px_rgba(0,0,0,0.45)]"
-                draggable={event.type === 'isa_estimate'}
-                onDragStart={(ev) => {
-                  if (event.type === 'isa_estimate') {
-                    handleIsaDragStart(ev, {
-                      projectKey: event.projectKey,
-                      milestoneType: event.milestoneType,
-                    });
-                  }
-                }}
-                onDragEnd={event.type === 'isa_estimate' ? handleIsaDragEnd : undefined}
-              >
-                <p className="text-sm font-medium uppercase tracking-wide text-secondary/70 dark:text-white/50">
-                  {format(event.date, "EEEE d 'de' MMMM", { locale: es })}
-                </p>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-semibold text-primary dark:text-white/90">{event.title}</h3>
-                  {event.typeMeta && (
-                    <span
-                      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${event.typeMeta.className}`}
-                    >
-                      {event.typeMeta.label}
-                    </span>
-                  )}
-                </div>
-                {event.eventLabel && (
-                  <span className="inline-block rounded-full border border-[#E5E7EB] px-3 py-1 text-xs uppercase tracking-wide text-secondary dark:border-[#2B2D31] dark:text-white/60">
-                    {event.eventLabel}
-                  </span>
-                )}
-                <div className="space-y-2 text-sm text-secondary dark:text-white/70">
-                  {event.timeLabel && (
-                    <p>
-                      <span className="text-secondary/70 dark:text-white/50">Horario: </span>
-                      <span className="text-primary dark:text-white/85">{event.timeLabel}</span>
-                    </p>
-                  )}
-                  {event.manager && (
-                    <p>
-                      <span className="text-secondary/70 dark:text-white/50">Responsable: </span>
-                      <span className="text-primary dark:text-white/85">{event.manager}</span>
-                    </p>
-                  )}
-                  {event.status && (
-                    <p>
-                      <span className="text-secondary/70 dark:text-white/50">Estado: </span>
-                      <span className="text-primary dark:text-white/85">{event.status}</span>
-                    </p>
-                  )}
-                  {event.client && (
-                    <p>
-                      <span className="text-secondary/70 dark:text-white/50">Cliente: </span>
-                      <span className="text-primary dark:text-white/85">{event.client}</span>
-                    </p>
-                  )}
-                  {event.description && (
-                    <p className="text-secondary/80 dark:text-white/60">{event.description}</p>
-                  )}
-                </div>
-                {event.project && (
-                  <button
-                    type="button"
-                    onClick={() => openModal(event.project)}
-                    className="w-full rounded-2xl border border-accent/60 px-4 py-3 text-sm font-semibold text-accent transition hover:border-accent/80 hover:text-accent dark:border-purple-400/60 dark:text-purple-300 dark:hover:border-purple-300"
+          <div className="sm:hidden">
+            {mobileEvents.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-[#E5E7EB] bg-white p-4 text-center text-sm text-secondary dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:text-white/60">
+                No hay actividades programadas este mes.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {mobileEvents.map((event) => (
+                  <div
+                    key={`${event.id}-${event.sortTime}`}
+                    className="space-y-3 rounded-3xl border border-[#E5E7EB] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.08)] dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:shadow-[0_20px_44px_rgba(0,0,0,0.45)]"
+                    draggable={event.type === 'isa_estimate'}
+                    onDragStart={(ev) => {
+                      if (event.type === 'isa_estimate') {
+                        handleIsaDragStart(ev, {
+                          projectKey: event.projectKey,
+                          milestoneType: event.milestoneType,
+                        });
+                      }
+                    }}
+                    onDragEnd={event.type === 'isa_estimate' ? handleIsaDragEnd : undefined}
                   >
-                    Ver proyecto
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-        </div>
-
-        <div className="hidden grid-cols-7 gap-px overflow-hidden rounded-2xl border border-border bg-border/40 sm:grid">
-        {WEEKDAYS.map((weekday) => (
-          <div
-            key={weekday}
-            className="bg-white px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-secondary dark:bg-[#0F0F11] dark:text-white/60">
-            {weekday}
-          </div>
-        ))}
-        {calendarDays.map((day) => {
-          const key = startOfDay(day).toISOString();
-          const dayItems = (calendarItemsByDay.get(key) || []).sort(
-            (a, b) => a.range.start.getTime() - b.range.start.getTime()
-          );
-          const visibleItems = dayItems.slice(0, MAX_ITEMS_PER_DAY);
-          const extraItems = dayItems.length - visibleItems.length;
-          const isCurrentMonth = isSameMonth(day, currentMonth);
-          const isToday = isSameDay(day, today);
-          const isSelected = selectedDayKey === key;
-          const isaDropAllowed = draggingIsaPayload
-            ? isAllowedIsaMilestoneDay(draggingIsaPayload.milestoneType, day)
-            : true;
-
-          return (
-            <div
-              key={key}
-              onClick={() => handleDaySelect(day)}
-              onDragOver={handleDayDragOver(day)}
-              onDrop={handleDayDrop(day)}
-              className={`min-h-[110px] cursor-pointer bg-white p-2 shadow-[0_12px_24px_rgba(15,23,42,0.05)] transition-all duration-200 ease-[var(--ease-ios-out)] dark:bg-[#0F0F11] dark:shadow-[0_14px_28px_rgba(0,0,0,0.45)] ${
-                isCurrentMonth ? 'text-primary dark:text-white/85' : 'text-secondary/60 dark:text-white/40'
-              } ${
-                isToday
-                  ? 'border border-accent/60 bg-accent/10 shadow-[0_18px_40px_rgba(34,197,94,0.3)] dark:border-purple-400/60 dark:bg-purple-500/20 dark:shadow-[0_20px_40px_rgba(128,90,213,0.35)]'
-                  : 'border border-[#E5E7EB] hover:border-accent/60 hover:bg-white hover:shadow-[0_12px_30px_rgba(2,6,23,0.55)] dark:border-[#2B2D31] dark:hover:border-purple-300/60 dark:hover:bg-white/10 dark:hover:shadow-[0_16px_30px_rgba(0,0,0,0.45)]'
-              } ${isSelected ? 'ring-2 ring-accent/60 dark:ring-purple-400/60' : ''} ${
-                isDraggingIsa
-                  ? isaDropAllowed
-                    ? 'outline outline-1 outline-dashed outline-accent/30 dark:outline-purple-400/40'
-                    : 'opacity-50'
-                  : ''
-              }`}>
-              <div className="flex items-center justify-between text-xs">
-                <span className={`text-sm font-semibold ${isCurrentMonth ? 'text-primary dark:text-white/85' : ''}`}>
-                  {format(day, 'd', { locale: es })}
-                </span>
-                {dayItems.length > 0 && (
-                  <span className="rounded-full bg-[#F7F8FA] px-2 py-0.5 text-[10px] text-secondary dark:bg-[#1B1C20] dark:text-white/60">
-                    {dayItems.length}
-                  </span>
-                )}
-              </div>
-              <div className="mt-2 flex flex-col gap-1">
-                {visibleItems.map((item) => {
-                  if (item.type === 'recording_event') {
-                    const { project } = item;
-                    const title = project?.name || 'Grabación';
-                    return (
-                      <button
-                        key={`recording-${project?.id || title}-${day.toISOString()}`}
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (project) {
-                            openModal(project);
-                          }
-                        }}
-                        className={`group rounded-md border px-2 py-1 text-left text-xs shadow-sm transition-all duration-200 ease-[var(--ease-ios-out)] hover:shadow-lg hover:-translate-y-0.5 ${RECORDING_PILL}`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="truncate font-semibold">{title}</span>
-                          <span className="whitespace-nowrap text-[10px] opacity-75">
-                            {format(item.range.start, 'dd/MM')}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  }
-
-                  if (item.type === 'isa_estimate') {
-                    const { project, isaMeta, milestoneType } = item;
-                    const title = project?.name || 'Proyecto sin título';
-                    const label = isaMeta?.milestoneLabel || 'Estimación ISA';
-                    const pillClass = ISA_EVENT_PILLS[milestoneType] || ISA_ESTIMATE_PILL;
-                    return (
-                      <button
-                        key={`isa-${project?.id || title}-${milestoneType}-${day.toISOString()}`}
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (project) {
-                            openModal(project);
-                          }
-                        }}
-                        draggable
-                        onDragStart={(event) =>
-                          handleIsaDragStart(event, {
-                            projectKey: item.projectKey,
-                            milestoneType: item.milestoneType,
-                          })
-                        }
-                        onDragEnd={handleIsaDragEnd}
-                        className={`group rounded-md border px-2 py-1 text-left text-xs shadow-sm transition-all duration-200 ease-[var(--ease-ios-out)] hover:shadow-lg hover:-translate-y-0.5 ${pillClass}`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <span className="truncate font-semibold">{title}</span>
-                            <span className="mt-1 block text-[10px] uppercase tracking-wide opacity-70">
-                              {label}
-                            </span>
-                          </div>
-                          <span className="whitespace-nowrap text-[10px] opacity-75">
-                            {format(item.range.start, 'dd/MM')}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  }
-
-                  return null;
-                })}
-                {extraItems > 0 && (
-                  <div className="rounded-md bg-[#F7F8FA] px-2 py-1 text-[10px] text-secondary dark:bg-[#1B1C20] dark:text-white/60">
-                    +{extraItems} más
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-        </div>
-
-        {selectedDayDate && (
-        <div className="mt-6 rounded-3xl border border-[#E5E7EB] bg-white p-6 dark:border-[#2B2D31] dark:bg-[#1E1F23]">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="text-xl font-semibold text-primary dark:text-white/90">
-                {format(selectedDayDate, "EEEE d 'de' MMMM yyyy", { locale: es })}
-              </h3>
-              <p className="text-xs text-secondary dark:text-white/60">
-                {selectedDayDetails.length} {selectedDayDetails.length === 1 ? 'actividad' : 'actividades'} programadas
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSelectedDayKey(null)}
-              className="rounded-full border border-[#E5E7EB] px-3 py-1 text-xs text-secondary transition hover:border-accent/70 hover:text-accent dark:border-[#2B2D31] dark:text-white/60 dark:hover:border-purple-400/60 dark:hover:text-white">
-              Cerrar
-            </button>
-          </div>
-
-          {selectedDayDetails.length === 0 ? (
-            <p className="mt-4 text-sm text-secondary dark:text-white/60">Sin eventos para este día.</p>
-          ) : (
-            <div className="mt-4 flex flex-col gap-3">
-              {selectedDayDetails.map((item) => (
-                <div
-                  key={`${item.id}-${item.sortTime}`}
-                  className="rounded-2xl border border-[#E5E7EB] bg-white p-4 transition hover:border-accent/60 hover:bg-[#F1F5F9] dark:border-[#2B2D31] dark:bg-[#0F0F11] dark:hover:border-purple-400/60 dark:hover:bg-white/10"
-                  draggable={item.type === 'isa_estimate'}
-                  onDragStart={(event) => {
-                    if (item.type === 'isa_estimate') {
-                      handleIsaDragStart(event, {
-                        projectKey: item.projectKey,
-                        milestoneType: item.milestoneType,
-                      });
-                    }
-                  }}
-                  onDragEnd={item.type === 'isa_estimate' ? handleIsaDragEnd : undefined}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-[200px] max-w-full">
-                      <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium uppercase tracking-wide text-secondary/70 dark:text-white/50">
+                      {format(event.date, "EEEE d 'de' MMMM", { locale: es })}
+                    </p>
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-semibold text-primary dark:text-white/90">{event.title}</h3>
+                      {event.typeMeta && (
                         <span
-                          className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${item.colorClass}`}>
-                          {item.eventLabel}
-                        </span>
-                        {item.timeLabel && (
-                          <span className="text-xs text-secondary dark:text-white/60">{item.timeLabel}</span>
-                        )}
-                      </div>
-                      <h4 className="mt-2 text-lg font-semibold text-primary dark:text-white/90">{item.title}</h4>
-                      {item.typeMeta && (
-                        <span
-                          className={`mt-2 inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${item.typeMeta.className}`}
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${event.typeMeta.className}`}
                         >
-                          {item.typeMeta.label}
+                          {event.typeMeta.label}
                         </span>
                       )}
                     </div>
-                    <div className="text-right text-xs text-secondary dark:text-white/60">
-                      {item.manager && (
+                    {event.eventLabel && (
+                      <span className="inline-block rounded-full border border-[#E5E7EB] px-3 py-1 text-xs uppercase tracking-wide text-secondary dark:border-[#2B2D31] dark:text-white/60">
+                        {event.eventLabel}
+                      </span>
+                    )}
+                    <div className="space-y-2 text-sm text-secondary dark:text-white/70">
+                      {event.timeLabel && (
                         <p>
-                          Responsable:{' '}
-                          <span className="text-primary dark:text-white/85">{item.manager}</span>
+                          <span className="text-secondary/70 dark:text-white/50">Horario: </span>
+                          <span className="text-primary dark:text-white/85">{event.timeLabel}</span>
                         </p>
                       )}
-                      {item.status && (
+                      {event.manager && (
                         <p>
-                          Estado:{' '}
-                          <span className="text-primary dark:text-white/85">{item.status}</span>
+                          <span className="text-secondary/70 dark:text-white/50">Responsable: </span>
+                          <span className="text-primary dark:text-white/85">{event.manager}</span>
                         </p>
+                      )}
+                      {event.status && (
+                        <p>
+                          <span className="text-secondary/70 dark:text-white/50">Estado: </span>
+                          <span className="text-primary dark:text-white/85">{event.status}</span>
+                        </p>
+                      )}
+                      {event.client && (
+                        <p>
+                          <span className="text-secondary/70 dark:text-white/50">Cliente: </span>
+                          <span className="text-primary dark:text-white/85">{event.client}</span>
+                        </p>
+                      )}
+                      {event.description && (
+                        <p className="text-secondary/80 dark:text-white/60">{event.description}</p>
                       )}
                     </div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-secondary">
-                    {item.client && (
-                      <div className="flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-[#F7F8FA] px-3 py-1.5 dark:border-[#2B2D31] dark:bg-[#1B1C20]">
-                        <span className="text-[10px] uppercase tracking-wide text-secondary/70 dark:text-white/50">Cliente</span>
-                        <span className={getClientDetailBadgeClass(item.client)}>{item.client}</span>
-                      </div>
-                    )}
-                  </div>
-                  {item.description && (
-                    <p className="mt-3 text-sm text-secondary dark:text-white/70">{item.description}</p>
-                  )}
-                  {item.project && (
-                    <div className="mt-3">
+                    {event.project && (
                       <button
                         type="button"
-                        onClick={() => openModal(item.project)}
-                        className="w-full rounded-2xl border border-accent/60 px-4 py-3 text-sm font-semibold text-accent transition hover:border-accent/80 hover:text-accent sm:w-auto sm:rounded-full sm:px-3 sm:py-1 sm:text-xs dark:border-purple-400/60 dark:text-purple-300 dark:hover:border-purple-300"
+                        onClick={() => openModal(event.project)}
+                        className="w-full rounded-2xl border border-accent/60 px-4 py-3 text-sm font-semibold text-accent transition hover:border-accent/80 hover:text-accent dark:border-purple-400/60 dark:text-purple-300 dark:hover:border-purple-300"
                       >
                         Ver proyecto
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="hidden grid-cols-7 gap-px overflow-hidden rounded-2xl border border-border bg-border/40 sm:grid">
+            {WEEKDAYS.map((weekday) => (
+              <div
+                key={weekday}
+                className="bg-white px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-secondary dark:bg-[#0F0F11] dark:text-white/60">
+                {weekday}
+              </div>
+            ))}
+            {calendarDays.map((day) => {
+              const key = startOfDay(day).toISOString();
+              const dayItems = (calendarItemsByDay.get(key) || []).sort(
+                (a, b) => a.range.start.getTime() - b.range.start.getTime()
+              );
+              const visibleItems = dayItems.slice(0, MAX_ITEMS_PER_DAY);
+              const extraItems = dayItems.length - visibleItems.length;
+              const isCurrentMonth = isSameMonth(day, currentMonth);
+              const isToday = isSameDay(day, today);
+              const isSelected = selectedDayKey === key;
+              const isaDropAllowed = draggingIsaPayload
+                ? isAllowedIsaMilestoneDay(draggingIsaPayload.milestoneType, day)
+                : true;
+
+              return (
+                <div
+                  key={key}
+                  onClick={() => handleDaySelect(day)}
+                  onDragOver={handleDayDragOver(day)}
+                  onDrop={handleDayDrop(day)}
+                  className={`min-h-[110px] cursor-pointer bg-white p-2 shadow-[0_12px_24px_rgba(15,23,42,0.05)] transition-all duration-200 ease-[var(--ease-ios-out)] dark:bg-[#0F0F11] dark:shadow-[0_14px_28px_rgba(0,0,0,0.45)] ${isCurrentMonth ? 'text-primary dark:text-white/85' : 'text-secondary/60 dark:text-white/40'
+                    } ${isToday
+                      ? 'border border-accent/60 bg-accent/10 shadow-[0_18px_40px_rgba(34,197,94,0.3)] dark:border-purple-400/60 dark:bg-purple-500/20 dark:shadow-[0_20px_40px_rgba(128,90,213,0.35)]'
+                      : 'border border-[#E5E7EB] hover:border-accent/60 hover:bg-white hover:shadow-[0_12px_30px_rgba(2,6,23,0.55)] dark:border-[#2B2D31] dark:hover:border-purple-300/60 dark:hover:bg-white/10 dark:hover:shadow-[0_16px_30px_rgba(0,0,0,0.45)]'
+                    } ${isSelected ? 'ring-2 ring-accent/60 dark:ring-purple-400/60' : ''} ${isDraggingIsa
+                      ? isaDropAllowed
+                        ? 'outline outline-1 outline-dashed outline-accent/30 dark:outline-purple-400/40'
+                        : 'opacity-50'
+                      : ''
+                    }`}>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className={`text-sm font-semibold ${isCurrentMonth ? 'text-primary dark:text-white/85' : ''}`}>
+                      {format(day, 'd', { locale: es })}
+                    </span>
+                    {dayItems.length > 0 && (
+                      <span className="rounded-full bg-[#F7F8FA] px-2 py-0.5 text-[10px] text-secondary dark:bg-[#1B1C20] dark:text-white/60">
+                        {dayItems.length}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2 flex flex-col gap-1">
+                    {visibleItems.map((item) => {
+                      if (item.type === 'recording_event') {
+                        const { project } = item;
+                        const title = project?.name || 'Grabación';
+                        return (
+                          <button
+                            key={`recording-${project?.id || title}-${day.toISOString()}`}
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (project) {
+                                openModal(project);
+                              }
+                            }}
+                            className={`group rounded-md border px-2 py-1 text-left text-xs shadow-sm transition-all duration-200 ease-[var(--ease-ios-out)] hover:shadow-lg hover:-translate-y-0.5 ${RECORDING_PILL}`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="truncate font-semibold">{title}</span>
+                              <span className="whitespace-nowrap text-[10px] opacity-75">
+                                {format(item.range.start, 'dd/MM')}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      }
+
+                      if (item.type === 'isa_estimate') {
+                        const { project, isaMeta, milestoneType } = item;
+                        const title = project?.name || 'Proyecto sin título';
+                        const label = isaMeta?.milestoneLabel || 'Estimación ISA';
+                        const pillClass = ISA_EVENT_PILLS[milestoneType] || ISA_ESTIMATE_PILL;
+                        return (
+                          <button
+                            key={`isa-${project?.id || title}-${milestoneType}-${day.toISOString()}`}
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (project) {
+                                openModal(project);
+                              }
+                            }}
+                            draggable
+                            onDragStart={(event) =>
+                              handleIsaDragStart(event, {
+                                projectKey: item.projectKey,
+                                milestoneType: item.milestoneType,
+                              })
+                            }
+                            onDragEnd={handleIsaDragEnd}
+                            className={`group rounded-md border px-2 py-1 text-left text-xs shadow-sm transition-all duration-200 ease-[var(--ease-ios-out)] hover:shadow-lg hover:-translate-y-0.5 ${pillClass}`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="min-w-0">
+                                <span className="truncate font-semibold">{title}</span>
+                                <span className="mt-1 block text-[10px] uppercase tracking-wide opacity-70">
+                                  {label}
+                                </span>
+                              </div>
+                              <span className="whitespace-nowrap text-[10px] opacity-75">
+                                {format(item.range.start, 'dd/MM')}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      }
+
+                      return null;
+                    })}
+                    {extraItems > 0 && (
+                      <div className="rounded-md bg-[#F7F8FA] px-2 py-1 text-[10px] text-secondary dark:bg-[#1B1C20] dark:text-white/60">
+                        +{extraItems} más
+                      </div>
+                    )}
+                  </div>
                 </div>
-              ))}
+              );
+            })}
+          </div>
+
+          {selectedDayDate && (
+            <div className="mt-6 rounded-3xl border border-[#E5E7EB] bg-white p-6 dark:border-[#2B2D31] dark:bg-[#1E1F23]">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-xl font-semibold text-primary dark:text-white/90">
+                    {format(selectedDayDate, "EEEE d 'de' MMMM yyyy", { locale: es })}
+                  </h3>
+                  <p className="text-xs text-secondary dark:text-white/60">
+                    {selectedDayDetails.length} {selectedDayDetails.length === 1 ? 'actividad' : 'actividades'} programadas
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDayKey(null)}
+                  className="rounded-full border border-[#E5E7EB] px-3 py-1 text-xs text-secondary transition hover:border-accent/70 hover:text-accent dark:border-[#2B2D31] dark:text-white/60 dark:hover:border-purple-400/60 dark:hover:text-white">
+                  Cerrar
+                </button>
+              </div>
+
+              {selectedDayDetails.length === 0 ? (
+                <p className="mt-4 text-sm text-secondary dark:text-white/60">Sin eventos para este día.</p>
+              ) : (
+                <div className="mt-4 flex flex-col gap-3">
+                  {selectedDayDetails.map((item) => (
+                    <div
+                      key={`${item.id}-${item.sortTime}`}
+                      className="rounded-2xl border border-[#E5E7EB] bg-white p-4 transition hover:border-accent/60 hover:bg-[#F1F5F9] dark:border-[#2B2D31] dark:bg-[#0F0F11] dark:hover:border-purple-400/60 dark:hover:bg-white/10"
+                      draggable={item.type === 'isa_estimate'}
+                      onDragStart={(event) => {
+                        if (item.type === 'isa_estimate') {
+                          handleIsaDragStart(event, {
+                            projectKey: item.projectKey,
+                            milestoneType: item.milestoneType,
+                          });
+                        }
+                      }}
+                      onDragEnd={item.type === 'isa_estimate' ? handleIsaDragEnd : undefined}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-[200px] max-w-full">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${item.colorClass}`}>
+                              {item.eventLabel}
+                            </span>
+                            {item.timeLabel && (
+                              <span className="text-xs text-secondary dark:text-white/60">{item.timeLabel}</span>
+                            )}
+                          </div>
+                          <h4 className="mt-2 text-lg font-semibold text-primary dark:text-white/90">{item.title}</h4>
+                          {item.typeMeta && (
+                            <span
+                              className={`mt-2 inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${item.typeMeta.className}`}
+                            >
+                              {item.typeMeta.label}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-right text-xs text-secondary dark:text-white/60">
+                          {item.manager && (
+                            <p>
+                              Responsable:{' '}
+                              <span className="text-primary dark:text-white/85">{item.manager}</span>
+                            </p>
+                          )}
+                          {item.status && (
+                            <p>
+                              Estado:{' '}
+                              <span className="text-primary dark:text-white/85">{item.status}</span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-secondary">
+                        {item.client && (
+                          <div className="flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-[#F7F8FA] px-3 py-1.5 dark:border-[#2B2D31] dark:bg-[#1B1C20]">
+                            <span className="text-[10px] uppercase tracking-wide text-secondary/70 dark:text-white/50">Cliente</span>
+                            <span className={getClientDetailBadgeClass(item.client)}>{item.client}</span>
+                          </div>
+                        )}
+                      </div>
+                      {item.description && (
+                        <p className="mt-3 text-sm text-secondary dark:text-white/70">{item.description}</p>
+                      )}
+                      {item.project && (
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            onClick={() => openModal(item.project)}
+                            className="w-full rounded-2xl border border-accent/60 px-4 py-3 text-sm font-semibold text-accent transition hover:border-accent/80 hover:text-accent sm:w-auto sm:rounded-full sm:px-3 sm:py-1 sm:text-xs dark:border-purple-400/60 dark:text-purple-300 dark:hover:border-purple-300"
+                          >
+                            Ver proyecto
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
         </>
       ) : (

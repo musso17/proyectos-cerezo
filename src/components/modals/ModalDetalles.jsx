@@ -185,7 +185,7 @@ const ModalDetalles = () => {
         }
       });
     }
-  }, [enforceFranciscoClient, editedProject?.id]);
+  }, [enforceFranciscoClient, editedProject?.id, editedProject?.client]);
 
   useEffect(() => {
     if (editedProject) {
