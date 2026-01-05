@@ -295,7 +295,7 @@ const normalizeProject = (project) => {
     ...project,
     startDate,
     deadline,
-    status: normalizeStatus(project.status),
+    status: normalizeStatus(project.status || properties.status),
     manager: managers[0] || '',
     managers,
     type: registrationType || project.type || project.tipo || '',
@@ -476,6 +476,10 @@ const prepareProjectForSupabase = (project) => {
     nextProperties.state = stateValue;
   } else if (Object.prototype.hasOwnProperty.call(nextProperties, 'state')) {
     delete nextProperties.state;
+  }
+
+  if (project.status) {
+    nextProperties.status = normalizeStatus(project.status);
   }
 
   if (currentCycle) {

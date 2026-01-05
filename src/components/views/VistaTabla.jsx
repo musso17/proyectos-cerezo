@@ -251,6 +251,7 @@ const StatusSelector = ({ project }) => {
 
     try {
       let updatePayload = {
+        ...project,
         id: project.id,
         status: newValue,
       };
