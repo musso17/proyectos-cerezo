@@ -16,6 +16,7 @@ const REGISTRATION_TYPES = [
 const STAGES = {
   GRABACION: 'grabacion',
   EDICION: 'edicion',
+  FOTOGRAFIA: 'fotografia',
 };
 
 const ModalDetalles = () => {
@@ -84,18 +85,18 @@ const ModalDetalles = () => {
         ? selectedProject.team
         : typeof selectedProject.team === 'string' && selectedProject.team.length > 0
           ? selectedProject.team
-              .split(',')
-              .map((member) => member.trim())
-              .filter(Boolean)
+            .split(',')
+            .map((member) => member.trim())
+            .filter(Boolean)
           : [];
 
       const normalizedManagers = Array.isArray(selectedProject.managers)
         ? selectedProject.managers
         : typeof selectedProject.manager === 'string' && selectedProject.manager.length > 0
           ? selectedProject.manager
-              .split(',')
-              .map((manager) => manager.trim())
-              .filter(Boolean)
+            .split(',')
+            .map((manager) => manager.trim())
+            .filter(Boolean)
           : [];
 
       const defaultManager = teamMembers?.[0] || '';
@@ -231,7 +232,8 @@ const ModalDetalles = () => {
     ? teamMembers.filter((member) => !selectedManagers.includes(member))
     : [];
 
-  const isRecordingStage = (editedProject.stage || '').toLowerCase() === STAGES.GRABACION;
+  const currentStage = (editedProject.stage || '').toLowerCase();
+  const isRecordingStage = currentStage === STAGES.GRABACION || currentStage === STAGES.FOTOGRAFIA;
 
   const calculateEndTime = (time) => {
     if (!time) return '';
@@ -439,13 +441,13 @@ const ModalDetalles = () => {
       ? editedProject.managers.filter((manager) => manager && manager.trim().length > 0)
       : editedProject.manager
         ? editedProject.manager
-            .split(',')
-            .map((manager) => manager.trim())
-            .filter(Boolean)
+          .split(',')
+          .map((manager) => manager.trim())
+          .filter(Boolean)
         : [];
     const managerString = managers.join(', ');
 
-    if (stage === STAGES.GRABACION && !recordingDate) {
+    if ((stage === STAGES.GRABACION || stage === STAGES.FOTOGRAFIA) && !recordingDate) {
       window.alert('Ingresa la fecha de grabación para continuar.');
       return;
     }
@@ -485,9 +487,9 @@ const ModalDetalles = () => {
       manager: managers[0] || managerString || '',
       managers,
       startDate:
-        stage === STAGES.GRABACION
+        (stage === STAGES.GRABACION || stage === STAGES.FOTOGRAFIA)
           ? recordingDate || editedProject.startDate || '' : editedProject.startDate || '',
-      deadline: stage === STAGES.GRABACION ? null : editedProject.deadline || '',
+      deadline: (stage === STAGES.GRABACION || stage === STAGES.FOTOGRAFIA) ? null : editedProject.deadline || '',
       type: registrationType || editedProject.type || '',
       registrationType,
       stage,
@@ -528,7 +530,7 @@ const ModalDetalles = () => {
           enterFrom="opacity-0"
           enterTo="opacity-100"
           leave="ease-in duration-150"
-          leaveFrom="opacity-100" 
+          leaveFrom="opacity-100"
           leaveTo="opacity-0">
           <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" />
         </Transition.Child>
@@ -627,22 +629,30 @@ const ModalDetalles = () => {
                         <button
                           type="button"
                           onClick={() => handleStageChange(STAGES.GRABACION)}
-                          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
-                            isRecordingStage
-                              ? 'border-violet-500 bg-violet-50 text-violet-700 shadow-sm'
+                          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${(editedProject.stage || '').toLowerCase() === STAGES.GRABACION
+                              ? 'border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7] shadow-sm'
                               : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
-                          }`}
+                            }`}
                         >
                           Grabación
                         </button>
                         <button
                           type="button"
+                          onClick={() => handleStageChange(STAGES.FOTOGRAFIA)}
+                          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${(editedProject.stage || '').toLowerCase() === STAGES.FOTOGRAFIA
+                              ? 'border-[#99F6E4] bg-[#f0fdfa] text-[#0D9488] shadow-sm'
+                              : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                            }`}
+                        >
+                          Fotografía
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleStageChange(STAGES.EDICION)}
-                          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
-                            !isRecordingStage
+                          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${(editedProject.stage || '').toLowerCase() === STAGES.EDICION
                               ? 'border-violet-500 bg-violet-50 text-violet-700 shadow-sm'
                               : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
-                          }`}
+                            }`}
                         >
                           Edición
                         </button>
@@ -700,9 +710,8 @@ const ModalDetalles = () => {
                           </div>
                           <ChevronDown
                             size={16}
-                            className={`ml-auto shrink-0 text-gray-500 transition ${
-                              isManagerDropdownOpen ? 'rotate-180 text-violet-600' : ''
-                            }`}
+                            className={`ml-auto shrink-0 text-gray-500 transition ${isManagerDropdownOpen ? 'rotate-180 text-violet-600' : ''
+                              }`}
                           />
                         </div>
                         {isManagerDropdownOpen && (
@@ -775,11 +784,10 @@ const ModalDetalles = () => {
                             type="button"
                             onClick={handleOpenRecordingCalendar}
                             disabled={!editedProject.recordingDate}
-                            className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold transition ${
-                              editedProject.recordingDate 
+                            className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold transition ${editedProject.recordingDate
                                 ? 'border-violet-300 text-violet-700 bg-violet-50 hover:bg-violet-100'
                                 : 'cursor-not-allowed border-gray-300 text-gray-400 bg-gray-100 dark:border-white/10 dark:text-white/30 dark:bg-white/5'
-                            }`}
+                              }`}
                           >
                             <Calendar size={14} />
                             Agendar grabación

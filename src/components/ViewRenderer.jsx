@@ -9,6 +9,7 @@ import VistaAgenteDashboard from './views/VistaAgenteDashboard'; // Importar el 
 import VistaTabla from './views/VistaTabla';
 import VistaGaleria from './views/VistaGaleria';
 import VistaCalendario from './views/VistaCalendario';
+import VistaEdicion from './views/VistaEdicion';
 
 // Helpers para identificar roles de usuario por email
 const isCeo = (user) => {
@@ -64,6 +65,8 @@ const ViewRenderer = () => {
         return <VistaCalendario projects={isFranciscoUser ? carbonoProjects : undefined} />;
       case 'Gallery':
         return <VistaGaleria projects={isFranciscoUser ? carbonoProjects : undefined} />;
+      case 'Edition':
+        return <VistaEdicion />;
       default:
         return <VistaTabla projects={isFranciscoUser ? carbonoProjects : undefined} />;
     }

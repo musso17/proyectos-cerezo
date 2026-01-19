@@ -8,7 +8,7 @@ import { normalizeStatus, ALLOWED_STATUSES } from '../utils/statusHelpers';
 
 const LOCAL_STORAGE_KEY = 'cerezo-projects';
 const RETAINERS_KEY = 'cerezo-retainers';
-const DEFAULT_ALLOWED_VIEWS = ['Table', 'Calendar', 'Timeline', 'Gallery'];
+const DEFAULT_ALLOWED_VIEWS = ['Table', 'Calendar', 'Timeline', 'Gallery', 'Edition'];
 const AGENT_STORAGE_KEY = 'cerezo-agent-state';
 const FRANCISCO_EMAIL = 'francisco@carbonomkt.com';
 const CEO_EMAIL = 'hola@cerezoperu.com';
@@ -86,7 +86,7 @@ const deriveStatusFromState = (state) => {
   const normalized = (state || '').toString().trim().toLowerCase();
   if (normalized === 'entregado') return 'Completado';
   if (normalized === 'revision') return 'En revisión';
-  if (normalized === 'postproduccion' || normalized === 'grabacion') return 'En progreso';
+  if (normalized === 'postproduccion' || normalized === 'grabacion' || normalized === 'fotografia' || normalized === 'fotografía') return 'En progreso';
   return 'Programado';
 };
 
@@ -195,6 +195,7 @@ const applyRevisionMetaToProjects = (projects = [], revisionMap = {}) =>
 
     const normalizedStatus = (project.status || '').toString().trim().toLowerCase();
     const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
+    const state = (project.state || project.properties?.state || '').toString().trim().toLowerCase();
     const step = revision.currentStep || '';
     const startDate = parseDateOnly(project.startDate);
     const recordingDate = parseDateOnly(
@@ -206,12 +207,20 @@ const applyRevisionMetaToProjects = (projects = [], revisionMap = {}) =>
     const today = startOfDay(new Date());
 
     let derivedStatus = project.status;
-    if (step === 'enviado' || step === 'esperando_feedback') {
+
+    // Prioridad absoluta: Si está explícitamente completado o entregado
+    const isEntregado =
+      state === 'entregado' ||
+      (project.properties?.state && project.properties.state.toString().trim().toLowerCase() === 'entregado');
+
+    if (normalizedStatus === 'completado' || isEntregado) {
+      derivedStatus = 'Completado';
+    } else if (step === 'enviado' || step === 'esperando_feedback') {
       derivedStatus = 'En revisión';
     } else if (step === 'corrigiendo' || step === 'editando') {
       derivedStatus = 'En progreso';
     } else if (
-      (stage === 'edicion' || stage === 'grabacion') &&
+      (stage === 'edicion' || stage === 'grabacion' || stage === 'fotografia' || stage === 'fotografía') &&
       effectiveStart &&
       effectiveStart <= today &&
       normalizedStatus === 'programado'
@@ -678,7 +687,8 @@ const sortRevisionCycles = (cycles = []) =>
 
 const shouldGenerateEditingProject = (project) => {
   const stage = project?.stage || project?.properties?.stage || '';
-  return stage.toString().trim().toLowerCase() === 'grabacion';
+  const val = stage.toString().trim().toLowerCase();
+  return val === 'grabacion' || val === 'fotografia' || val === 'fotografía';
 };
 
 const getRegistrationType = (project) =>
@@ -1568,7 +1578,11 @@ const useStore = create((set, get) => ({
     const projectsToAdvance = projects.filter(p => {
       const stage = (p.stage || p.properties?.stage || '').toString().trim().toLowerCase();
       const state = (p.state || p.properties?.state || '').toString().trim().toLowerCase();
-      if (stage !== 'grabacion' && state !== 'grabacion') return false;
+
+      const isRecordOrPhoto = stage === 'grabacion' || stage === 'fotografia' || stage === 'fotografía';
+      const isStateRecordOrPhoto = state === 'grabacion' || state === 'fotografia' || state === 'fotografía';
+
+      if (!isRecordOrPhoto && !isStateRecordOrPhoto) return false;
 
       const recordingDate = parseDateOnly(p.fechaGrabacion || p.startDate);
       return recordingDate && recordingDate < today;
@@ -1576,7 +1590,7 @@ const useStore = create((set, get) => ({
 
     if (projectsToAdvance.length === 0) return;
 
-    console.log(`[Agent] Found ${projectsToAdvance.length} projects to advance from 'grabacion' to 'edicion'.`);
+    console.log(`[Agent] Found ${projectsToAdvance.length} projects to advance from 'grabacion/fotografia' to 'edicion'.`);
 
     for (const project of projectsToAdvance) {
       const recordingDate = parseDateOnly(project.fechaGrabacion || project.startDate);
@@ -1694,19 +1708,24 @@ const useStore = create((set, get) => ({
       set({ loading: true, error: null });
     }
 
+    // 1. Optimistic Update (Immediate Feedback)
+    // We normalize the incoming project to ensure it matches our internal structure immediately
+    const optimisticNormalized = normalizeProject(project);
+
+    set((state) => {
+      const projects = state.projects
+        .map((p) => (p.id === optimisticNormalized.id ? { ...p, ...optimisticNormalized } : p))
+        .sort((a, b) => {
+          const startA = a.startDate ? new Date(a.startDate).getTime() : 0;
+          const startB = b.startDate ? new Date(b.startDate).getTime() : 0;
+          return startB - startA;
+        });
+      // Persist locally in case of refresh before DB sync
+      persistLocalProjects(projects);
+      return buildProjectsStateSnapshot(state, projects);
+    });
+
     if (!supabaseClient) {
-      set((state) => {
-        const normalized = normalizeProject(project);
-        const projects = state.projects
-          .map((p) => (p.id === project.id ? { ...p, ...normalized } : p))
-          .sort((a, b) => {
-            const startA = a.startDate ? new Date(a.startDate).getTime() : 0;
-            const startB = b.startDate ? new Date(b.startDate).getTime() : 0;
-            return startB - startA;
-          });
-        persistLocalProjects(projects);
-        return buildProjectsStateSnapshot(state, projects);
-      });
       if (!skipLoading) {
         set({ loading: false });
       }
@@ -1723,13 +1742,14 @@ const useStore = create((set, get) => ({
 
       if (error) throw error;
 
+      // 2. Confirmed Update (Sync with DB Truth)
+      // Once Supabase responds, we update again with the server-side data (e.g. triggers, timestamps)
       const updated = Array.isArray(data) ? data[0] : data;
-
-      const normalized = normalizeProject(updated || project);
+      const verified = normalizeProject(updated || project);
 
       set((state) => {
         const projects = state.projects
-          .map((p) => (p.id === normalized.id ? { ...p, ...normalized } : p))
+          .map((p) => (p.id === verified.id ? { ...p, ...verified } : p))
           .sort((a, b) => {
             const startA = a.startDate ? new Date(a.startDate).getTime() : 0;
             const startB = b.startDate ? new Date(b.startDate).getTime() : 0;
@@ -1741,6 +1761,9 @@ const useStore = create((set, get) => ({
     } catch (error) {
       set({ error: 'Error updating project' });
       console.error('Error updating project:', error);
+      // Note: In a production app, we might want to revert the optimistic update here.
+      // For now, keeping the user's input visible is often better than a silent revert, 
+      // but showing the error is crucial.
     } finally {
       if (!skipLoading) {
         set({ loading: false });

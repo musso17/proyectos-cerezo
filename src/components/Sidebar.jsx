@@ -7,6 +7,7 @@ import {
   Calendar as CalendarIcon,
   FolderOpen,
   Images,
+  Layers,
   RefreshCcw,
 } from 'lucide-react';
 import useStore from '../hooks/useStore';
@@ -28,6 +29,7 @@ const Sidebar = () => {
     { id: 'Table', icon: FolderOpen, label: 'Proyectos' },
     { id: 'Calendar', icon: CalendarIcon, label: 'Calendar' },
     { id: 'Gallery', icon: Images, label: 'Gallery' },
+    { id: 'Edition', icon: Layers, label: 'Edición' },
   ];
 
   const containerClasses = clsx(

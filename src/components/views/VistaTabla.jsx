@@ -8,29 +8,6 @@ import { getClientBadgeClass } from '../../utils/clientStyles';
 import { generarLinkGoogleCalendar } from '../../utils/calendar';
 import { getUIPreference, setUIPreference } from '../../utils/uiPreferences';
 
-const statusStyles = {
-  Programado: {
-    badge: 'border-[#D1D5DB] bg-[#F4F5F7] text-secondary dark:border-white/10 dark:bg-white/5 dark:text-white/80',
-    dot: 'bg-[#9CA3AF] dark:bg-[#A5B4FC]',
-  },
-  'En progreso': {
-    badge: 'border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF] dark:border-[#4C1D95]/50 dark:bg-[#1E1B4B] dark:text-[#C4B5FD]',
-    dot: 'bg-[#6C63FF] dark:bg-[#A78BFA]',
-  },
-  'En edición': {
-    badge: 'border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF] dark:border-[#4C1D95]/50 dark:bg-[#1E1B4B] dark:text-[#C4B5FD]',
-    dot: 'bg-[#6C63FF] dark:bg-[#A78BFA]',
-  },
-  'En revisión': {
-    badge: 'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00] dark:border-[#FCD34D]/40 dark:bg-[#422006] dark:text-[#FCD34D]',
-    dot: 'bg-[#FFB020] dark:bg-[#FBBF24]',
-  },
-  Completado: {
-    badge: 'border-[#C8E6C9] bg-[#F1FAF3] text-[#2F9E44] dark:border-[#34D399]/40 dark:bg-[#052E1D] dark:text-[#6EE7B7]',
-    dot: 'bg-[#4CAF50] dark:bg-[#6EE7B7]',
-  },
-};
-
 const getLabel = (value, fallback) => {
   if (!value) return fallback;
   const trimmed = value.toString().trim();
@@ -61,6 +38,7 @@ const formatDate = (value) => {
   }
 };
 
+
 const TYPE_BADGES = {
   grabacion: {
     label: 'Grabación',
@@ -69,6 +47,10 @@ const TYPE_BADGES = {
   edicion: {
     label: 'Edición',
     className: 'border border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF]',
+  },
+  fotografia: {
+    label: 'Fotografía',
+    className: 'border border-[#99F6E4] bg-[#f0fdfa] text-[#0D9488]', // Teal/Cyan style
   },
 };
 
@@ -84,9 +66,13 @@ const getProjectTypeBadge = (project) => {
   if (normalizedStage && TYPE_BADGES[normalizedStage]) {
     return TYPE_BADGES[normalizedStage];
   }
+  // Handle 'fotografía' with accent
+  if (normalizedStage === 'fotografía') return TYPE_BADGES.fotografia;
+
   if (normalizedType && TYPE_BADGES[normalizedType]) {
     return TYPE_BADGES[normalizedType];
   }
+  if (normalizedType === 'fotografía') return TYPE_BADGES.fotografia;
 
   return {
     label: rawType || rawStage || 'Sin tipo',
@@ -94,49 +80,10 @@ const getProjectTypeBadge = (project) => {
   };
 };
 
+
 const isCompletedProject = (project) => {
   const status = project?.status || '';
   return status.toString().trim().toLowerCase() === 'completado';
-};
-
-const renderStatusBadge = (status) => {
-  const key = status && statusStyles[status] ? status : 'Programado';
-  const { badge, dot } = statusStyles[key] || statusStyles.Programado;
-  const label = status || 'Programado';
-  return (
-    <span
-      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${badge}`}
-    >
-      <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
-      {label}
-    </span>
-  );
-};
-
-const revisionDisplayConfig = {
-  grabacion: {
-    className: 'border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7]',
-    label: 'Grabación',
-  },
-  edicion: {
-    className: 'border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF]',
-    label: 'En edición',
-  },
-  revision: {
-    className: 'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00]',
-    label: 'En revisión',
-  },
-  aprobado: {
-    className: 'border-[#C8E6C9] bg-[#F1FAF3] text-[#2F9E44]',
-    label: 'Aprobado',
-  },
-};
-
-const getDisplayStatus = (project) => {
-  const step = project?.revision?.currentStep || '';
-  if (step === 'enviado' || step === 'esperando_feedback') return 'En revisión';
-  if (step === 'editando' || step === 'corrigiendo') return 'En edición'; // Prefer 'En edición' if editing
-  return project?.status || 'Programado';
 };
 
 const getRecordingDateValue = (project) => {
@@ -154,7 +101,7 @@ const getRecordingDateValue = (project) => {
 
 const isExpiredRecordingProject = (project) => {
   const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
-  if (stage !== 'grabacion') return false;
+  if (stage !== 'grabacion' && stage !== 'fotografia' && stage !== 'fotografía') return false;
   const rawDate = getRecordingDateValue(project);
   if (!rawDate) return false;
   const parsed = new Date(rawDate.length <= 10 ? `${rawDate}T00:00:00` : rawDate);
@@ -163,44 +110,6 @@ const isExpiredRecordingProject = (project) => {
   today.setHours(0, 0, 0, 0);
   parsed.setHours(0, 0, 0, 0);
   return parsed < today;
-};
-
-const renderRevisionBadge = (project) => {
-  const revision = project?.revision;
-  const step = revision?.currentStep;
-  let config = null;
-  if (step) {
-    if (step === 'enviado' || step === 'esperando_feedback') {
-      config = revisionDisplayConfig.revision;
-    } else if (step === 'corrigiendo' || step === 'editando') {
-      config = revisionDisplayConfig.edicion;
-    } else if (step === 'aprobado') {
-      config = revisionDisplayConfig.aprobado;
-    }
-  } else {
-    const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
-    if (stage === 'grabacion') {
-      config = revisionDisplayConfig.grabacion;
-    } else if (stage === 'edicion' || stage === 'postproduccion') {
-      config = revisionDisplayConfig.edicion;
-    }
-  }
-
-  if (!config) return null;
-  const label = config.label || revision?.label || step;
-  const cycleNumber = revision?.currentNumber || 1;
-  return (
-    <span
-      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${config.className}`}
-    >
-      {revision?.totalCycles ? (
-        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-secondary/70">
-          Ciclo {cycleNumber}
-        </span>
-      ) : null}
-      <span>{label}</span>
-    </span>
-  );
 };
 
 const DEFAULT_TABLE_FILTERS = {
@@ -230,12 +139,14 @@ const StatusSelector = ({ project }) => {
 
   // Normalizar el estado actual a una de las opciones disponibles
   const currentStatus = useMemo(() => {
+    const status = (project.status || '').toString().trim();
+    if (status.toLowerCase() === 'completado') return 'Completado';
+
     // Si el proyecto tiene revisión, intentamos inferir el estado
     const step = project?.revision?.currentStep;
     if (step === 'enviado' || step === 'esperando_feedback') return 'En revisión';
 
     // Mapeo directo de estados
-    const status = (project.status || '').toString().trim();
     if (status) return status;
 
     return 'Programado'; // Default
@@ -245,30 +156,30 @@ const StatusSelector = ({ project }) => {
     const newValue = e.target.value;
     if (!newValue || newValue === currentStatus) return;
 
-    // Prevenir cambios múltiples rápidos
     if (loading) return;
     setLoading(true);
 
     try {
-      let updatePayload = {
+      const nextProperties = { ...(project.properties || {}) };
+
+      const updatePayload = {
         ...project,
         id: project.id,
         status: newValue,
+        properties: nextProperties,
       };
 
-      // Si se marca como completado, agregar fecha
       if (newValue === 'Completado') {
         const now = new Date().toISOString();
         updatePayload.completedAt = now;
-        updatePayload.properties = {
-          ...project.properties,
-          completedAt: now,
-          state: 'entregado', // Alineación con lógica existente
-        };
         updatePayload.state = 'entregado';
+
+        nextProperties.completedAt = now;
+        nextProperties.state = 'entregado';
+        nextProperties.status = 'Completado';
       }
 
-      // Hack para dar feedback instantáneo antes de que el store se actualice (optimistic UI implícito en el store)
+      // Hack para dar feedback instantáneo antes de que el store se actualice
       await updateProject(updatePayload, { skipLoading: true });
 
     } catch (error) {
