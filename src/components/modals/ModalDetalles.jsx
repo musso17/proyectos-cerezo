@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Fragment, useState, useEffect, useRef, useMemo } from 'react';
+import React, { Fragment, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { X, Plus, Trash2, Calendar, ChevronDown } from 'lucide-react';
 import useStore from '../../hooks/useStore';
@@ -60,10 +60,13 @@ const ModalDetalles = () => {
   }, [projects]);
 
   const enforceFranciscoClient = isFranciscoUser(currentUser);
-  const availableClientOptions = enforceFranciscoClient ? ['Carbono'] : normalizedClientOptions;
+  const availableClientOptions = useMemo(
+    () => (enforceFranciscoClient ? ['Carbono'] : normalizedClientOptions),
+    [enforceFranciscoClient, normalizedClientOptions]
+  );
   const canAddCustomClient = !enforceFranciscoClient;
 
-  const findMatchingClientOption = (value) => {
+  const findMatchingClientOption = useCallback((value) => {
     if (!value) return null;
     const normalized = value.toString().trim().toLowerCase();
     return (
@@ -71,7 +74,7 @@ const ModalDetalles = () => {
         (option) => option.toString().trim().toLowerCase() === normalized
       ) || null
     );
-  };
+  }, [availableClientOptions]);
 
   useEffect(() => {
     if (selectedProject) {
@@ -186,6 +189,7 @@ const ModalDetalles = () => {
         }
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enforceFranciscoClient, editedProject?.id, editedProject?.client]);
 
   useEffect(() => {
@@ -205,7 +209,9 @@ const ModalDetalles = () => {
         setIsCustomClient(false);
       }
     }
-  }, [editedProject?.client, enforceFranciscoClient, availableClientOptions]);
+    // We intentionally only react to editedProject.client changes, not the entire editedProject object
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editedProject?.client, enforceFranciscoClient, availableClientOptions, findMatchingClientOption]);
 
   useEffect(() => {
     if (!isModalOpen) {
@@ -630,8 +636,8 @@ const ModalDetalles = () => {
                           type="button"
                           onClick={() => handleStageChange(STAGES.GRABACION)}
                           className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${(editedProject.stage || '').toLowerCase() === STAGES.GRABACION
-                              ? 'border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7] shadow-sm'
-                              : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                            ? 'border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7] shadow-sm'
+                            : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
                             }`}
                         >
                           Grabación
@@ -640,8 +646,8 @@ const ModalDetalles = () => {
                           type="button"
                           onClick={() => handleStageChange(STAGES.FOTOGRAFIA)}
                           className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${(editedProject.stage || '').toLowerCase() === STAGES.FOTOGRAFIA
-                              ? 'border-[#99F6E4] bg-[#f0fdfa] text-[#0D9488] shadow-sm'
-                              : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                            ? 'border-[#99F6E4] bg-[#f0fdfa] text-[#0D9488] shadow-sm'
+                            : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
                             }`}
                         >
                           Fotografía
@@ -650,8 +656,8 @@ const ModalDetalles = () => {
                           type="button"
                           onClick={() => handleStageChange(STAGES.EDICION)}
                           className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${(editedProject.stage || '').toLowerCase() === STAGES.EDICION
-                              ? 'border-violet-500 bg-violet-50 text-violet-700 shadow-sm'
-                              : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                            ? 'border-violet-500 bg-violet-50 text-violet-700 shadow-sm'
+                            : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
                             }`}
                         >
                           Edición
@@ -785,8 +791,8 @@ const ModalDetalles = () => {
                             onClick={handleOpenRecordingCalendar}
                             disabled={!editedProject.recordingDate}
                             className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold transition ${editedProject.recordingDate
-                                ? 'border-violet-300 text-violet-700 bg-violet-50 hover:bg-violet-100'
-                                : 'cursor-not-allowed border-gray-300 text-gray-400 bg-gray-100 dark:border-white/10 dark:text-white/30 dark:bg-white/5'
+                              ? 'border-violet-300 text-violet-700 bg-violet-50 hover:bg-violet-100'
+                              : 'cursor-not-allowed border-gray-300 text-gray-400 bg-gray-100 dark:border-white/10 dark:text-white/30 dark:bg-white/5'
                               }`}
                           >
                             <Calendar size={14} />
