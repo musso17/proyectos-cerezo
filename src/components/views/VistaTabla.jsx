@@ -171,12 +171,21 @@ const StatusSelector = ({ project }) => {
 
       if (newValue === 'Completado') {
         const now = new Date().toISOString();
-        updatePayload.completedAt = now;
-        updatePayload.state = 'entregado';
+        const completedState = 'entregado';
 
+        updatePayload.completedAt = now;
+        updatePayload.state = completedState;
+
+        // Ensure consistency in properties
         nextProperties.completedAt = now;
-        nextProperties.state = 'entregado';
+        nextProperties.state = completedState;
         nextProperties.status = 'Completado';
+
+        console.log('[StatusSelector] Setting project as Completed/Entregado', { id: project.id, state: completedState });
+      } else {
+        // If moving OUT of completed, we should probably reset state?
+        // For now, let's at least enforce the new status clearly
+        nextProperties.status = newValue;
       }
 
       // Hack para dar feedback instantáneo antes de que el store se actualice

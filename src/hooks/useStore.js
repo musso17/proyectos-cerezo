@@ -1734,6 +1734,14 @@ const useStore = create((set, get) => ({
 
     try {
       const payload = prepareProjectForSupabase(project);
+
+      console.log('[updateProject] Sending payload to Supabase:', {
+        id: project.id,
+        status: payload.status,
+        state: payload.state,
+        propsState: payload.properties?.state
+      });
+
       const { data, error } = await supabaseClient
         .from('projects')
         .update(payload)
