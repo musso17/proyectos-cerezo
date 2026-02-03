@@ -553,6 +553,7 @@ const prepareProjectForSupabase = (project) => {
   delete baseProject.linkedRecordingId;
   delete baseProject.currentCycle;
   delete baseProject.revision; // Eliminar el campo virtual de revisión
+  delete baseProject.completedAt; // Eliminar campo que no existe en DB
 
   return baseProject;
 };
@@ -1734,13 +1735,6 @@ const useStore = create((set, get) => ({
 
     try {
       const payload = prepareProjectForSupabase(project);
-
-      console.log('[updateProject] Sending payload to Supabase:', {
-        id: project.id,
-        status: payload.status,
-        state: payload.state,
-        propsState: payload.properties?.state
-      });
 
       const { data, error } = await supabaseClient
         .from('projects')

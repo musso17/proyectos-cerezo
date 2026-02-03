@@ -173,15 +173,14 @@ const StatusSelector = ({ project }) => {
         const now = new Date().toISOString();
         const completedState = 'entregado';
 
-        updatePayload.completedAt = now;
+        // NOTE: We do NOT set completedAt on the root object because the column does not exist in Supabase.
+        // It is sufficient to store it in the properties JSONB column.
         updatePayload.state = completedState;
 
         // Ensure consistency in properties
         nextProperties.completedAt = now;
         nextProperties.state = completedState;
         nextProperties.status = 'Completado';
-
-        console.log('[StatusSelector] Setting project as Completed/Entregado', { id: project.id, state: completedState });
       } else {
         // If moving OUT of completed, we should probably reset state?
         // For now, let's at least enforce the new status clearly
