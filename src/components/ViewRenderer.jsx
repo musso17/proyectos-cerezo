@@ -19,7 +19,7 @@ const isCeo = (user) => {
 
 const isAgent = (user) => {
   const email = user?.email?.toLowerCase() || '';
-  return email === 'mauriciomu22ts@gmail.com' || email === 'edsonlom321@gmail.com';
+  return email === 'mauriciomu22ts@gmail.com' || email === 'edsonlom321@gmail.com' || email === 'luis.matallana.30@gmail.com';
 };
 
 const isFrancisco = (user) => {

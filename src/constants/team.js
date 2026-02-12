@@ -1,4 +1,4 @@
-export const TEAM_MEMBERS = ['Marcelo', 'Mauricio', 'Edson'];
+export const TEAM_MEMBERS = ['Marcelo', 'Mauricio', 'Edson', 'Luis'];
 
 export const TEAM_STYLES = {
   Marcelo: {
@@ -18,6 +18,12 @@ export const TEAM_STYLES = {
     border: 'border-amber-300/70',
     text: 'text-amber-950',
     pill: 'bg-amber-500/20 text-amber-200 border-amber-400/40',
+  },
+  Luis: {
+    bg: 'bg-violet-500/80',
+    border: 'border-violet-300/70',
+    text: 'text-violet-950',
+    pill: 'bg-violet-500/20 text-violet-200 border-violet-400/40',
   },
   default: {
     bg: 'bg-slate-500/80',

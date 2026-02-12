@@ -7,6 +7,7 @@ const MEMBER_EMAILS = {
   'mauricio muñoz torres': 'Mauriciomu22ts@gmail.com',
   'edson': 'edsonlom321@gmail.com',
   'edson lopez': 'edsonlom321@gmail.com',
+  'luis': 'luis.matallana.30@gmail.com',
   'marcelo': 'hola@cerezoperu.com',
   'marcelo musso': 'hola@cerezoperu.com',
 };
