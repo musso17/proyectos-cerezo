@@ -33,13 +33,29 @@ export const TEAM_STYLES = {
   },
 };
 
+const matchTeamMember = (raw) => {
+  if (!raw) return null;
+  const trimmed = raw.toString().trim();
+  if (!trimmed) return null;
+  const lower = trimmed.toLowerCase();
+  // Exact match
+  const exact = TEAM_MEMBERS.find((m) => m.toLowerCase() === lower);
+  if (exact) return exact;
+  // First-name match (e.g. "Luis Matallana" → "Luis")
+  const firstName = lower.split(/\s+/)[0];
+  if (firstName) {
+    const partial = TEAM_MEMBERS.find((m) => m.toLowerCase() === firstName);
+    if (partial) return partial;
+  }
+  return trimmed;
+};
+
 export const ensureMemberName = (name) => {
   if (Array.isArray(name)) {
-    const [first] = name.map((member) => (member ? member.toString().trim() : '')).filter(Boolean);
+    const [first] = name
+      .map((member) => matchTeamMember(member))
+      .filter(Boolean);
     return first || 'Sin asignar';
   }
-  if (name && name.toString().trim().length > 0) {
-    return name.toString().trim();
-  }
-  return 'Sin asignar';
+  return matchTeamMember(name) || 'Sin asignar';
 };

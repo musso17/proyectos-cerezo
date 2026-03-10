@@ -51,7 +51,7 @@ const getStoredTimelineViewMode = () => {
   return normalized === 'month' ? 'month' : 'week';
 };
 
-const VistaTimeline = ({ isaOverrides = {} }) => {
+const VistaTimeline = ({ isaOverrides = {}, showIsaEvents = true }) => {
   const projects = useStore((state) => state.projects);
   const searchTerm = useStore((state) => state.searchTerm);
   const openModal = useStore((state) => state.openModal);
@@ -82,7 +82,7 @@ const VistaTimeline = ({ isaOverrides = {} }) => {
 
   const displayedProjects = useMemo(() => {
     if (isFranciscoUser(currentUser)) {
-      return projects.filter(p => 
+      return projects.filter(p =>
         (p.client?.toLowerCase() === 'carbono' || p.cliente?.toLowerCase() === 'carbono' || p.properties?.tag === 'carbono')
       );
     }
@@ -116,7 +116,7 @@ const VistaTimeline = ({ isaOverrides = {} }) => {
       })
       .filter(Boolean);
 
-    if (!isaStats?.totalEstimatedDays) {
+    if (!showIsaEvents || !isaStats?.totalEstimatedDays) {
       return baseAssignments;
     }
 
@@ -140,7 +140,7 @@ const VistaTimeline = ({ isaOverrides = {} }) => {
     });
 
     return [...baseAssignments, ...isaAssignments];
-  }, [filteredProjects, isaStats, isaOverrides]);
+  }, [filteredProjects, isaStats, isaOverrides, showIsaEvents]);
 
   const memberOrder = useMemo(() => {
     const predefined = teamMembers || [];
@@ -245,22 +245,20 @@ const VistaTimeline = ({ isaOverrides = {} }) => {
             <button
               type="button"
               onClick={() => setViewMode('week')}
-              className={`rounded-full border px-3 py-1 text-sm transition ${
-                viewMode === 'week'
+              className={`rounded-full border px-3 py-1 text-sm transition ${viewMode === 'week'
                   ? 'border-accent bg-accent/20 text-primary'
                   : 'border-border bg-[#F7F8FA] text-secondary hover:border-accent/40 hover:text-primary'
-              }`}
+                }`}
             >
               Semana
             </button>
             <button
               type="button"
               onClick={() => setViewMode('month')}
-              className={`rounded-full border px-3 py-1 text-sm transition ${
-                viewMode === 'month'
+              className={`rounded-full border px-3 py-1 text-sm transition ${viewMode === 'month'
                   ? 'border-accent bg-accent/20 text-primary'
                   : 'border-border bg-[#F7F8FA] text-secondary hover:border-accent/40 hover:text-primary'
-              }`}
+                }`}
             >
               Mes
             </button>

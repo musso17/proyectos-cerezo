@@ -122,6 +122,7 @@ const VistaCalendario = ({ projects: projectsProp }) => {
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [primaryView, setPrimaryView] = useState(() => getStoredCalendarPrimaryView());
   const [selectedMember, setSelectedMember] = useState(() => getStoredCalendarMember());
+  const [showIsaEvents, setShowIsaEvents] = useState(() => getUIPreference('calendarShowIsaEvents', true));
   const [selectedDayKey, setSelectedDayKey] = useState(null);
 
   // Removed local isaOverrides logic as we now sync to Supabase project properties
@@ -136,6 +137,10 @@ const VistaCalendario = ({ projects: projectsProp }) => {
   useEffect(() => {
     setUIPreference('calendarSelectedMember', selectedMember);
   }, [selectedMember]);
+
+  useEffect(() => {
+    setUIPreference('calendarShowIsaEvents', showIsaEvents);
+  }, [showIsaEvents]);
 
 
   // Removed local isaOverrides logic as we now sync to Supabase project properties
@@ -248,11 +253,20 @@ const VistaCalendario = ({ projects: projectsProp }) => {
   const visibleProjects = useMemo(
     () =>
       filterProjects(activeProjects, searchTerm)
-        .map((project) => ({
-          project,
-          memberName: ensureMemberName(project.manager),
-        }))
-        .filter((item) => (selectedMember === 'Todos' ? true : item.memberName === selectedMember)),
+        .map((project) => {
+          const allManagers = (project.managers || [])
+            .map((m) => ensureMemberName(m))
+            .filter(Boolean);
+          if (allManagers.length === 0) {
+            allManagers.push(ensureMemberName(project.manager));
+          }
+          return { project, memberName: allManagers[0], allManagers };
+        })
+        .filter((item) =>
+          selectedMember === 'Todos'
+            ? true
+            : item.allManagers.includes(selectedMember)
+        ),
     [activeProjects, searchTerm, selectedMember]
   );
 
@@ -274,7 +288,7 @@ const VistaCalendario = ({ projects: projectsProp }) => {
   const isaStats = useMemo(() => computeIsaAverages(revisionCycles), [revisionCycles]);
 
   const isaEstimatedItems = useMemo(() => {
-    if (!isaStats?.totalEstimatedDays) return [];
+    if (!showIsaEvents || !isaStats?.totalEstimatedDays) return [];
     return visibleProjects.flatMap(({ project, memberName }) => {
       if (!isIsaEligibleProject(project)) return [];
       const projectKey = getIsaProjectKey(project);
@@ -297,7 +311,7 @@ const VistaCalendario = ({ projects: projectsProp }) => {
         projectKey,
       }));
     });
-  }, [visibleProjects, isaStats]);
+  }, [visibleProjects, isaStats, showIsaEvents]);
   const scheduledItems = useMemo(
     () => [...recordingItems, ...isaEstimatedItems],
     [recordingItems, isaEstimatedItems]
@@ -470,6 +484,18 @@ const VistaCalendario = ({ projects: projectsProp }) => {
               }`}
           >
             Timeline
+          </button>
+        </div>
+        <div className="flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-[#F7F8FA] p-1 dark:border-[#2B2D31] dark:bg-[#1B1C20]">
+          <button
+            type="button"
+            onClick={() => setShowIsaEvents(!showIsaEvents)}
+            className={`rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition-all duration-300 ${showIsaEvents
+              ? 'bg-indigo-500/20 text-indigo-600 shadow-[inset_0_1px_0_rgba(79,70,229,0.35)] dark:bg-indigo-500/15 dark:text-indigo-300'
+              : 'text-secondary grayscale hover:grayscale-0 dark:text-white/60'
+              }`}
+          >
+            ISA {showIsaEvents ? 'Activo' : 'Oculto'}
           </button>
         </div>
       </div>
