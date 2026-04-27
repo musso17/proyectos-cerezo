@@ -828,45 +828,7 @@ const useStore = create((set, get) => ({
       return { theme: nextTheme };
     }),
 
-  // Retainers (clientes fijos) helpers
-  // ACCIÓN ORQUESTADORA PARA VISTA FINANZAS
-  fetchFinancialData: async () => {
-    // Esta función es la ÚNICA responsable de su ciclo de carga.
-    const { _fetchProjects, _fetchRetainers } = get();
-    set({ loading: true, error: null });
-    try {
-      // Ejecutar ambas cargas en paralelo para mayor eficiencia
-      await Promise.all([_fetchProjects(), _fetchRetainers()]);
-    } catch (error) {
-      console.error("Error al cargar datos financieros:", error);
-      set({ error: "No se pudieron cargar los datos financieros.", loading: false });
-    } finally {
-      // Se asegura de que loading sea false solo cuando AMBAS promesas terminan.
-      set({ loading: false });
-    }
-  },
 
-  // FUNCIÓN INTERNA: Solo obtiene datos, no gestiona 'loading'.
-  _fetchRetainers: async () => {
-    if (!supabaseClient) {
-      const local = readLocalRetainers();
-      set({ retainers: local });
-      return local;
-    }
-    try {
-      const { data, error } = await supabaseClient.from('retainers').select('*');
-      if (error) throw error;
-      const retainers = Array.isArray(data) ? data : [];
-      persistLocalRetainers(retainers);
-      set({ retainers });
-      return retainers;
-    } catch (err) {
-      console.error('Error fetching retainers:', err);
-      const local = readLocalRetainers(); // Fallback a local
-      set({ retainers: local });
-      return local;
-    }
-  },
 
   // DEPRECATED: Se mantiene por si alguna parte del código aún la usa, pero ahora llama a la interna.
   fetchRetainers: async () => {
@@ -1818,7 +1780,7 @@ const useStore = create((set, get) => ({
       if (isFranciscoUser(user)) {
         allowedViews = ['Dashboard', 'Table', 'Calendar', 'Timeline', 'Gallery'];
       } else if (isCeoUser(user)) {
-        allowedViews = ['Dashboard', ...DEFAULT_ALLOWED_VIEWS, 'Finanzas'];
+        allowedViews = ['Dashboard', ...DEFAULT_ALLOWED_VIEWS];
       } else {
         allowedViews = ['Dashboard', ...DEFAULT_ALLOWED_VIEWS.filter(v => v !== 'Dashboard')];
       }

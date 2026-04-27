@@ -56,14 +56,11 @@ const GalleryCard = ({ project }) => {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    // Sincroniza el estado si el proyecto cambia desde fuera
-    const newInitialLink = project.properties?.deliverableLink || project.deliverableLink || '';
-    setLink(newInitialLink);
-    // Si no estamos editando, o si el link se borra, ajustamos el modo de edición
-    if (!isEditing || !newInitialLink) {
-      setIsEditing(!newInitialLink);
-    }
-  }, [project, isEditing]);
+    // Sincroniza el estado local solo cuando el valor inicial del proyecto cambie realmente
+    setLink(initialLink);
+    // Si no hay link, entramos en modo edición por defecto
+    setIsEditing(!initialLink);
+  }, [initialLink]);
 
   const handleSave = async () => {
     if (isSaving) return;

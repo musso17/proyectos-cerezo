@@ -12,6 +12,7 @@ import AuthGate from '../components/AuthGate';
 
 const HomeContent = ({ session }) => {
   const fetchProjects = useStore((state) => state.fetchProjects);
+  const checkAndAdvanceProjectStates = useStore((state) => state.checkAndAdvanceProjectStates);
   const loading = useStore((state) => state.loading);
   const setCurrentUser = useStore((state) => state.setCurrentUser);
 
@@ -21,9 +22,13 @@ const HomeContent = ({ session }) => {
 
   useEffect(() => {
     if (session) {
-      fetchProjects();
+      const initializeData = async () => {
+        await fetchProjects();
+        await checkAndAdvanceProjectStates();
+      };
+      initializeData();
     }
-  }, [session, fetchProjects]);
+  }, [session, fetchProjects, checkAndAdvanceProjectStates]);
 
   return (
     <main className="relative flex min-h-screen flex-1 flex-col gap-4 px-3 pb-20 pt-4 sm:px-4 md:px-6 lg:flex-row lg:gap-6 lg:pb-12 lg:pt-6">

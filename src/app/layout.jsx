@@ -12,20 +12,10 @@ const inter = Inter({
 // Metadata is now exported from page.jsx or specific layouts, not here in a client component.
 
 export default function RootLayout({ children }) {
-  const fetchProjects = useStore((state) => state.fetchProjects);
-  const checkAndAdvanceProjectStates = useStore((state) => state.checkAndAdvanceProjectStates);
   const initializeTheme = useStore((state) => state.initializeTheme);
   const theme = useStore((state) => state.theme);
 
-  useEffect(() => {
-    const initializeApp = async () => {
-      await fetchProjects();
-      // Now that projects are fetched, run the state check
-      await checkAndAdvanceProjectStates();
-    };
 
-    initializeApp();
-  }, [fetchProjects, checkAndAdvanceProjectStates]);
 
   useEffect(() => {
     initializeTheme();
