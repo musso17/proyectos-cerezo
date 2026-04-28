@@ -4,15 +4,16 @@
 
 :root {
   color-scheme: light;
-  --color-background: #f7f8fa;
-  --color-surface: #ffffff;
-  --color-text-primary: #1f2937;
-  --color-text-secondary: #6b7280;
-  --color-border: #e5e7eb;
-  --color-card-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
-  --color-card-strong-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-  --color-scroll-thumb: rgba(203, 213, 225, 0.6);
-  --color-surface-elevated: #ffffff;
+  --color-background: #ECF0EB;
+  --color-surface: #FFFFFF;
+  --color-text-primary: #000000;
+  --color-text-secondary: #5F6468;
+  --color-border: #D1D5DB;
+  --color-card-shadow: 0 12px 24px rgba(0, 0, 0, 0.05);
+  --color-card-strong-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+  --color-scroll-thumb: rgba(95, 100, 104, 0.4);
+  --color-surface-elevated: #FFFFFF;
+  --color-accent: #FF4B2A;
 }
 
 :root {
@@ -22,17 +23,17 @@
 
 [data-theme='dark'] {
   color-scheme: dark;
-  --color-background: #05060a;
-  --color-surface: #12131b;
-  --color-text-primary: rgba(255, 255, 255, 0.92);
-  --color-text-secondary: rgba(255, 255, 255, 0.58);
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-card-shadow: 0 30px 60px rgba(2, 6, 23, 0.55);
-  --color-card-strong-shadow: 0 36px 72px rgba(2, 6, 23, 0.65);
-  --color-scroll-thumb: rgba(148, 163, 184, 0.25);
-  --color-surface-elevated: #181926;
-  --color-glow-1: rgba(110, 98, 255, 0.45);
-  --color-glow-2: rgba(56, 189, 248, 0.35);
+  --color-background: #000000;
+  --color-surface: #0F0F0F;
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #5F6468;
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-card-shadow: 0 40px 80px rgba(0, 0, 0, 0.9);
+  --color-card-strong-shadow: 0 48px 96px rgba(0, 0, 0, 1);
+  --color-scroll-thumb: rgba(255, 75, 42, 0.2);
+  --color-surface-elevated: #141414;
+  --color-accent: #FF4B2A;
+  --color-accent-purple: #7C3AED;
 }
 
 body {
@@ -40,11 +41,11 @@ body {
   color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.4s ease;
 }
 
 .dark body {
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .dark body::before {
@@ -52,32 +53,29 @@ body {
   position: fixed;
   inset: 0;
   z-index: -2;
-  background: radial-gradient(circle at 15% 20%, rgba(99, 102, 241, 0.18), transparent 45%),
-    radial-gradient(circle at 80% 0%, rgba(59, 130, 246, 0.18), transparent 45%),
-    radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.16), transparent 50%),
-    linear-gradient(180deg, #05060a 0%, #05060a 55%, #080913 100%);
-  filter: blur(0px);
-  opacity: 0.95;
+  background: radial-gradient(circle at 100% 50%, rgba(255, 75, 42, 0.2), transparent 40%),
+    radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.03), transparent 30%),
+    #000000;
   pointer-events: none;
 }
 
-.ios-transition {
-  transition-timing-function: var(--ease-ios-out);
+.brand-gradient {
+  background: linear-gradient(135deg, #FF4B2A 0%, #000000 100%);
 }
 
 .glass-panel {
-  @apply rounded-2xl border border-border;
-  background-color: var(--color-surface);
-  border-color: var(--color-border);
-  box-shadow: var(--color-card-shadow);
+  @apply rounded-[3rem] border border-border/60;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.04);
+  transition: all 0.4s var(--ease-ios-out);
 }
 
 .dark .glass-panel {
   position: relative;
-  background: linear-gradient(135deg, rgba(23, 24, 34, 0.92), rgba(12, 13, 22, 0.95));
-  border-color: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(18px) saturate(150%);
-  box-shadow: 0 38px 64px rgba(2, 6, 23, 0.65);
+  background: rgba(15, 15, 15, 0.6);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 40px 80px rgba(0, 0, 0, 0.4);
 }
 
 .dark .glass-panel::after {
@@ -85,26 +83,26 @@ body {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.03);
   pointer-events: none;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .elevated-panel {
+  @apply rounded-[2.5rem];
   background-color: var(--color-surface-elevated);
   border: 1px solid var(--color-border);
   box-shadow: var(--color-card-shadow);
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  transition: all 0.3s var(--ease-ios-out);
 }
 
 .elevated-panel:hover {
+  transform: translateY(-4px);
   box-shadow: var(--color-card-strong-shadow);
 }
 
 .dark .elevated-panel {
-  background: linear-gradient(160deg, rgba(18, 20, 34, 0.95), rgba(12, 14, 24, 0.92));
+  background: #1C1D24;
   border-color: rgba(255, 255, 255, 0.04);
-  box-shadow: 0 32px 64px rgba(2, 6, 23, 0.6);
 }
 
 .dark .elevated-panel:hover {
@@ -153,16 +151,16 @@ body {
 }
 
 .ios-card {
-  @apply rounded-2xl border border-border transition-transform duration-300 ease-[var(--ease-ios-out)] hover:-translate-y-1;
-  background-color: var(--color-surface);
-  border-color: var(--color-border);
-  box-shadow: var(--color-card-strong-shadow);
+  @apply rounded-[2.5rem] border border-border/40 transition-all duration-300 ease-[var(--ease-ios-out)] hover:-translate-y-1;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04);
 }
 
 .dark .ios-card {
-  background-color: #1e1f23;
-  border-color: #2b2d31;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+  background: rgba(30, 31, 35, 0.5);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.3);
 }
 
 .text-secondary {
@@ -341,16 +339,27 @@ body {
   color: #fca5a5 !important;
 }
 
-.dark .bg-[#6C63FF] {
-  background-color: rgba(103, 95, 255, 0.85) !important;
+.dark .bg-[#6C63FF],
+.dark .bg-indigo-600,
+.dark .bg-violet-600 {
+  background-color: #FF4B2A !important;
+  color: #FFFFFF !important;
+}
+
+.dark .text-[#6C63FF],
+.dark .text-indigo-600,
+.dark .text-violet-600 {
+  color: #FF4B2A !important;
 }
 
 .dark .bg-[#FFB020] {
-  background-color: rgba(250, 204, 21, 0.8) !important;
+  background-color: #FF4B2A !important;
+  color: #FFFFFF !important;
 }
 
 .dark .bg-[#4CAF50] {
-  background-color: rgba(52, 211, 153, 0.75) !important;
+  background-color: #FF4B2A !important;
+  color: #FFFFFF !important;
 }
 
 .dark .bg-[#C7DAFF],

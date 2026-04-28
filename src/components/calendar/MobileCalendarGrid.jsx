@@ -24,7 +24,7 @@ const MobileCalendarGrid = ({
       {/* Header de días de la semana */}
       <div className="grid grid-cols-7 mb-2">
         {WEEKDAYS.map((day, i) => (
-          <div key={i} className="text-center text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">
+          <div key={i} className="text-center text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase">
             {day}
           </div>
         ))}
@@ -48,9 +48,9 @@ const MobileCalendarGrid = ({
               <div
                 className={`
                   flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-all
-                  ${isToday && !isSelected ? 'bg-red-500 text-white font-bold' : ''}
+                  ${isToday && !isSelected ? 'bg-red-500 text-white font-medium' : ''}
                   ${isSelected && !isToday ? 'bg-gray-200 text-black dark:bg-gray-700 dark:text-white' : ''}
-                  ${isSelected && isToday ? 'bg-red-500 text-white font-bold' : ''}
+                  ${isSelected && isToday ? 'bg-red-500 text-white font-medium' : ''}
                   ${!isSelected && !isToday && isCurrentMonth ? 'text-gray-900 dark:text-gray-100' : ''}
                   ${!isSelected && !isToday && !isCurrentMonth ? 'text-gray-300 dark:text-gray-600' : ''}
                 `}

@@ -7,47 +7,31 @@ import {
     Calendar as CalendarIcon,
     CheckCircle2,
     Clock,
-    Filter,
     MoreHorizontal,
     Search,
-    AlertCircle
+    AlertCircle,
+    ChevronDown
 } from 'lucide-react';
 import { format, isPast, isToday, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import useStore from '../../hooks/useStore';
 import { ensureMemberName } from '../../constants/team';
-import { getClientBadgeClass } from '../../utils/clientStyles';
-import {
-    computeIsaAverages,
-    buildIsaMilestones,
-    getIsaProjectKey,
-    applyIsaOverridesToMilestones,
-    getProjectRecordingDate,
-} from '../../utils/isaEstimates';
 
 // -- Constants & Helpers --
 
-const STATUS_COLORS = {
-    'Programado': 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
-    'En progreso': 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800',
-    'En edición': 'bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800',
-    'En revisión': 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
-    'Completado': 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800',
-};
-
-const PRIORITY_LABELS = {
-    high: { label: 'Alta', color: 'text-red-500 bg-red-50 border-red-200' },
-    medium: { label: 'Media', color: 'text-amber-500 bg-amber-50 border-amber-200' },
-    normal: { label: 'Normal', color: 'text-slate-500 bg-slate-50 border-slate-200' },
+const STATUS_DOT_COLORS = {
+    'Programado': 'bg-slate-300',
+    'En progreso': 'bg-[#FF4B2A]',
+    'En edición': 'bg-[#FF4B2A] shadow-[0_0_8px_rgba(255,75,42,0.4)]',
+    'En revisión': 'bg-[#5F6468]',
+    'Completado': 'bg-black dark:bg-white',
 };
 
 // -- Components --
 
-const TaskCard = ({ task, onStatusChange, onComplete, index }) => {
-    const isIsa = task.isIsa;
+const TaskCard = ({ task, onComplete, index }) => {
     const isOverdue = task.deadline && isPast(parseISO(task.deadline)) && !isToday(parseISO(task.deadline));
-
-    const statusColor = STATUS_COLORS[task.status] || STATUS_COLORS['Programado'];
+    const openModal = useStore(state => state.openModal);
 
     return (
         <Draggable draggableId={task.id} index={index}>
@@ -56,41 +40,40 @@ const TaskCard = ({ task, onStatusChange, onComplete, index }) => {
                     ref={provided.innerRef}
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
-                    style={{ ...provided.draggableProps.style }}
-                    className={`group relative flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm transition-all dark:bg-[#1E1F23] ${snapshot.isDragging
-                        ? 'border-indigo-400 shadow-xl rotate-2 scale-105 z-50'
-                        : 'border-slate-200 hover:shadow-md dark:border-slate-800'
-                        }`}
+                    onClick={() => openModal(task.originalProject)}
+                    className={`group relative flex overflow-hidden rounded-[1.5rem] bg-white transition-all dark:bg-[#1E1F23] ${
+                        snapshot.isDragging
+                        ? 'shadow-2xl ring-2 ring-accent/20 z-50 scale-[1.02]'
+                        : 'shadow-[0_8px_20px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.08)] hover:-translate-y-1'
+                    }`}
                 >
-                    <div className="flex items-start justify-between gap-2">
-                        <div className="flex flex-col gap-1">
-                            <span className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${getClientBadgeClass(task.client)}`}>
-                                {task.client || 'Sin cliente'}
-                            </span>
-                            <h4 className="font-semibold text-slate-900 dark:text-slate-100 line-clamp-2">
-                                {task.title}
-                            </h4>
+                    {/* Vertical Client Color Line */}
+                    <div className="w-1.5 shrink-0 bg-accent/20 group-hover:bg-accent transition-colors" />
+
+                    <div className="flex flex-1 flex-col p-5 gap-4">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex flex-col gap-1.5">
+                                <span className="text-[9px] font-medium uppercase tracking-[0.25em] text-secondary/40">
+                                    {task.client || 'Sin cliente'}
+                                </span>
+                                <h4 className="text-[14px] font-semibold tracking-tight text-primary dark:text-white leading-tight">
+                                    {task.title}
+                                </h4>
+                            </div>
                         </div>
-                        {isIsa && (
-                            <span className="shrink-0 rounded-md bg-purple-100 px-1.5 py-0.5 text-[10px] font-bold text-purple-600 dark:bg-purple-900/30 dark:text-purple-300">
-                                ISA
-                            </span>
-                        )}
-                    </div>
 
-                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                        <span className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 ${statusColor}`}>
-                            <span className="size-1.5 rounded-full bg-current" />
-                            {task.status}
-                        </span>
-                    </div>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <div className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT_COLORS[task.status] || 'bg-slate-300'}`} />
+                                <span className="text-[10px] font-medium text-secondary/60 dark:text-white/40">
+                                    {task.status}
+                                </span>
+                            </div>
 
-                    <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-xs dark:border-slate-800">
-                        <div className={`flex items-center gap-1.5 ${isOverdue ? 'text-red-500 font-medium' : 'text-slate-500'}`}>
-                            {isOverdue ? <AlertCircle size={14} /> : <CalendarIcon size={14} />}
-                            <span>
-                                {task.deadline ? format(parseISO(task.deadline), "d MMM", { locale: es }) : 'Sin fecha'}
-                            </span>
+                            <div className={`flex items-center gap-1.5 text-[10px] font-medium ${isOverdue ? 'text-red-500' : 'text-secondary/40'}`}>
+                                {isOverdue ? <AlertCircle size={12} /> : <Clock size={12} />}
+                                <span>{task.deadline ? format(parseISO(task.deadline), "d MMM", { locale: es }) : 'S/F'}</span>
+                            </div>
                         </div>
 
                         {!task.completed && (
@@ -99,39 +82,40 @@ const TaskCard = ({ task, onStatusChange, onComplete, index }) => {
                                     e.stopPropagation();
                                     onComplete && onComplete(task);
                                 }}
-                                className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-1 text-emerald-600 opacity-0 transition-opacity hover:bg-emerald-100 group-hover:opacity-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/40"
+                                className="mt-1 flex items-center justify-center gap-2 rounded-xl bg-slate-50 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-secondary/60 opacity-0 transition-all hover:bg-dark-bg hover:text-white group-hover:opacity-100 dark:bg-white/5 dark:text-white/40 dark:hover:bg-accent dark:hover:text-dark-bg"
                             >
                                 <CheckCircle2 size={12} />
-                                <span className="font-medium">Completar</span>
+                                <span>Marcar Completado</span>
                             </button>
                         )}
                     </div>
-
-                    {/* Visual indicator for ISA phase if applicable */}
-                    {isIsa && task.isaMilestoneLabel && (
-                        <div className="mt-1 text-[10px] text-slate-400">
-                            {task.isaMilestoneLabel}
-                        </div>
-                    )}
                 </div>
             )}
         </Draggable>
     );
 };
 
-const EditorColumn = ({ member, tasks, onStatusChange, onComplete }) => {
+const EditorColumn = ({ member, tasks, onComplete }) => {
+    const initials = member.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    const formattedName = member.charAt(0).toUpperCase() + member.slice(1).toLowerCase();
+
     return (
-        <div className="flex min-w-[320px] flex-col gap-4 rounded-2xl bg-slate-50/50 p-4 border border-slate-100 dark:bg-[#0F0F11] dark:border-slate-800 h-full">
-            <div className="flex items-center justify-between px-1">
-                <div className="flex items-center gap-2">
-                    <div className="flex size-8 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300">
-                        {member.charAt(0)}
+        <div className="flex min-w-[340px] flex-col gap-6 rounded-[2.5rem] bg-slate-100/30 p-6 dark:bg-white/[0.02] h-full">
+            <div className="flex items-center justify-between px-2">
+                <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[11px] font-bold text-primary shadow-sm dark:bg-white/10 dark:text-white">
+                        {initials}
                     </div>
-                    <h3 className="font-semibold text-slate-900 dark:text-white">{member}</h3>
+                    <div className="flex flex-col">
+                        <h3 className="text-sm font-semibold text-primary dark:text-white leading-none">{formattedName}</h3>
+                        <span className="mt-1 text-[10px] font-medium text-secondary/40 uppercase tracking-widest">
+                            {tasks.length} {tasks.length === 1 ? 'Tarea' : 'Tareas'}
+                        </span>
+                    </div>
                 </div>
-                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-                    {tasks.length}
-                </span>
+                <button className="flex h-8 w-8 items-center justify-center rounded-full text-secondary/30 transition-colors hover:bg-white hover:text-primary dark:hover:bg-white/5">
+                    <MoreHorizontal size={16} />
+                </button>
             </div>
 
             <Droppable droppableId={member}>
@@ -139,24 +123,23 @@ const EditorColumn = ({ member, tasks, onStatusChange, onComplete }) => {
                     <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`flex flex-col gap-3 h-full overflow-y-auto pr-1 pb-4 soft-scroll min-h-[150px] transition-colors rounded-xl ${snapshot.isDraggingOver ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''
-                            }`}
+                        className={`flex flex-col gap-4 h-full overflow-y-auto pr-1 pb-4 soft-scroll min-h-[200px] transition-all rounded-[2rem] ${
+                            snapshot.isDraggingOver ? 'bg-white/60 dark:bg-white/[0.05] ring-2 ring-accent/10' : ''
+                        }`}
                     >
-                        {tasks.length === 0 && !snapshot.isDraggingOver ? (
-                            <div className="flex h-32 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 text-slate-400 dark:border-slate-800 dark:text-slate-600">
-                                <span className="text-xs">Arrastra aquí para asignar</span>
+                        {tasks.length === 0 && !snapshot.isDraggingOver && (
+                            <div className="flex grow flex-col items-center justify-center rounded-[2rem] bg-slate-50/50 dark:bg-white/[0.01]">
+                                <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-secondary/20">Disponible</p>
                             </div>
-                        ) : (
-                            tasks.map((task, index) => (
-                                <TaskCard
-                                    key={task.id}
-                                    task={task}
-                                    index={index}
-                                    onStatusChange={onStatusChange}
-                                    onComplete={onComplete}
-                                />
-                            ))
                         )}
+                        {tasks.map((task, index) => (
+                            <TaskCard
+                                key={task.id}
+                                task={task}
+                                index={index}
+                                onComplete={onComplete}
+                            />
+                        ))}
                         {provided.placeholder}
                     </div>
                 )}
@@ -166,19 +149,15 @@ const EditorColumn = ({ member, tasks, onStatusChange, onComplete }) => {
 };
 
 const VistaEdicion = () => {
-    const { projects, revisionCycles, teamMembers, updateProject, openModal } = useStore(
+    const { projects, teamMembers, updateProject } = useStore(
         useShallow((state) => ({
             projects: state.projects,
-            revisionCycles: state.revisionCycles,
             teamMembers: state.teamMembers,
             updateProject: state.updateProject,
-            openModal: state.openModal,
         }))
     );
 
     const [searchTerm, setSearchTerm] = useState('');
-
-    const isaStats = useMemo(() => computeIsaAverages(revisionCycles), [revisionCycles]);
 
     // Build tasks and sort by priority
     const allTasks = useMemo(() => {
@@ -204,50 +183,6 @@ const VistaEdicion = () => {
             completed: false
         }));
 
-        // 2. ISA Estimates (Inferred)
-        projects.forEach(p => {
-            if ((p.status || '').toLowerCase() === 'completado') return;
-
-            const recordingDate = getProjectRecordingDate(p);
-            if (!recordingDate) return;
-
-            const projectKey = getIsaProjectKey(p);
-            if (!projectKey) return;
-
-            const milestones = applyIsaOverridesToMilestones(
-                p,
-                buildIsaMilestones(p, isaStats)
-            );
-
-            const today = new Date();
-            const start = milestones[0]?.date;
-            const end = milestones[milestones.length - 1]?.date;
-
-            if (start && end && today >= recordingDate) {
-                let activeMilestone = milestones.find(m => isToday(m.date) || m.date > today) || milestones[milestones.length - 1];
-
-                const alreadyHasExplicit = tasks.some(t => t.originalProject.id === p.id);
-                if (alreadyHasExplicit) return;
-
-                let status = 'En edición';
-                if (activeMilestone.key === 'isa_review') status = 'En revisión';
-
-                tasks.push({
-                    id: `isa-${p.id}`,
-                    title: p.name,
-                    client: p.client,
-                    manager: ensureMemberName(p.manager),
-                    status: status,
-                    deadline: activeMilestone.date.toISOString(),
-                    isIsa: true,
-                    isaMilestoneLabel: activeMilestone.label,
-                    originalProject: p,
-                    priorityOrder: p.properties?.editionPriority || 9999,
-                    completed: false
-                });
-            }
-        });
-
         // Filter by search
         if (searchTerm.trim()) {
             const lowerRaw = searchTerm.toLowerCase();
@@ -261,7 +196,7 @@ const VistaEdicion = () => {
         // Sort by priorityOrder (ascending)
         return tasks.sort((a, b) => (a.priorityOrder || 0) - (b.priorityOrder || 0));
 
-    }, [projects, isaStats, searchTerm]);
+    }, [projects, searchTerm]);
 
     const tasksByMember = useMemo(() => {
         const grouped = {};
@@ -300,48 +235,38 @@ const VistaEdicion = () => {
         const task = allTasks.find(t => t.id === draggableId);
         if (!task) return;
 
-        // Optimistic Update can be tricky with generated state, but we'll fire the update immediately.
-        // We need to calculate the new priorityOrder for the moved item.
-
         // Get tasks in the destination column (sorted)
         const destTasks = [...(tasksByMember[destColumnId] || [])];
 
-        // If moving within same column, remove from list first to find correct insertion point index
+        // If moving within same column, remove from list first
         if (sourceColumnId === destColumnId) {
             const currentIndex = destTasks.findIndex(t => t.id === draggableId);
             destTasks.splice(currentIndex, 1);
         }
 
-        // Insert physically to calculate new neighbors
+        // Insert physically
         destTasks.splice(destination.index, 0, task);
 
         const prevTask = destTasks[destination.index - 1];
         const nextTask = destTasks[destination.index + 1];
 
-        let newPriority = 1000; // Default if empty
+        let newPriority = 1000; 
         if (!prevTask && !nextTask) {
             newPriority = 1000;
         } else if (!prevTask) {
-            // First item
             newPriority = (nextTask.priorityOrder || 2000) / 2;
         } else if (!nextTask) {
-            // Last item
             newPriority = (prevTask.priorityOrder || 1000) + 1000;
         } else {
-            // Middle
             newPriority = ((prevTask.priorityOrder || 0) + (nextTask.priorityOrder || 0)) / 2;
         }
 
-        // Apply Update
-        // Create updated project object
         let newManagers = task.originalProject.managers || [];
-        // If column changed, update manager
         if (sourceColumnId !== destColumnId) {
-            // Basic single manager logic for column change
             if (destColumnId === 'Sin asignar') {
                 newManagers = [];
             } else {
-                newManagers = [destColumnId]; // Assign only to the new column owner
+                newManagers = [destColumnId];
             }
         }
 
@@ -354,7 +279,6 @@ const VistaEdicion = () => {
                 managers: newManagers
             }
         };
-        // Also update legacy manager field for compatibility if needed, though prepareProjectForSupabase handles properties
         if (sourceColumnId !== destColumnId) {
             updatePayload.manager = newManagers.join(', ');
             updatePayload.managers = newManagers;
@@ -368,49 +292,51 @@ const VistaEdicion = () => {
     const handleComplete = async (task) => {
         if (!confirm(`¿Marcar "${task.title}" como completado?`)) return;
 
-        if (task.isIsa) {
-            const updated = {
-                ...task.originalProject,
-                status: 'Completado'
-            };
-            await updateProject(updated);
-        } else {
-            const updated = {
-                ...task.originalProject,
-                status: 'Completado',
-                state: 'entregado',
-                properties: {
-                    ...task.originalProject.properties,
-                    completedAt: new Date().toISOString()
-                }
-            };
-            await updateProject(updated);
-        }
+        const updated = {
+            ...task.originalProject,
+            status: 'Completado',
+            state: 'entregado',
+            properties: {
+                ...task.originalProject.properties,
+                completedAt: new Date().toISOString()
+            }
+        };
+        await updateProject(updated);
     };
 
     return (
-        <div className="flex h-full w-full flex-col bg-white dark:bg-[#151518]">
+        <div className="flex h-full w-full flex-col bg-white dark:bg-black">
             {/* Header */}
-            <div className="flex shrink-0 flex-col gap-4 border-b border-slate-100 p-6 dark:border-slate-800">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                            Cola de Edición
-                        </h1>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                            Gestión de entregas y revisiones por editor
+            <div className="flex shrink-0 flex-col gap-8 p-10">
+                <div className="flex items-end justify-between border-b border-border/40 pb-10">
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-3">
+                            <div className="h-6 w-1 brand-gradient rounded-full" />
+                            <h1 className="text-3xl font-semibold tracking-tight text-primary dark:text-white">
+                                Cola de Edición
+                            </h1>
+                        </div>
+                        <p className="text-sm font-medium text-secondary/40">
+                            Gestión de entregas y revisiones por editor profesional
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <div className="flex flex-col items-end gap-6">
+                        <div className="flex items-center gap-4">
+                            {['Urgente', 'En Revisión', 'Feedbacks'].map((f) => (
+                                <button key={f} className="text-[10px] font-semibold uppercase tracking-[0.2em] text-secondary/30 hover:text-accent transition-colors">
+                                    {f}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="relative group">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary/30 transition-colors group-focus-within:text-accent" size={16} />
                             <input
                                 type="text"
-                                placeholder="Buscar edición..."
+                                placeholder="Buscar proyecto..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-64 rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-4 text-sm outline-none transition focus:border-indigo-500 focus:bg-white dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:focus:border-indigo-500"
+                                className="w-80 rounded-[1.5rem] border border-border/40 bg-slate-50/50 py-3.5 pl-12 pr-6 text-sm outline-none transition-all focus:border-accent focus:bg-white dark:border-white/5 dark:bg-white/[0.02] dark:text-white dark:focus:border-accent"
                             />
                         </div>
                     </div>
@@ -419,7 +345,7 @@ const VistaEdicion = () => {
 
             {/* Board */}
             <DragDropContext onDragEnd={handleDragEnd}>
-                <div className="flex grow gap-4 overflow-x-auto p-6">
+                <div className="flex grow gap-6 overflow-x-auto p-10 pt-0">
                     {teamMembers.map((member) => (
                         <EditorColumn
                             key={member}

@@ -73,7 +73,7 @@ const ViewRenderer = () => {
   }, [currentView, currentUser, allProjects]);
 
   return (
-    <div key={currentView}>
+    <div key={currentView} className="animate-fade-up">
       {renderedView}
     </div>
   );

@@ -1,6 +1,5 @@
 import { startOfDay, parseISO, isValid } from 'date-fns';
 import { getClientStyles } from './clientStyles';
-import { getProjectRecordingDate } from './isaEstimates';
 
 export const getClientDetailBadgeClass = (client) => {
   const styles = getClientStyles(client);
@@ -16,34 +15,6 @@ export const normalizeStageValue = (value) => {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
-};
-
-export const isIsaEligibleProject = (project) => {
-  const recordingDate = getProjectRecordingDate(project);
-  if (!recordingDate) return false;
-
-  const stageCandidates = [
-    project?.stage,
-    project?.properties?.stage,
-    project?.state,
-    project?.properties?.state,
-  ];
-  const statusCandidates = [project?.status, project?.properties?.status];
-
-  const normalizedStages = stageCandidates.map((value) => normalizeStageValue(value)).filter(Boolean);
-  const normalizedStatuses = statusCandidates
-    .map((value) => normalizeStageValue(value))
-    .filter(Boolean);
-
-  const completedLabels = ['completado', 'completada', 'entregado', 'entregada', 'finalizado', 'finalizada'];
-  if (
-    normalizedStages.some((value) => completedLabels.includes(value)) ||
-    normalizedStatuses.some((value) => completedLabels.includes(value))
-  ) {
-    return false;
-  }
-
-  return true;
 };
 
 export const parseDate = (value) => {

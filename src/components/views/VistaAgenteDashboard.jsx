@@ -3,8 +3,10 @@
 import React, { useMemo } from 'react';
 import useStore from '../../hooks/useStore';
 import { Calendar, Clock, Video, Zap } from 'lucide-react';
-import { format, isToday, isFuture, differenceInDays, parseISO } from 'date-fns';
+import { format, isToday, isFuture, differenceInDays, parseISO, addMonths, isSameMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { MonthNavigator } from '../calendar/CalendarControls';
+import UnclassifiedProjectsPanel from '../dashboard/UnclassifiedProjectsPanel';
 
 // Helper para obtener el nombre simple del agente a partir del objeto de usuario
 const getAgentName = (user) => {
@@ -22,7 +24,13 @@ const VistaAgenteDashboard = () => {
   const currentUser = useStore((state) => state.currentUser);
   const projects = useStore((state) => state.projects);
   const runAgent = useStore((state) => state.runAgent);
+  const openModal = useStore((state) => state.openModal);
   const agentSuggestions = useStore((state) => state.agent.suggestions);
+  const selectedDashboardDate = useStore((state) => state.selectedDashboardDate);
+  const setSelectedDashboardDate = useStore((state) => state.setSelectedDashboardDate);
+
+  const handlePrevMonth = () => setSelectedDashboardDate(addMonths(selectedDashboardDate, -1));
+  const handleNextMonth = () => setSelectedDashboardDate(addMonths(selectedDashboardDate, 1));
 
   const assignedProjects = useMemo(() => {
     const agentName = getAgentName(currentUser);
@@ -34,7 +42,7 @@ const VistaAgenteDashboard = () => {
   }, [currentUser, projects]);
 
   const { tareasHoy, grabaciones, recordatorios } = useMemo(() => {
-    const hoy = new Date();
+    const referenceDate = selectedDashboardDate;
     const tareasHoy = [];
     let grabacionesHoy = [];
     let proximasGrabaciones = [];
@@ -47,11 +55,12 @@ const VistaAgenteDashboard = () => {
       if (stage === 'edicion' && p.deadline) {
         try {
           const deadlineDate = parseISO(p.deadline);
-          if (isToday(deadlineDate)) {
-            tareasHoy.push(p);
-          }
-          if (isFuture(deadlineDate) && differenceInDays(deadlineDate, hoy) <= 3) {
-            recordatorios.push(p);
+          if (isSameMonth(deadlineDate, referenceDate)) {
+            if (isToday(deadlineDate)) {
+              tareasHoy.push(p);
+            } else {
+              recordatorios.push(p);
+            }
           }
         } catch (e) {
           console.error('Invalid deadline date', p.deadline);
@@ -62,10 +71,12 @@ const VistaAgenteDashboard = () => {
       if (stage === 'grabacion' && p.fechaGrabacion) {
         try {
           const recordingDate = parseISO(p.fechaGrabacion);
-          if (isToday(recordingDate)) {
-            grabacionesHoy.push(p);
-          } else if (isFuture(recordingDate) && differenceInDays(recordingDate, hoy) <= 7) {
-            proximasGrabaciones.push(p);
+          if (isSameMonth(recordingDate, referenceDate)) {
+            if (isToday(recordingDate)) {
+              grabacionesHoy.push(p);
+            } else {
+              proximasGrabaciones.push(p);
+            }
           }
         } catch (e) {
           console.error('Invalid recording date', p.fechaGrabacion);
@@ -83,25 +94,39 @@ const VistaAgenteDashboard = () => {
     } else {
       proximasGrabaciones.sort((a, b) => parseISO(a.fechaGrabacion) - parseISO(b.fechaGrabacion));
       grabacionesMostradas = proximasGrabaciones;
-      tituloGrabaciones = "Próximas Grabaciones";
+      tituloGrabaciones = isSameMonth(new Date(), referenceDate) ? "Próximas Grabaciones" : "Grabaciones del mes";
     }
 
-    return { 
-      tareasHoy, 
-      grabaciones: { title: tituloGrabaciones, items: grabacionesMostradas }, 
-      recordatorios 
+    return {
+      tareasHoy,
+      grabaciones: { title: tituloGrabaciones, items: grabacionesMostradas },
+      recordatorios
     };
-  }, [assignedProjects]);
+  }, [assignedProjects, selectedDashboardDate]);
 
   return (
     <div className="space-y-6 px-3 py-4 sm:px-4 md:px-6">
-      <div>
-        <h1 className="text-3xl font-bold text-primary">Tu Dashboard</h1>
-        <p className="text-sm text-secondary/80">Tareas, recordatorios y sugerencias para tus proyectos.</p>
+      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-medium text-primary">Tu Dashboard</h1>
+          <p className="text-sm text-secondary/80">Tareas, recordatorios y sugerencias para tus proyectos.</p>
+        </div>
+        <div className="glass-panel p-2">
+          <MonthNavigator
+            currentMonth={selectedDashboardDate}
+            handlePrevMonth={handlePrevMonth}
+            handleNextMonth={handleNextMonth}
+          />
+        </div>
       </div>
 
+      <UnclassifiedProjectsPanel
+        projects={assignedProjects}
+        onAssign={(p) => openModal(p)}
+      />
+
       <div className="grid grid-cols-1 gap-6">
-        
+
         {/* Columna Principal: Tareas y Recordatorios */}
         <div className="space-y-6">
           <div className="glass-panel rounded-3xl p-4 sm:p-5">
@@ -111,29 +136,22 @@ const VistaAgenteDashboard = () => {
                 {grabaciones.items.map(p => <ProjectListItem key={p.id} project={p} dateToDisplay={p.fechaGrabacion} />)}
               </ul>
             ) : (
-              <p className="text-sm text-secondary/70 mt-4">No hay grabaciones agendadas próximamente.</p>
+              <p className="text-sm text-secondary/70 mt-4">No hay grabaciones en este periodo.</p>
             )}
           </div>
 
           <div className="glass-panel rounded-3xl p-4 sm:p-5">
-            <Header title="Entregas para hoy" icon={Calendar} />
+            <Header title={isSameMonth(new Date(), selectedDashboardDate) ? "Entregas para hoy" : "Entregas del mes"} icon={Calendar} />
             {tareasHoy.length > 0 ? (
               <ul className="space-y-3 mt-4">
                 {tareasHoy.map(p => <ProjectListItem key={p.id} project={p} dateToDisplay={p.deadline} />)}
               </ul>
-            ) : (
-              <p className="text-sm text-secondary/70 mt-4">No tienes entregas para hoy.</p>
-            )}
-          </div>
-
-          <div className="glass-panel rounded-3xl p-4 sm:p-5">
-            <Header title="Recordatorios: Próximas entregas" icon={Clock} />
-            {recordatorios.length > 0 ? (
+            ) : recordatorios.length > 0 ? (
               <ul className="space-y-3 mt-4">
                 {recordatorios.map(p => <ProjectListItem key={p.id} project={p} dateToDisplay={p.deadline} />)}
               </ul>
             ) : (
-              <p className="text-sm text-secondary/70 mt-4">No hay entregas en los próximos 3 días.</p>
+              <p className="text-sm text-secondary/70 mt-4">No hay entregas para este periodo.</p>
             )}
           </div>
         </div>

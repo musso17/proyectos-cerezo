@@ -17,6 +17,8 @@
     "@supabase/supabase-js": "^2.76.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.4.2",
+    "dotenv-expand": "^13.0.0",
     "fuse.js": "^7.1.0",
     "lucide-react": "^0.378.0",
     "next": "^14.2.7",
@@ -25,6 +27,7 @@
     "react-grid-layout": "^1.5.2",
     "react-hot-toast": "^2.6.0",
     "recharts": "^2.12.7",
+    "resend": "^6.12.2",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

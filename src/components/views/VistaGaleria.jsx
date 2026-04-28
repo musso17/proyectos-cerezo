@@ -88,34 +88,37 @@ const GalleryCard = ({ project }) => {
   const manager = project.manager || (Array.isArray(project.managers) && project.managers.join(', '));
 
   return (
-    <div className="flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:hover:shadow-[0_20px_36px_rgba(0,0,0,0.45)]">
-      <div className="p-5">
-        <p className="text-sm font-semibold text-gray-800 dark:text-white/90">{project.name}</p>
-        <p className="text-xs text-gray-500 dark:text-white/50">{project.client}</p>
+    <div className="flex flex-col rounded-[2.5rem] border border-border/40 bg-white shadow-sm transition-all hover:shadow-2xl hover:-translate-y-1 dark:border-white/5 dark:bg-[#16171D] dark:shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+      <div className="p-8">
+        <h3 className="text-xl font-semibold text-primary tracking-tight dark:text-white leading-tight">
+          {project.name}
+        </h3>
+        <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">
+          {project.client}
+        </p>
       </div>
-      <div className="flex-grow space-y-2 px-5 pb-4 text-xs text-gray-500 dark:text-white/50">
+      <div className="flex-grow space-y-3 px-8 pb-8 text-[11px] font-medium text-secondary/60 dark:text-white/40">
         {manager && (
-          <div className="flex items-center gap-2">
-            <User size={14} />
-            <span>Encargado: <strong>{manager}</strong></span>
+          <div className="flex items-center gap-3">
+            <User size={16} className="text-secondary/30" />
+            <span>{manager}</span>
           </div>
         )}
-        <div className="flex items-center gap-2">
-          <Calendar size={14} />
-          <span>Inició: <strong>{formatDate(startDate)}</strong></span>
+        <div className="flex items-center gap-3">
+          <Calendar size={16} className="text-secondary/30" />
+          <span>{formatDate(startDate)}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <Clock size={14} />
-          <span>Completado: <strong>{formatDate(completionDate)}</strong></span>
+        <div className="flex items-center gap-3">
+          <Clock size={16} className="text-secondary/30" />
+          <span>{formatDate(completionDate)}</span>
         </div>
       </div>
-      <div className="mt-auto border-t border-gray-200 bg-gray-50/70 p-4 dark:border-[#2B2D31] dark:bg-[#1B1C20]">
+      <div className="mt-auto border-t border-border/40 bg-slate-50 p-6 rounded-b-[2.5rem] dark:border-white/5 dark:bg-white/[0.02]">
         <label
           htmlFor={`link-${project.id}`}
-          className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-white/60"
+          className="mb-3 block text-[10px] font-semibold uppercase tracking-[0.2em] text-secondary/50 dark:text-white/30"
         >
-          <Link size={14} />
-          Enlace del entregable
+          Entregable
         </label>
         {isEditing ? (
           <div className="flex items-center gap-2">
@@ -124,38 +127,34 @@ const GalleryCard = ({ project }) => {
               type="url"
               value={link}
               onChange={(e) => setLink(e.target.value)}
-              placeholder="Pega el enlace aquí..."
-              className="w-full flex-grow rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800 shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-[#2B2D31] dark:bg-[#0F0F11] dark:text-white/80 dark:focus:border-purple-400 dark:focus:ring-purple-400/40"
+              placeholder="Enlace del proyecto..."
+              className="w-full flex-grow rounded-2xl border border-border bg-white px-4 py-3 text-xs font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
             />
             <button
               type="button"
               onClick={handleSave}
               disabled={isSaving}
-              className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition-all ${
-                isSaving
-                  ? 'cursor-not-allowed bg-violet-400'
-                  : 'bg-violet-600 hover:bg-violet-500 dark:bg-purple-500 dark:hover:bg-purple-400'
-              }`}
+              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-dark-bg text-white shadow-lg transition-all hover:scale-110 active:scale-95 dark:bg-accent dark:text-dark-bg"
             >
-              {isSaving ? <CheckCircle size={16} className="animate-spin" /> : <Save size={16} />}
+              {isSaving ? <CheckCircle size={20} className="animate-spin" /> : <Save size={20} />}
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <a
               href={link}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex flex-grow items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+              className="flex flex-grow items-center justify-center gap-3 rounded-2xl bg-dark-bg px-6 py-3 text-xs font-semibold uppercase tracking-wide text-white shadow-xl transition-all hover:scale-[1.02] active:scale-95 dark:bg-accent dark:text-dark-bg"
             >
-              <ExternalLink size={16} /> Ver entregable
+              <ExternalLink size={16} strokeWidth={3} /> Ver
             </a>
             <button
               type="button"
               onClick={() => setIsEditing(true)}
-              className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-[#2B2D31] dark:bg-[#0F0F11] dark:text-white/70 dark:hover:bg-white/10"
+              className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-white text-secondary transition-all hover:scale-110 active:scale-95 dark:border-white/10 dark:bg-white/5 dark:text-white/70"
             >
-              <Edit size={16} /> Editar
+              <Edit size={18} />
             </button>
           </div>
         )}
@@ -175,23 +174,26 @@ const VistaGaleria = ({ projects: projectsProp }) => {
   }, [projects]);
 
   return (
-    <div className="space-y-8 px-3 py-4 sm:px-6 md:py-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white/90">Galería de entregables</h1>
-        <p className="mt-1 text-sm text-gray-600 dark:text-white/60">
-          Repositorio de proyectos completados con sus enlaces finales.
-        </p>
+    <div className="flex h-full flex-col gap-8 p-4 md:p-6 animate-fade-up">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-4xl font-semibold text-primary tracking-tight dark:text-white">Galería</h1>
+        <div className="flex items-center gap-2 mt-2">
+          <div className="h-1 w-8 rounded-full bg-accent" />
+          <p className="text-xs font-medium text-secondary/60 uppercase tracking-[0.2em]">
+            Repositorio de entregables finales
+          </p>
+        </div>
       </div>
 
       {completedProjects.length > 0 ? (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {completedProjects.map((project) => (
             <GalleryCard key={project.id} project={project} />
           ))}
         </div>
       ) : (
-        <div className="flex h-48 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 dark:border-[#2B2D31] dark:bg-[#1B1C20]">
-          <p className="text-sm text-gray-500 dark:text-white/50">No hay proyectos completados para mostrar.</p>
+        <div className="flex h-64 flex-col items-center justify-center rounded-[3rem] border-2 border-dashed border-border/40 bg-slate-50 dark:bg-white/[0.02]">
+          <p className="text-xs font-semibold uppercase tracking-wide text-secondary/40">No hay proyectos completados</p>
         </div>
       )}
     </div>

@@ -3,27 +3,13 @@ import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, startOfDay, 
 import { es } from 'date-fns/locale';
 import { ensureMemberName } from '../constants/team';
 import { filterProjects } from '../utils/filterProjects';
-import { 
-  computeIsaAverages, 
-  buildIsaMilestones, 
-  getProjectRecordingDate, 
-  applyIsaOverridesToMilestones, 
-  getIsaProjectKey 
-} from '../utils/isaEstimates';
-import { isIsaEligibleProject } from '../utils/calendarHelpers';
-
-const ISA_EVENT_PILLS = {
-  isa_first_version: 'border border-dashed border-[#A5B4FC] bg-[#EEF2FF] text-[#4338CA] dark:border-indigo-300/60 dark:bg-indigo-400/15 dark:text-indigo-200',
-  isa_review: 'border border-dashed border-[#FCD34D] bg-[#FFF7DB] text-[#B45309] dark:border-amber-300/60 dark:bg-amber-300/15 dark:text-amber-200',
-  isa_final_delivery: 'border border-dashed border-[#6EE7B7] bg-[#ECFDF5] text-[#047857] dark:border-emerald-300/60 dark:bg-emerald-300/15 dark:text-emerald-200',
-};
+import { getProjectRecordingDate } from '../utils/dashboardHelpers';
 
 const RECORDING_PILL = 'border border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7] dark:border-blue-500/60 dark:bg-blue-500/15 dark:text-blue-300';
-const ISA_ESTIMATE_PILL = 'border border-dashed border-[#9CD7FF] bg-[#ECF7FF] text-[#0A5E86] dark:border-cyan-300/60 dark:bg-cyan-500/15 dark:text-cyan-200';
 
 import { format } from 'date-fns';
 
-export const useCalendarData = ({ projects, searchTerm, selectedMember, showIsaEvents, revisionCycles, currentMonth, selectedDayKey }) => {
+export const useCalendarData = ({ projects, searchTerm, selectedMember, currentMonth, selectedDayKey }) => {
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
@@ -77,37 +63,9 @@ export const useCalendarData = ({ projects, searchTerm, selectedMember, showIsaE
       .filter(Boolean);
   }, [visibleProjects]);
 
-  const isaStats = useMemo(() => computeIsaAverages(revisionCycles), [revisionCycles]);
-
-  const isaEstimatedItems = useMemo(() => {
-    if (!showIsaEvents || !isaStats?.totalEstimatedDays) return [];
-    return visibleProjects.flatMap(({ project, memberName }) => {
-      if (!isIsaEligibleProject(project)) return [];
-      const projectKey = getIsaProjectKey(project);
-      if (!projectKey) return [];
-      const milestones = applyIsaOverridesToMilestones(
-        project,
-        buildIsaMilestones(project, isaStats)
-      );
-      return milestones.map((milestone) => ({
-        type: 'isa_estimate',
-        milestoneType: milestone.key,
-        project,
-        memberName,
-        range: { start: milestone.date, end: milestone.date },
-        isaMeta: {
-          ...isaStats,
-          milestoneLabel: milestone.label,
-          milestoneDescription: milestone.description,
-        },
-        projectKey,
-      }));
-    });
-  }, [visibleProjects, isaStats, showIsaEvents]);
-
   const scheduledItems = useMemo(
-    () => [...recordingItems, ...isaEstimatedItems],
-    [recordingItems, isaEstimatedItems]
+    () => [...recordingItems],
+    [recordingItems]
   );
 
   const calendarItemsByDay = useMemo(() => {
@@ -150,38 +108,6 @@ export const useCalendarData = ({ projects, searchTerm, selectedMember, showIsaE
         status: project?.status || '',
         typeMeta: { label: 'Grabación', className: RECORDING_PILL },
         date: dayDate,
-      };
-    }
-
-    if (item.type === 'isa_estimate') {
-      const { project, range, memberName, isaMeta, milestoneType } = item;
-      const managersLabel = project?.managers?.length
-        ? project.managers.join(', ')
-        : memberName;
-      const eventLabel = isaMeta?.milestoneLabel || 'Estimación ISA';
-      const description =
-        isaMeta?.milestoneDescription ||
-        'Estimación generada automáticamente a partir del histórico de ciclos.';
-      const pillClass = ISA_EVENT_PILLS[milestoneType] || ISA_ESTIMATE_PILL;
-
-      return {
-        id: `isa-${milestoneType}-${project?.id || project?.name || range.start.toISOString()}-${dayDate.toISOString()}`,
-        sortTime: range.start.getTime(),
-        type: 'isa_estimate',
-        title: project?.name || 'Proyecto sin título',
-        description,
-        eventLabel,
-        timeLabel: format(range.start, "EEEE d 'de' MMMM", { locale: es }),
-        manager: managersLabel,
-        colorClass: pillClass,
-        project,
-        client: project?.client || '',
-        status: project?.status || '',
-        typeMeta: { label: eventLabel, className: pillClass },
-        date: dayDate,
-        isaMeta,
-        milestoneType,
-        projectKey: item.projectKey || getIsaProjectKey(project),
       };
     }
 

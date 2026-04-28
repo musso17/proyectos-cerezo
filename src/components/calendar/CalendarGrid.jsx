@@ -6,13 +6,6 @@ const WEEKDAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const MAX_ITEMS_PER_DAY = 3;
 
 const RECORDING_PILL = 'border border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7] dark:border-blue-500/60 dark:bg-blue-500/15 dark:text-blue-300';
-const ISA_ESTIMATE_PILL = 'border border-dashed border-[#9CD7FF] bg-[#ECF7FF] text-[#0A5E86] dark:border-cyan-300/60 dark:bg-cyan-500/15 dark:text-cyan-200';
-const ISA_EVENT_PILLS = {
-  isa_first_version: 'border border-dashed border-[#A5B4FC] bg-[#EEF2FF] text-[#4338CA] dark:border-indigo-300/60 dark:bg-indigo-400/15 dark:text-indigo-200',
-  isa_review: 'border border-dashed border-[#FCD34D] bg-[#FFF7DB] text-[#B45309] dark:border-amber-300/60 dark:bg-amber-300/15 dark:text-amber-200',
-  isa_final_delivery: 'border border-dashed border-[#6EE7B7] bg-[#ECFDF5] text-[#047857] dark:border-emerald-300/60 dark:bg-emerald-300/15 dark:text-emerald-200',
-};
-
 const CalendarGrid = ({
   calendarDays,
   currentMonth,
@@ -21,11 +14,6 @@ const CalendarGrid = ({
   handleDaySelect,
   handleDayDragOver,
   handleDayDrop,
-  handleIsaDragStart,
-  handleIsaDragEnd,
-  isDraggingIsa,
-  draggingIsaPayload,
-  isAllowedIsaMilestoneDay,
   openModal,
 }) => {
   const today = startOfDay(new Date());
@@ -49,9 +37,6 @@ const CalendarGrid = ({
         const isCurrentMonth = isSameMonth(day, currentMonth);
         const isToday = isSameDay(day, today);
         const isSelected = selectedDayKey === key;
-        const isaDropAllowed = draggingIsaPayload
-          ? isAllowedIsaMilestoneDay(draggingIsaPayload.milestoneType, day)
-          : true;
 
         return (
           <div
@@ -63,12 +48,7 @@ const CalendarGrid = ({
               } ${isToday
                 ? 'border border-accent/60 bg-accent/10 shadow-[0_18px_40px_rgba(34,197,94,0.3)] dark:border-purple-400/60 dark:bg-purple-500/20 dark:shadow-[0_20px_40px_rgba(128,90,213,0.35)]'
                 : 'border border-[#E5E7EB] hover:border-accent/60 hover:bg-white hover:shadow-[0_12px_30px_rgba(2,6,23,0.55)] dark:border-[#2B2D31] dark:hover:border-purple-300/60 dark:hover:bg-white/10 dark:hover:shadow-[0_16px_30px_rgba(0,0,0,0.45)]'
-              } ${isSelected ? 'ring-2 ring-accent/60 dark:ring-purple-400/60' : ''} ${isDraggingIsa
-                ? isaDropAllowed
-                  ? 'outline outline-1 outline-dashed outline-accent/30 dark:outline-purple-400/40'
-                  : 'opacity-50'
-                : ''
-              }`}>
+              } ${isSelected ? 'ring-2 ring-accent/60 dark:ring-purple-400/60' : ''}`}>
             <div className="flex items-center justify-between text-xs">
               <span className={`text-sm font-semibold ${isCurrentMonth ? 'text-primary dark:text-white/85' : ''}`}>
                 {format(day, 'd', { locale: es })}
@@ -96,44 +76,6 @@ const CalendarGrid = ({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate font-semibold">{title}</span>
-                        <span className="whitespace-nowrap text-[10px] opacity-75">
-                          {format(item.range.start, 'dd/MM')}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                }
-
-                if (item.type === 'isa_estimate') {
-                  const { project, isaMeta, milestoneType } = item;
-                  const title = project?.name || 'Proyecto sin título';
-                  const label = isaMeta?.milestoneLabel || 'Estimación ISA';
-                  const pillClass = ISA_EVENT_PILLS[milestoneType] || ISA_ESTIMATE_PILL;
-                  return (
-                    <button
-                      key={`isa-${project?.id || title}-${milestoneType}-${day.toISOString()}`}
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (project) openModal(project);
-                      }}
-                      draggable
-                      onDragStart={(event) =>
-                        handleIsaDragStart(event, {
-                          projectKey: item.projectKey,
-                          milestoneType: item.milestoneType,
-                        })
-                      }
-                      onDragEnd={handleIsaDragEnd}
-                      className={`group rounded-md border px-2 py-1 text-left text-xs shadow-sm transition-all duration-200 ease-[var(--ease-ios-out)] hover:shadow-lg hover:-translate-y-0.5 ${pillClass}`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <span className="truncate font-semibold">{title}</span>
-                          <span className="mt-1 block text-[10px] uppercase tracking-wide opacity-70">
-                            {label}
-                          </span>
-                        </div>
                         <span className="whitespace-nowrap text-[10px] opacity-75">
                           {format(item.range.start, 'dd/MM')}
                         </span>

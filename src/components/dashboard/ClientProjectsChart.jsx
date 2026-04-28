@@ -3,54 +3,61 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 
 const Header = ({ title, subtitle }) => (
   <div>
-    <h2 className="text-sm sm:text-lg font-semibold text-primary">{title}</h2>
-    <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] sm:tracking-[0.32em] text-secondary/60">
-      {subtitle}
-    </p>
+    <h2 className="text-xl font-semibold text-primary tracking-tight dark:text-white">{title}</h2>
+    <div className="flex items-center gap-2 mt-1">
+      <div className="h-1 w-6 rounded-full bg-accent" />
+      <p className="text-[10px] font-medium uppercase tracking-[0.3em] text-secondary/40">
+        {subtitle}
+      </p>
+    </div>
   </div>
 );
 
 const ChartContainer = ({ children }) => (
-  <div className="h-48 sm:h-64 rounded-2xl border border-[#E5E7EB] bg-white p-3 sm:p-5 shadow-[inset_0_1px_0_rgba(229,231,235,0.6)] dark:border-[#2B2D31] dark:bg-[#1B1C20] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+  <div className="h-56 sm:h-72 mt-4">
     {children}
   </div>
 );
 
 const EmptyState = ({ message }) => (
-  <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-[#CBD5F5] bg-[#F9FAFF] p-6 text-xs text-secondary dark:border-[#2B2D31] dark:bg-[#1B1C20] dark:text-white/50">
+  <div className="flex h-full items-center justify-center rounded-[2rem] border-2 border-dashed border-border/40 bg-slate-50/50 p-6 text-xs font-medium text-secondary/40 uppercase tracking-wide">
     {message}
   </div>
 );
 
 const ClientProjectsChart = ({ data }) => (
-  <div className="glass-panel col-span-1 flex flex-col gap-3 p-4 sm:gap-4 sm:p-6 transition-all xl:col-span-1">
-    <Header title="Proyectos por cliente" subtitle="Top clientes registrados" />
+  <div className="glass-panel col-span-1 flex flex-col gap-3 p-6 sm:p-8 rounded-[2.5rem] transition-all hover:shadow-2xl xl:col-span-1">
+    <Header title="Concentración" subtitle="Proyectos por cliente" />
     <ChartContainer>
       {data.length > 0 ? (
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+          <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="0" stroke="rgba(255,75,42,0.05)" vertical={false} />
             <XAxis
               dataKey="client"
-              tick={{ fill: '#6B7280', fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 700 }}
               interval={0}
-              angle={-45}
-              textAnchor="end"
-              height={50}
             />
-            <YAxis tick={{ fill: '#6B7280', fontSize: 10 }} />
+            <YAxis 
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 700 }} 
+            />
             <RechartsTooltip
               contentStyle={{
-                backgroundColor: '#FFFFFF',
-                borderRadius: '12px',
-                border: '1px solid rgba(209,213,219,0.7)',
-                boxShadow: '0 10px 24px rgba(15,23,42,0.08)',
-                color: '#2E2E2E',
-                fontSize: '12px'
+                backgroundColor: '#16171D',
+                borderRadius: '24px',
+                border: '1px solid rgba(255,75,42,0.1)',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                fontSize: '11px',
+                color: '#fff',
+                padding: '12px 16px'
               }}
-              formatter={(value) => [`${value}`, 'Proyectos']}
+              cursor={{ fill: 'rgba(255,75,42,0.05)' }}
             />
-            <Bar dataKey="total" fill="#6C63FF" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="total" fill="#FF4B2A" radius={[8, 8, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       ) : (

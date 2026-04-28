@@ -1,6 +1,6 @@
 const LIMA_TIMEZONE_OFFSET = '-05:00';
 
-const MEMBER_EMAILS = {
+export const MEMBER_EMAILS = {
   'mauricio': 'Mauriciomu22ts@gmail.com',
   'mauricio muñoz': 'Mauriciomu22ts@gmail.com',
   'mauricio mu': 'Mauriciomu22ts@gmail.com',
@@ -65,44 +65,48 @@ const collectMemberEmails = (encargado, team) => {
 export const generarLinkGoogleCalendar = (proyecto) => {
   if (!proyecto) return '';
 
-  const contenido = proyecto.contenido || proyecto.name || 'Proyecto';
-  const cliente = proyecto.cliente || proyecto.client || 'Cliente';
-  const detalle = proyecto.detalle || proyecto.description || '';
-  const encargado =
-    proyecto.encargado ||
-    (Array.isArray(proyecto.managers) && proyecto.managers.length > 0
-      ? proyecto.managers.join(', ')
-      : proyecto.manager || '');
-  const fechaInicio = proyecto.fechaInicio || proyecto.startDate || '';
-  const fechaFin = proyecto.fechaFin || proyecto.deadline || '';
-  const horaInicio = proyecto.horaInicio || proyecto.recordingTime || '';
-  const horaFin =
-    proyecto.horaFin || proyecto.recordingEndTime || proyecto.horaTermino || '';
-  const lugar = proyecto.lugar || proyecto.location || proyecto.recordingLocation || '';
+  // Mapeo robusto de campos para cubrir todos los tipos de proyecto
+  const name = proyecto.name || proyecto.contenido || 'Proyecto';
+  const client = proyecto.client || proyecto.cliente || 'Cliente';
+  const description = proyecto.recordingDescription || proyecto.description || proyecto.detalle || '';
+  
+  const encargado = proyecto.manager || proyecto.encargado || 
+    (Array.isArray(proyecto.managers) ? proyecto.managers.join(', ') : '');
+    
+  const fechaInicio = proyecto.recordingDate || proyecto.startDate || proyecto.fechaInicio || '';
+  // Si no hay fecha de fin, usamos la de inicio (evento de un día)
+  const fechaFin = proyecto.deadline || proyecto.fechaFin || fechaInicio;
+  
+  const horaInicio = proyecto.recordingTime || proyecto.horaInicio || '09:00:00';
+  const horaFin = proyecto.recordingEndTime || proyecto.horaFin || proyecto.horaTermino || '';
+  
+  const lugar = proyecto.recordingLocation || proyecto.location || proyecto.lugar || '';
   const equipo = proyecto.team || proyecto.equipo || [];
 
-  const startStamp = formatCalendarDate(fechaInicio, horaInicio || '09:00:00');
-  const endStamp = formatCalendarDate(fechaFin, horaFin || horaInicio || '18:00:00');
+  const startStamp = formatCalendarDate(fechaInicio, horaInicio);
+  // Si no hay hora de fin, usamos la de inicio para marcar el bloque
+  const endStamp = formatCalendarDate(fechaFin, horaFin || horaInicio);
 
   if (!startStamp || !endStamp) {
     return '';
   }
 
-  const text = encodeURIComponent(`Proyecto: ${contenido} - Cliente: ${cliente}`);
+  const text = encodeURIComponent(`${name} (${client})`);
   const detailsLines = [
     buildCalendarField('Encargado: ', encargado),
-    buildCalendarField('Cliente: ', cliente),
+    buildCalendarField('Cliente: ', client),
+    buildCalendarField('Descripción: ', description),
     buildCalendarField('Lugar: ', lugar),
-    detalle || '',
   ].filter(Boolean);
 
   const details = encodeURIComponent(detailsLines.join('\n'));
   const dates = `${startStamp}/${endStamp}`;
+  const locationParam = lugar ? `&location=${encodeURIComponent(lugar)}` : '';
 
   const attendees = collectMemberEmails(encargado, equipo);
   const attendeesParams = Array.from(attendees)
     .map((email) => `&add=${encodeURIComponent(email)}`)
     .join('');
 
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&details=${details}&dates=${dates}${attendeesParams}`;
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&details=${details}&dates=${dates}${locationParam}${attendeesParams}`;
 };

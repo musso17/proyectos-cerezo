@@ -1,10 +1,11 @@
 import { create } from 'zustand';
-import { addDays, parseISO, isValid, format, differenceInCalendarDays, startOfDay } from 'date-fns';
+import { addDays, parseISO, isValid, format, differenceInCalendarDays, startOfDay, startOfMonth } from 'date-fns';
 import { supabase } from '../config/supabase';
 import { persist } from 'zustand/middleware';
 import { TEAM_MEMBERS } from '../constants/team';
 import { generarTareasEdicionDesdeProyectos } from '../utils/editingTasks';
 import { normalizeStatus, ALLOWED_STATUSES } from '../utils/statusHelpers';
+import { notifyManagerAssignment } from '../utils/notifications';
 
 const LOCAL_STORAGE_KEY = 'cerezo-projects';
 const RETAINERS_KEY = 'cerezo-retainers';
@@ -791,6 +792,14 @@ const useStore = create((set, get) => ({
   revisionHistoryLoading: {},
   revisionHistoryError: null,
   theme: getInitialTheme(),
+  selectedDashboardDate: startOfMonth(new Date()),
+  reportingData: {
+    projects: [],
+    revisionCycles: [],
+    cycleEvents: [],
+    lastSync: null,
+    isOnline: true,
+  },
 
   lastUpdate: null, // Añadir para notificar actualizaciones en tiempo real
   setCurrentView: (view) =>
@@ -799,6 +808,8 @@ const useStore = create((set, get) => ({
       const nextView = allowed.includes(view) ? view : allowed[0] || state.currentView;
       return { currentView: nextView };
     }),
+
+  setSelectedDashboardDate: (date) => set({ selectedDashboardDate: startOfMonth(date) }),
   openModal: (project) => set({ isModalOpen: true, selectedProject: project }),
   closeModal: () => set({ isModalOpen: false, selectedProject: null }),
   setSearchTerm: (term) => set({ searchTerm: term }),
@@ -1501,14 +1512,16 @@ const useStore = create((set, get) => ({
       persistLocalProjects(projects);
 
       let revisionMap = get().revisionCycles || {};
+      let revisionData = [];
       try {
-        const { data: revisionData, error: revisionError } = await supabaseClient
+        const { data: rData, error: revisionError } = await supabaseClient
           .from('revision_cycles')
           .select('*');
         if (revisionError) {
           console.error('Error fetching revision cycles:', revisionError);
-        } else if (Array.isArray(revisionData)) {
-          revisionMap = revisionData.reduce((acc, item) => {
+        } else if (Array.isArray(rData)) {
+          revisionData = rData;
+          revisionMap = rData.reduce((acc, item) => {
             const normalized = normalizeRevisionCycle(item);
             const key = normalized.project_id;
             if (!key) return acc;
@@ -1524,6 +1537,13 @@ const useStore = create((set, get) => ({
       set((state) => ({
         revisionCycles: revisionMap,
         ...buildProjectsStateSnapshot(state, projects, revisionMap),
+        reportingData: {
+          ...state.reportingData,
+          projects: data || [],
+          revisionCycles: Array.isArray(revisionData) ? revisionData : [],
+          lastSync: new Date().toISOString(),
+          isOnline: true,
+        }
       }));
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -1531,8 +1551,59 @@ const useStore = create((set, get) => ({
       set((state) => ({
         error: 'Error fetching projects',
         ...buildProjectsStateSnapshot(state, fallbackProjects),
+        reportingData: {
+          ...state.reportingData,
+          isOnline: false,
+        }
       }));
-    } // Se elimina el 'finally'
+    }
+  },
+
+  fetchReportingData: async (options = {}) => {
+    const { forceFresh = false } = options;
+    if (!supabaseClient) return null;
+
+    try {
+      // 1. Fetch de la vista canónica de proyectos
+      const { data: projectsView, error: pError } = await supabaseClient
+        .from('projects_reporting_view')
+        .select('*');
+      
+      // Si la vista no existe, fallar al modo raw
+      if (pError) {
+        console.warn('projects_reporting_view not found, using raw projects table.');
+      }
+
+      // 2. Fetch de métricas de eficiencia (Problema 3)
+      const { data: efficiencyData, error: eError } = await supabaseClient
+        .from('efficiency_metrics_view')
+        .select('*');
+
+      // 3. Fetch de eventos crudos para cálculos ad-hoc
+      const { data: rawEvents } = await supabaseClient
+        .from('revision_cycle_events')
+        .select('*');
+
+      const reportingData = {
+        projects: projectsView || get().reportingData.projects,
+        efficiency: efficiencyData || [],
+        cycleEvents: rawEvents || [],
+        lastSync: new Date().toISOString(),
+        isOnline: true,
+      };
+
+      set({ reportingData });
+      return reportingData;
+    } catch (err) {
+      console.error('Error fetching reporting data:', err);
+      set((state) => ({
+        reportingData: {
+          ...state.reportingData,
+          isOnline: false,
+        }
+      }));
+      return null;
+    }
   },
 
   checkAndAdvanceProjectStates: async () => {
@@ -1597,6 +1668,11 @@ const useStore = create((set, get) => ({
         created_at: project.created_at || new Date().toISOString(),
       });
 
+      // --- Notificar al nuevo encargado (Local) ---
+      if (newProject.manager && newProject.manager !== 'Sin asignar') {
+        notifyManagerAssignment(newProject, newProject.manager);
+      }
+
       set((state) => {
         const nextProjects = [...state.projects, newProject];
         // OLD LOGIC - DISABLED
@@ -1637,6 +1713,12 @@ const useStore = create((set, get) => ({
 
       if (inserted) {
         const normalized = normalizeProject(inserted);
+        
+        // --- Notificar al nuevo encargado ---
+        if (normalized.manager && normalized.manager !== 'Sin asignar') {
+          notifyManagerAssignment(normalized, normalized.manager);
+        }
+
         set((state) => {
           const nextProjects = [...state.projects, normalized];
           const projects = nextProjects.sort((a, b) => {
@@ -1692,11 +1774,30 @@ const useStore = create((set, get) => ({
       if (!skipLoading) {
         set({ loading: false });
       }
+
+      // --- Notificar al nuevo encargado (Local) ---
+      const oldProject = get().projects.find(p => p.id === project.id);
+      const oldManager = oldProject?.manager || '';
+      const newManager = optimisticNormalized.manager || '';
+
+      if (newManager && newManager !== 'Sin asignar' && newManager !== oldManager) {
+        notifyManagerAssignment(optimisticNormalized, newManager);
+      }
+
       return;
     }
 
     try {
       const payload = prepareProjectForSupabase(project);
+
+      // --- Detectar si el encargado cambió para notificar ---
+      const oldProject = get().projects.find(p => p.id === project.id);
+      const oldManager = oldProject?.manager || '';
+      const newManager = optimisticNormalized.manager || '';
+
+      if (newManager && newManager !== 'Sin asignar' && newManager !== oldManager) {
+        notifyManagerAssignment(optimisticNormalized, newManager);
+      }
 
       const { data, error } = await supabaseClient
         .from('projects')

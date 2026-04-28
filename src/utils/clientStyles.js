@@ -1,12 +1,12 @@
 const palette = [
-  { badge: 'border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF]' },
-  { badge: 'border-[#CDE5FF] bg-[#E7F3FF] text-[#4C8EF7]' },
-  { badge: 'border-[#FFE0B0] bg-[#FFF4E6] text-[#C07A00]' },
-  { badge: 'border-[#C8E6C9] bg-[#F1FAF3] text-[#2F9E44]' },
-  { badge: 'border-[#D8F2F0] bg-[#ECFDF5] text-[#0F766E]' },
-  { badge: 'border-[#FBCFE8] bg-[#FDF2F8] text-[#C026D3]' },
-  { badge: 'border-[#FDE68A] bg-[#FEF9C3] text-[#B45309]' },
-  { badge: 'border-[#D0D7E3] bg-[#F4F5F7] text-[#4B5563]' },
+  { badge: 'border-accent/40 bg-accent/20 backdrop-blur-md text-slate-900 dark:text-accent shadow-[0_4px_12px_rgba(255,75,42,0.1)]' },
+  { badge: 'border-blue-300 bg-blue-100 backdrop-blur-md text-blue-900 dark:bg-blue-500/20 dark:text-blue-300' },
+  { badge: 'border-amber-300 bg-amber-100 backdrop-blur-md text-amber-900 dark:bg-amber-500/20 dark:text-amber-300' },
+  { badge: 'border-emerald-300 bg-emerald-100 backdrop-blur-md text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-300' },
+  { badge: 'border-teal-300 bg-teal-100 backdrop-blur-md text-teal-900 dark:bg-teal-500/20 dark:text-teal-300' },
+  { badge: 'border-pink-300 bg-pink-100 backdrop-blur-md text-pink-900 dark:bg-pink-500/20 dark:text-pink-300' },
+  { badge: 'border-orange-300 bg-orange-100 backdrop-blur-md text-orange-900 dark:bg-orange-500/20 dark:text-orange-300' },
+  { badge: 'border-slate-300 bg-slate-100 backdrop-blur-md text-slate-900 dark:bg-slate-500/20 dark:text-slate-300' },
 ];
 
 const clientColorMap = new Map();
@@ -32,8 +32,8 @@ export const getClientStyles = (client) => {
 };
 
 const baseBadges = {
-  md: 'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] glass-pill',
-  sm: 'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.24em] glass-pill',
+  md: 'inline-flex items-center rounded-xl border px-3 py-1 text-xs font-black uppercase tracking-[0.2em] shadow-sm',
+  sm: 'inline-flex items-center rounded-lg border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.2em] shadow-sm',
 };
 
 export const getClientBadgeClass = (client, size = 'md') => {

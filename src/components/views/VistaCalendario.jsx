@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { startOfMonth, addMonths, startOfDay } from 'date-fns';
 import useStore from '../../hooks/useStore';
 import { getUIPreference, setUIPreference } from '../../utils/uiPreferences';
-import { isAllowedIsaMilestoneDay } from '../../utils/isaEstimates';
 import VistaTimeline from './VistaTimeline';
 import CalendarHeader from '../calendar/CalendarHeader';
 import { MonthNavigator, MemberFilters } from '../calendar/CalendarControls';
@@ -31,23 +30,17 @@ const VistaCalendario = ({ projects: projectsProp }) => {
   const searchTerm = useStore((state) => state.searchTerm);
   const openModal = useStore((state) => state.openModal);
   const teamMembers = useStore((state) => state.teamMembers);
-  const revisionCycles = useStore((state) => state.revisionCycles);
   const updateProject = useStore((state) => state.updateProject);
 
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [primaryView, setPrimaryView] = useState(() => getStoredCalendarPrimaryView());
   const [selectedMember, setSelectedMember] = useState(() => getStoredCalendarMember());
-  const [showIsaEvents, setShowIsaEvents] = useState(() => getUIPreference('calendarShowIsaEvents', true));
   const [selectedDayKey, setSelectedDayKey] = useState(() => startOfDay(new Date()).toISOString());
 
   useEffect(() => { setUIPreference('calendarPrimaryView', primaryView); }, [primaryView]);
   useEffect(() => { setUIPreference('calendarSelectedMember', selectedMember); }, [selectedMember]);
-  useEffect(() => { setUIPreference('calendarShowIsaEvents', showIsaEvents); }, [showIsaEvents]);
 
   const {
-    isDraggingIsa,
-    handleIsaDragStart,
-    handleIsaDragEnd,
     handleDayDragOver,
     handleDayDrop,
   } = useCalendarDnD(projects, updateProject);
@@ -62,8 +55,6 @@ const VistaCalendario = ({ projects: projectsProp }) => {
     projects,
     searchTerm,
     selectedMember,
-    showIsaEvents,
-    revisionCycles,
     currentMonth,
     selectedDayKey,
   });
@@ -88,8 +79,6 @@ const VistaCalendario = ({ projects: projectsProp }) => {
       <CalendarHeader
         primaryView={primaryView}
         setPrimaryView={setPrimaryView}
-        showIsaEvents={showIsaEvents}
-        setShowIsaEvents={setShowIsaEvents}
       />
 
       {primaryView === 'calendar' ? (
@@ -154,18 +143,12 @@ const VistaCalendario = ({ projects: projectsProp }) => {
               handleDaySelect={handleDaySelect}
               handleDayDragOver={handleDayDragOver}
               handleDayDrop={handleDayDrop}
-              handleIsaDragStart={handleIsaDragStart}
-              handleIsaDragEnd={handleIsaDragEnd}
-              isDraggingIsa={isDraggingIsa}
-              isAllowedIsaMilestoneDay={isAllowedIsaMilestoneDay}
               openModal={openModal}
             />
             <DayDetailPanel
               selectedDayDate={selectedDayDate}
               selectedDayDetails={selectedDayDetails}
               setSelectedDayKey={setSelectedDayKey}
-              handleIsaDragStart={handleIsaDragStart}
-              handleIsaDragEnd={handleIsaDragEnd}
               openModal={openModal}
             />
           </div>

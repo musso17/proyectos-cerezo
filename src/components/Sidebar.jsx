@@ -33,9 +33,10 @@ const Sidebar = () => {
   ];
 
   const containerClasses = clsx(
-    'hidden md:flex md:flex-col md:gap-6 md:overflow-y-auto md:rounded-[28px] md:p-6 md:transition-all md:duration-300',
+    'hidden md:flex md:flex-col md:gap-6 md:overflow-y-auto md:rounded-[2.5rem] md:p-6 md:transition-all md:duration-300',
     'md:sticky md:top-4 md:h-[calc(100vh-2rem)]',
-    'bg-white text-slate-900 border border-[#edf2ff] shadow-[0_20px_55px_rgba(15,23,42,0.08)]'
+    'bg-white text-slate-900 border border-[#edf2ff] shadow-[0_20px_55px_rgba(15,23,42,0.08)]',
+    'dark:bg-[#16171D] dark:border-white/5 dark:shadow-[0_40px_80px_rgba(0,0,0,0.6)]'
   );
 
   const handleNavigate = (view) => {
@@ -48,12 +49,13 @@ const Sidebar = () => {
   const SidebarContent = () => (
     <>
       <div className="space-y-1">
-        <p className="text-[11px] uppercase tracking-[0.4em] text-slate-400">Cerezo</p>
-        <h1 className="text-2xl font-semibold text-slate-900">Studio Planner</h1>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-[#FF4B2A] dark:text-[#FF4B2A]/80">Cerezo</p>
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-white">Studio Planner</h1>
+        <div className="h-0.5 w-12 brand-gradient rounded-full mt-2" />
       </div>
 
-      <nav className="flex-1 pt-4">
-        <ul className="flex flex-col gap-1.5">
+      <nav className="flex-1 pt-8">
+        <ul className="flex flex-col gap-2">
           {navItems
             .filter((item) => allowedViews.includes(item.id))
             .map((item) => {
@@ -64,24 +66,24 @@ const Sidebar = () => {
                     type="button"
                     onClick={() => handleNavigate(item.id)}
                     className={clsx(
-                      'flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-200',
+                      'flex w-full items-center gap-3 rounded-[1.5rem] px-4 py-3 text-sm font-medium transition-all duration-300',
                       isActive
-                        ? 'bg-gradient-to-r from-[#A855F7] via-[#7C3AED] to-[#6366F1] text-white shadow-[0_12px_40px_rgba(111,76,255,0.35)]'
-                        : 'text-[#1F2937] hover:bg-slate-50'
+                        ? 'bg-accent text-white shadow-[0_12px_40px_rgba(255,75,42,0.3)] scale-[1.02]'
+                        : 'text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-white/5'
                     )}
                   >
                     <span
                       className={clsx(
-                        'flex h-9 w-9 items-center justify-center rounded-xl border text-base transition-all duration-200',
+                        'flex h-9 w-9 items-center justify-center rounded-2xl transition-all duration-200',
                         isActive
-                          ? 'border-transparent bg-white/20 text-white'
-                          : 'border-[#E4E7EB] text-[#1F2937]'
+                          ? 'bg-white/20 text-white'
+                          : 'bg-slate-100 text-slate-400 dark:bg-white/5 dark:text-slate-500'
                       )}
                     >
                       <item.icon size={18} />
                     </span>
                     <div className="flex flex-1 items-center justify-between">
-                      <span>{item.label}</span>
+                      <span className={clsx(isActive ? 'font-semibold tracking-tight' : 'tracking-wide')}>{item.label}</span>
                     </div>
                   </button>
                 </li>
@@ -100,7 +102,7 @@ const Sidebar = () => {
               toggleMobileSidebar();
             }
           }}
-          className="flex items-center justify-center rounded-2xl bg-gradient-to-r from-[#A855F7] via-[#7C3AED] to-[#6366F1] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_40px_rgba(111,76,255,0.35)] transition-all duration-200 hover:brightness-105"
+          className="flex items-center justify-center rounded-2xl bg-dark-bg text-white dark:bg-accent dark:text-white px-4 py-3.5 text-sm font-semibold uppercase tracking-wide shadow-xl transition-all duration-300 hover:scale-105 active:scale-95"
         >
           Cotización
         </a>
@@ -130,7 +132,7 @@ const Sidebar = () => {
             isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           )}
         >
-          <div className="flex w-full grow flex-col gap-y-5 overflow-y-auto bg-white p-6 pb-8 shadow-[0_22px_45px_rgba(15,23,42,0.28)]">
+          <div className="flex w-full grow flex-col gap-y-5 overflow-y-auto bg-white dark:bg-dark-surface p-6 pb-8 shadow-[0_22px_45px_rgba(15,23,42,0.28)]">
             <SidebarContent />
           </div>
         </div>

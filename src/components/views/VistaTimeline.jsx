@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
+import clsx from 'clsx';
 import {
   addMonths,
   addWeeks,
@@ -18,19 +19,12 @@ import { es } from 'date-fns/locale';
 import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import useStore from '../../hooks/useStore';
 import { ensureMemberName, TEAM_STYLES } from '../../constants/team';
-import { computeIsaAverages, buildIsaMilestones, applyIsaOverridesToMilestones } from '../../utils/isaEstimates';
 import { filterProjects } from '../../utils/filterProjects';
 import { getUIPreference, setUIPreference } from '../../utils/uiPreferences';
 
 const STAGE_STYLES = {
-  grabacion: 'bg-blue-500/80 border border-blue-300/60 text-white',
-  edicion: 'bg-green-500/80 border border-green-300/60 text-white',
-  isa_first_version:
-    'border border-dashed border-indigo-300/70 bg-indigo-200/20 text-indigo-900 dark:border-indigo-300/60 dark:bg-indigo-300/15 dark:text-indigo-200',
-  isa_review:
-    'border border-dashed border-amber-300/70 bg-amber-200/20 text-amber-900 dark:border-amber-300/60 dark:bg-amber-300/15 dark:text-amber-200',
-  isa_final_delivery:
-    'border border-dashed border-emerald-300/70 bg-emerald-200/20 text-emerald-900 dark:border-emerald-300/60 dark:bg-emerald-300/15 dark:text-emerald-200',
+  grabacion: 'bg-[#4C8EF7] border border-blue-400/30 text-white shadow-lg shadow-blue-500/10',
+  edicion: 'bg-accent border border-accent/20 text-dark-bg shadow-lg shadow-accent/10',
 };
 
 const parseDate = (value) => {
@@ -51,13 +45,12 @@ const getStoredTimelineViewMode = () => {
   return normalized === 'month' ? 'month' : 'week';
 };
 
-const VistaTimeline = ({ isaOverrides = {}, showIsaEvents = true }) => {
+const VistaTimeline = () => {
   const projects = useStore((state) => state.projects);
   const searchTerm = useStore((state) => state.searchTerm);
   const openModal = useStore((state) => state.openModal);
   const teamMembers = useStore((state) => state.teamMembers);
   const currentUser = useStore((state) => state.currentUser);
-  const revisionCycles = useStore((state) => state.revisionCycles);
 
   const [viewMode, setViewMode] = useState(() => getStoredTimelineViewMode());
   const [currentDate, setCurrentDate] = useState(() => {
@@ -96,10 +89,8 @@ const VistaTimeline = ({ isaOverrides = {}, showIsaEvents = true }) => {
     });
   }, [displayedProjects, searchTerm]);
 
-  const isaStats = useMemo(() => computeIsaAverages(revisionCycles), [revisionCycles]);
-
   const processedAssignments = useMemo(() => {
-    const baseAssignments = filteredProjects
+    return filteredProjects
       .map((project) => {
         const start = parseDate(project.startDate);
         const end = parseDate(project.deadline);
@@ -115,32 +106,7 @@ const VistaTimeline = ({ isaOverrides = {}, showIsaEvents = true }) => {
         };
       })
       .filter(Boolean);
-
-    if (!showIsaEvents || !isaStats?.totalEstimatedDays) {
-      return baseAssignments;
-    }
-
-    const isaAssignments = filteredProjects.flatMap((project) => {
-      if (getProjectStage(project) !== 'grabacion') return [];
-      const milestones = applyIsaOverridesToMilestones(
-        project,
-        buildIsaMilestones(project, isaStats),
-        isaOverrides
-      );
-      return milestones.map((milestone) => ({
-        project,
-        stage: milestone.key,
-        manager: ensureMemberName(project.manager),
-        range: { start: milestone.date, end: milestone.date },
-        isaMeta: {
-          ...isaStats,
-          milestoneLabel: milestone.label,
-        },
-      }));
-    });
-
-    return [...baseAssignments, ...isaAssignments];
-  }, [filteredProjects, isaStats, isaOverrides, showIsaEvents]);
+  }, [filteredProjects]);
 
   const memberOrder = useMemo(() => {
     const predefined = teamMembers || [];
@@ -224,152 +190,151 @@ const VistaTimeline = ({ isaOverrides = {}, showIsaEvents = true }) => {
   const gridTemplateColumns = useMemo(
     () => `220px repeat(${visibleDates.length}, minmax(120px, 1fr))`,
     [visibleDates]
-  );
-
-  return (
-    <>
-      <div className="md:hidden text-center p-8">
-        <p className="text-lg font-semibold">Vista no disponible</p>
-        <p className="text-slate-400">La vista de línea de tiempo no está optimizada para dispositivos móviles. Por favor, usa una pantalla más grande.</p>
+  );  return (
+    <div className="flex h-full flex-col gap-6 p-4 md:p-6 animate-fade-up">
+      {/* Mobile warning */}
+      <div className="md:hidden flex flex-col items-center justify-center p-12 glass-panel">
+        <div className="rounded-2xl bg-amber-500/10 p-4 mb-4">
+          <CalendarIcon className="text-amber-500" size={32} />
+        </div>
+        <h2 className="text-xl font-semibold text-primary tracking-tight">Vista de escritorio</h2>
+        <p className="mt-2 text-center text-xs font-medium text-secondary/60 uppercase tracking-wide">
+          Timeline requiere una pantalla más grande
+        </p>
       </div>
-      <div className="hidden md:block space-y-6 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Clock className="text-accent" size={28} />
-            <div>
-              <h2 className="text-2xl font-bold text-primary">Disponibilidad por responsable</h2>
-              <p className="text-sm text-secondary/80">Visualiza grabaciones y ediciones programadas.</p>
+
+      <div className="hidden md:flex flex-col gap-8">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-4xl font-semibold text-primary tracking-tight">Timeline</h2>
+            <div className="flex items-center gap-2 mt-2">
+              <div className="h-1 w-8 rounded-full bg-accent" />
+              <p className="text-xs font-medium text-secondary/60 uppercase tracking-[0.2em]">
+                Disponibilidad por responsable
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setViewMode('week')}
-              className={`rounded-full border px-3 py-1 text-sm transition ${viewMode === 'week'
-                  ? 'border-accent bg-accent/20 text-primary'
-                  : 'border-border bg-[#F7F8FA] text-secondary hover:border-accent/40 hover:text-primary'
-                }`}
-            >
-              Semana
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('month')}
-              className={`rounded-full border px-3 py-1 text-sm transition ${viewMode === 'month'
-                  ? 'border-accent bg-accent/20 text-primary'
-                  : 'border-border bg-[#F7F8FA] text-secondary hover:border-accent/40 hover:text-primary'
-                }`}
-            >
-              Mes
-            </button>
-          </div>
-        </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-[#E5E7EB] bg-[#F7F8FA] px-4 py-3">
-          <div className="flex items-center gap-3 text-sm text-secondary">
-            <CalendarIcon size={16} />
-            <span className="text-primary font-medium">{timelineTitle}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handlePrevious}
-              className="rounded-full border border-[#E5E7EB] bg-white p-2 text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={handleToday}
-              className="rounded-full border border-[#E5E7EB] bg-white px-4 py-1 text-xs font-medium text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
-            >
-              Hoy
-            </button>
-            <button
-              type="button"
-              onClick={handleNext}
-              className="rounded-full border border-[#E5E7EB] bg-white p-2 text-secondary transition hover:-translate-y-0.5 hover:border-accent/60 hover:text-accent"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
-
-        {visibleDates.length === 0 || memberOrder.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-[#E5E7EB] bg-[#F7F8FA] p-6 text-center text-sm text-secondary">
-            No hay proyectos con fechas asignadas en el periodo seleccionado.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <div className="min-w-[1000px] rounded-3xl border border-[#E5E7EB] bg-[#E8ECF5]">
-              <div
-                className="grid text-xs uppercase tracking-wide text-secondary"
-                style={{ gridTemplateColumns }}
+          <div className="flex items-center gap-4">
+            <div className="glass-panel flex p-1 rounded-2xl">
+              <button
+                onClick={() => setViewMode('week')}
+                className={clsx(
+                  'rounded-xl px-6 py-2 text-xs font-semibold uppercase tracking-wide transition-all',
+                  viewMode === 'week' ? 'bg-dark-bg text-white dark:bg-accent dark:text-dark-bg shadow-lg' : 'text-secondary/50 hover:bg-slate-50 dark:hover:bg-white/5'
+                )}
               >
-                <div className="sticky left-0 z-20 border-b border-[#E5E7EB] bg-white px-4 py-3 text-left text-[11px] font-semibold text-secondary/80">
-                  Responsable
-                </div>
-                {visibleDates.map((date) => (
-                  <div
-                    key={date.toISOString()}
-                    className="border-b border-[#E5E7EB] px-2 py-3 text-center text-[11px] font-semibold text-secondary"
-                  >
-                    <span className="block text-sm text-primary">{format(date, 'd')}</span>
-                    <span className="text-[10px] text-secondary/70">{format(date, 'EEE', { locale: es })}</span>
-                  </div>
-                ))}
+                Semana
+              </button>
+              <button
+                onClick={() => setViewMode('month')}
+                className={clsx(
+                  'rounded-xl px-6 py-2 text-xs font-semibold uppercase tracking-wide transition-all',
+                  viewMode === 'month' ? 'bg-dark-bg text-white dark:bg-accent dark:text-dark-bg shadow-lg' : 'text-secondary/50 hover:bg-slate-50 dark:hover:bg-white/5'
+                )}
+              >
+                Mes
+              </button>
+            </div>
 
-                {assignmentsByManager.map((row) => {
-                  const palette = TEAM_STYLES[row.manager] || TEAM_STYLES.default;
-                  return (
-                    <React.Fragment key={row.manager}>
-                      <div
-                        className={`sticky left-0 z-20 border-b border-[#E5E7EB] bg-white px-4 py-3 text-sm font-semibold text-primary ${palette.pill || ''}`}
-                      >
-                        {row.manager || 'Sin responsable'}
-                      </div>
-                      {row.dates.map((cell) => (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePrevious}
+                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-white text-secondary transition-all hover:scale-110 active:scale-95 dark:border-white/10 dark:bg-white/5"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <button
+                onClick={handleToday}
+                className="glass-panel px-6 py-2 rounded-2xl text-[10px] font-semibold uppercase tracking-[0.2em] text-secondary/70 hover:text-primary dark:hover:text-white"
+              >
+                Hoy
+              </button>
+              <button
+                onClick={handleNext}
+                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-white text-secondary transition-all hover:scale-110 active:scale-95 dark:border-white/10 dark:bg-white/5"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-panel p-4 rounded-[2.5rem]">
+          <div className="flex items-center justify-center mb-6">
+            <span className="text-sm font-semibold uppercase tracking-[0.4em] text-primary dark:text-accent">
+              {timelineTitle}
+            </span>
+          </div>
+
+          {visibleDates.length === 0 || memberOrder.length === 0 ? (
+            <div className="rounded-[2rem] border-2 border-dashed border-border/40 p-12 text-center">
+              <p className="text-xs font-medium text-secondary/50 uppercase tracking-wide">
+                Sin proyectos programados en este periodo
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto soft-scroll">
+              <div className="min-w-[1000px] rounded-[2rem] border border-border/40 overflow-hidden bg-slate-50 dark:bg-[#0B0C10]/50">
+                <div
+                  className="grid text-xs uppercase tracking-wide"
+                  style={{ gridTemplateColumns }}
+                >
+                  <div className="sticky left-0 z-20 border-b border-border/40 bg-white dark:bg-dark-surface px-6 py-4 text-left text-[10px] font-semibold text-secondary/40 tracking-[0.2em]">
+                    Responsable
+                  </div>
+                  {visibleDates.map((date) => (
+                    <div
+                      key={date.toISOString()}
+                      className="border-b border-border/40 px-2 py-4 text-center"
+                    >
+                      <span className="block text-lg font-semibold text-primary dark:text-white leading-none">{format(date, 'd')}</span>
+                      <span className="text-[9px] font-medium text-secondary/40 uppercase tracking-wide">{format(date, 'EEE', { locale: es })}</span>
+                    </div>
+                  ))}
+
+                  {assignmentsByManager.map((row) => {
+                    return (
+                      <React.Fragment key={row.manager}>
                         <div
-                          key={cell.key}
-                          className="border-b border-l border-[#E5E7EB] px-1 py-2"
+                          className="sticky left-0 z-20 border-b border-border/40 bg-white dark:bg-dark-surface px-6 py-4 text-xs font-semibold text-primary tracking-tight dark:text-white/80"
                         >
-                          <div className="flex flex-col gap-1">
-                            {cell.items.map(({ project, stage, isaMeta }) => {
-                              const style = STAGE_STYLES[stage] || 'bg-slate-700/70 border border-slate-600/60 text-slate-100';
-                              const title = project.name || 'Proyecto sin título';
-                              const isIsaStage = typeof stage === 'string' && stage.startsWith('isa_');
-                              const displayTitle = isIsaStage
-                                ? `${isaMeta?.milestoneLabel || 'ISA'} · ${title}`
-                                : title;
-                              return (
-                                <button
-                                  key={`${project.id || title}-${cell.key}-${stage}`}
-                                  type="button"
-                                  onClick={() => openModal(project)}
-                                  className={`line-clamp-2 rounded-xl px-2 py-1 text-[11px] font-medium transition hover:-translate-y-0.5 hover:shadow-lg ${style}`}
-                                  title={displayTitle}
-                                >
-                                  <span className="block truncate">{displayTitle}</span>
-                                  {isIsaStage && isaMeta && (
-                                    <span className="mt-0.5 block text-[10px] opacity-80">
-                                      Referencia ISA
-                                    </span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
+                          {row.manager || 'Sin responsable'}
                         </div>
-                      ))}
-                    </React.Fragment>
-                  );
-                })}
+                        {row.dates.map((cell) => (
+                          <div
+                            key={cell.key}
+                            className="border-b border-l border-border/40 px-1 py-2 dark:bg-white/[0.02]"
+                          >
+                            <div className="flex flex-col gap-1.5">
+                              {cell.items.map(({ project, stage }) => {
+                                const style = STAGE_STYLES[stage] || 'bg-slate-700/70 text-slate-100';
+                                const title = project.name || 'Proyecto';
+                                return (
+                                  <button
+                                    key={`${project.id || title}-${cell.key}-${stage}`}
+                                    type="button"
+                                    onClick={() => openModal(project)}
+                                    className={`group relative line-clamp-1 rounded-xl px-3 py-1.5 text-[10px] font-semibold uppercase tracking-tight transition-all hover:scale-[1.05] hover:z-10 hover:shadow-2xl ${style}`}
+                                    title={title}
+                                  >
+                                    <span className="block truncate">{title}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </>
+    </div>
   );
 };
 

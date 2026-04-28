@@ -22,7 +22,7 @@ const MobileEventList = ({ selectedDayDetails, selectedDayDate, openModal }) => 
   return (
     <div className="sm:hidden flex flex-col divide-y divide-gray-100 dark:divide-white/5">
       <div className="px-4 py-3 bg-gray-50 dark:bg-white/5 sticky top-0 z-10 border-b border-gray-100 dark:border-white/10">
-        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+        <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide">
           {format(selectedDayDate, "EEEE d 'de' MMMM", { locale: es })}
         </h3>
       </div>
@@ -34,7 +34,7 @@ const MobileEventList = ({ selectedDayDetails, selectedDayDate, openModal }) => 
           className="flex items-start gap-4 p-4 active:bg-gray-100 dark:active:bg-white/10 transition-colors"
         >
           <div className="flex flex-col items-center min-w-[50px]">
-            <span className="text-xs font-bold text-gray-900 dark:text-white">
+            <span className="text-xs font-medium text-gray-900 dark:text-white">
               {event.timeLabel && event.timeLabel.includes(':') ? event.timeLabel : 'Todo el día'}
             </span>
           </div>

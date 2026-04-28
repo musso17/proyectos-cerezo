@@ -64,6 +64,26 @@ export const getProjectManagers = (project) => {
     .filter(Boolean);
 };
 
+export const getProjectRecordingDate = (project) => {
+  if (!project) return null;
+  const candidates = [
+    project.fechaGrabacion,
+    project.fecha_grabacion,
+    project.fechaGrabación,
+    project.recordingDate,
+    project.recording_date,
+    project.properties?.fechaGrabacion,
+    project.properties?.fecha_grabacion,
+    project.properties?.recordingDate,
+  ];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const parsed = parseISO(candidate.toString().trim().length <= 10 ? `${candidate}T00:00:00` : candidate);
+    if (isValid(parsed)) return parsed;
+  }
+  return null;
+};
+
 export const extractProjectInfo = (project) => {
   const id = project.id || project.uuid || project._id || project.slug || String(Math.random());
   const statusLabel = buildLabel(project.status, 'Programado');
@@ -144,8 +164,34 @@ export const extractProjectInfo = (project) => {
   };
 };
 
-export const buildDashboardData = (projects, revisionCycles = {}) => {
-  const now = new Date();
+/**
+ * Determina si un proyecto estaba activo durante un mes específico.
+ * Un proyecto está activo si:
+ * 1. Empezó en el mes de referencia.
+ * 2. Empezó antes y no ha terminado aún.
+ * 3. Empezó antes y terminó después o durante el mes de referencia.
+ */
+export const isProjectActiveInMonth = (projectInfo, referenceDate) => {
+  const { startDate, referenceCompletionDate, isCompleted } = projectInfo;
+  if (!startDate) return false;
+
+  const refStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
+  const refEnd = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0);
+
+  // Caso 1: El proyecto empieza dentro del mes
+  if (isSameMonth(startDate, referenceDate)) return true;
+
+  // Caso 2: El proyecto empezó antes y sigue activo
+  if (startDate < refStart) {
+    if (!isCompleted) return true;
+    if (referenceCompletionDate && referenceCompletionDate >= refStart) return true;
+  }
+
+  return false;
+};
+
+export const buildDashboardData = (projects, revisionCycles = {}, referenceDate = new Date()) => {
+  const now = referenceDate;
   const totals = { active: 0, recording: 0, editing: 0, delivered: 0 };
   let completedThisMonth = 0;
   const statusCount = new Map();
@@ -176,6 +222,7 @@ export const buildDashboardData = (projects, revisionCycles = {}) => {
   ]);
 
   projects.forEach((project) => {
+    const projectInfo = extractProjectInfo(project);
     const {
       id,
       statusLabel,
@@ -191,24 +238,29 @@ export const buildDashboardData = (projects, revisionCycles = {}) => {
       completionDate,
       referenceCompletionDate,
       displayName,
-    } = extractProjectInfo(project);
+    } = projectInfo;
+
+    const isActiveInPeriod = isProjectActiveInMonth(projectInfo, now);
 
     statusCount.set(statusLabel, (statusCount.get(statusLabel) || 0) + 1);
 
-    if (!isCompleted && statusLabel !== 'Cancelado') {
+    if (!isCompleted && statusLabel !== 'Cancelado' && isActiveInPeriod) {
       totals.active += 1;
       activeStatusCount.set(statusLabel, (activeStatusCount.get(statusLabel) || 0) + 1);
     }
 
-    if (!isCompleted && stage === 'grabacion') totals.recording += 1;
+    if (!isCompleted && stage === 'grabacion' && isActiveInPeriod) totals.recording += 1;
     if (
       !isCompleted &&
       (stage === 'edicion' || stage === 'postproduccion') &&
-      editingStatusKeys.has(statusKey)
+      editingStatusKeys.has(statusKey) &&
+      isActiveInPeriod
     ) {
       totals.editing += 1;
     }
-    if (isCompleted) totals.delivered += 1;
+    if (isCompleted && referenceCompletionDate && isSameMonth(referenceCompletionDate, now)) {
+      totals.delivered += 1;
+    }
 
     if (referenceCompletionDate && isSameMonth(referenceCompletionDate, now) && isCompleted) {
       completedThisMonth += 1;
@@ -385,5 +437,52 @@ export const buildDashboardData = (projects, revisionCycles = {}) => {
       pendingReviews: pendingReviewCount,
       avgCyclesPerProject,
     },
+  };
+};
+
+/**
+ * Calcula métricas avanzadas de eficiencia basadas en el historial de eventos (Problema 3).
+ * Requiere los datos de la vista efficiency_metrics_view.
+ */
+export const calculateEfficiencyMetrics = (efficiencyData) => {
+  if (!Array.isArray(efficiencyData) || efficiencyData.length === 0) {
+    return {
+      avgTimeByStage: {},
+      bottlenecks: [],
+      totalLeadTime: 0,
+    };
+  }
+
+  const stageTimes = new Map(); // stage -> [durations]
+  
+  efficiencyData.forEach(event => {
+    if (event.time_in_stage) {
+      // time_in_stage viene como intervalo o segundos dependiendo de la DB
+      // Aquí asumimos que lo parseamos a horas o días
+      const durationHours = typeof event.time_in_stage === 'number' 
+        ? event.time_in_stage / 3600 
+        : parseFloat(event.time_in_stage) || 0;
+        
+      const stage = event.to_status || 'desconocido';
+      const current = stageTimes.get(stage) || [];
+      current.push(durationHours);
+      stageTimes.set(stage, current);
+    }
+  });
+
+  const avgTimeByStage = {};
+  const bottlenecks = [];
+
+  stageTimes.forEach((durations, stage) => {
+    const avg = durations.reduce((a, b) => a + b, 0) / durations.length;
+    avgTimeByStage[stage] = Number(avg.toFixed(1));
+    if (avg > 72) { // Más de 3 días es un cuello de botella potencial
+      bottlenecks.push({ stage, avgHours: avg });
+    }
+  });
+
+  return {
+    avgTimeByStage,
+    bottlenecks: bottlenecks.sort((a, b) => b.avgHours - a.avgHours),
   };
 };

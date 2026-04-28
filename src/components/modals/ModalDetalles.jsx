@@ -551,27 +551,30 @@ const ModalDetalles = () => {
               leave="ease-in duration-200"
               leaveFrom="opacity-100 translate-y-0 scale-100"
               leaveTo="opacity-0 translate-y-4 scale-95">
-              <Dialog.Panel className="flex h-full w-full max-w-full transform flex-col overflow-hidden rounded-none border border-gray-200 bg-white text-left align-middle shadow-xl transition-all sm:h-auto sm:max-w-4xl sm:rounded-xl dark:border-[#1f2030] dark:bg-[#10111c]/95 dark:shadow-[0_42px_88px_rgba(2,6,23,0.75)]">
-                <div className="flex shrink-0 items-start justify-between gap-4 border-b border-gray-200 px-4 py-4 sm:px-6 sm:py-5">
+              <Dialog.Panel className="flex h-full w-full max-w-full transform flex-col overflow-hidden rounded-none border border-border bg-white text-left align-middle shadow-2xl transition-all sm:h-auto sm:max-w-4xl sm:rounded-[3rem] dark:border-white/5 dark:bg-[#16171D] dark:shadow-[0_48px_96px_rgba(0,0,0,0.8)]">
+                <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border/40 px-4 py-4 sm:px-8 sm:py-8">
                   <Dialog.Title className="flex-1">
                     <input
                       type="text"
                       name="name"
-                      value={editedProject.name}
+                      value={editedProject?.name || ''}
                       onChange={handleInputChange}
-                      className="w-full bg-transparent text-2xl font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                      className="w-full bg-transparent text-3xl font-semibold text-primary tracking-tight placeholder:text-secondary/30 focus:outline-none dark:text-white dark:placeholder:text-white/10"
                       placeholder="Nombre del proyecto"
                     />
-                    <p className="mt-2 text-sm text-gray-500">
-                      Gestiona la información clave y comparte recursos con tu equipo.
-                    </p>
+                    <div className="flex items-center gap-2 mt-3">
+                      <div className="h-1 w-8 rounded-full bg-accent" />
+                      <p className="text-xs font-medium text-secondary/60 uppercase tracking-[0.2em]">
+                        Detalles operativos y recursos
+                      </p>
+                    </div>
                   </Dialog.Title>
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="rounded-lg border border-gray-200 bg-white p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700"
+                    className="group rounded-2xl border border-border bg-white p-3 text-secondary transition-all hover:bg-slate-50 hover:scale-110 active:scale-95 dark:border-white/10 dark:bg-white/5 dark:text-white/50 dark:hover:bg-white/10 dark:hover:text-white"
                   >
-                    <X size={20} />
+                    <X size={24} className="transition-transform group-hover:rotate-90" />
                   </button>
                 </div>
 
@@ -583,7 +586,7 @@ const ModalDetalles = () => {
                         value={clientSelection}
                         onChange={handleClientSelectionChange}
                         disabled={enforceFranciscoClient}
-                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A disabled:cursor-not-allowed disabled:bg-gray-100"
                       >
                         {!enforceFranciscoClient && (
                           <option value="">Selecciona un cliente</option>
@@ -601,9 +604,9 @@ const ModalDetalles = () => {
                         <input
                           type="text"
                           name="client"
-                          value={editedProject.client || ''}
+                          value={editedProject?.client || ''}
                           onChange={handleCustomClientChange}
-                          className="mt-3 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                          className="mt-3 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
                           placeholder="Ingresa un nuevo cliente"
                         />
                       )}
@@ -613,9 +616,9 @@ const ModalDetalles = () => {
                       <div>
                         <label className="text-sm font-medium text-gray-600">Tipo de registro</label>
                         <select
-                          value={editedProject.registrationType || ''}
+                          value={editedProject?.registrationType || ''}
                           onChange={handleRegistrationTypeChange}
-                          className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                          className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
                         >
                           <option value="" disabled>
                             Selecciona una opción
@@ -636,7 +639,7 @@ const ModalDetalles = () => {
                           type="button"
                           onClick={() => handleStageChange(STAGES.GRABACION)}
                           className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${(editedProject.stage || '').toLowerCase() === STAGES.GRABACION
-                            ? 'border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7] shadow-sm'
+                            ? 'border-[#FF4B2A/40] bg-[#FF4B2A/10] text-[#FF4B2A] shadow-sm'
                             : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
                             }`}
                         >
@@ -646,7 +649,7 @@ const ModalDetalles = () => {
                           type="button"
                           onClick={() => handleStageChange(STAGES.FOTOGRAFIA)}
                           className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${(editedProject.stage || '').toLowerCase() === STAGES.FOTOGRAFIA
-                            ? 'border-[#99F6E4] bg-[#f0fdfa] text-[#0D9488] shadow-sm'
+                            ? 'border-[#5F6468/40] bg-[#5F6468/10] text-[#5F6468] shadow-sm'
                             : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
                             }`}
                         >
@@ -656,7 +659,7 @@ const ModalDetalles = () => {
                           type="button"
                           onClick={() => handleStageChange(STAGES.EDICION)}
                           className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${(editedProject.stage || '').toLowerCase() === STAGES.EDICION
-                            ? 'border-violet-500 bg-violet-50 text-violet-700 shadow-sm'
+                            ? 'border-#FF4B2A bg-#FF4B2A/10 text-#FF4B2A shadow-sm'
                             : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
                             }`}
                         >
@@ -669,9 +672,9 @@ const ModalDetalles = () => {
                       <label className="text-sm font-medium text-gray-600">Estado</label>
                       <select
                         name="status"
-                        value={editedProject.status || 'Programado'}
+                        value={editedProject?.status || 'Programado'}
                         onChange={handleInputChange}
-                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
                       >
                         <option value="Programado">Programado</option>
                         <option value="En progreso">En progreso</option>
@@ -688,14 +691,14 @@ const ModalDetalles = () => {
                           tabIndex={0}
                           onClick={() => setIsManagerDropdownOpen((prev) => !prev)}
                           onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setIsManagerDropdownOpen((prev) => !prev)}
-                          className="flex w-full items-center justify-between gap-3 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                          className="flex w-full items-center justify-between gap-3 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
                         >
                           <div className="flex w-full flex-wrap items-center gap-2 text-left pointer-events-none">
                             {selectedManagers.length > 0 ? (
                               selectedManagers.map((manager) => (
                                 <span
                                   key={manager}
-                                  className="inline-flex items-center gap-1.5 rounded-md bg-violet-100 px-2 py-1 text-xs font-medium text-violet-700"
+                                  className="inline-flex items-center gap-1.5 rounded-md bg-#FF4B2A/20 px-2 py-1 text-xs font-medium text-#FF4B2A"
                                 >
                                   {manager}
                                   <button
@@ -704,7 +707,7 @@ const ModalDetalles = () => {
                                       event.stopPropagation();
                                       handleManagerRemove(manager);
                                     }}
-                                    className="pointer-events-auto text-violet-500 transition hover:text-violet-700"
+                                    className="pointer-events-auto text-#FF4B2A transition hover:text-#FF4B2A"
                                   >
                                     <X size={12} />
                                   </button>
@@ -716,7 +719,7 @@ const ModalDetalles = () => {
                           </div>
                           <ChevronDown
                             size={16}
-                            className={`ml-auto shrink-0 text-gray-500 transition ${isManagerDropdownOpen ? 'rotate-180 text-violet-600' : ''
+                            className={`ml-auto shrink-0 text-gray-500 transition ${isManagerDropdownOpen ? 'rotate-180 text-#FF4B2A' : ''
                               }`}
                           />
                         </div>
@@ -754,10 +757,10 @@ const ModalDetalles = () => {
                       <label className="text-sm font-medium text-gray-600">Descripción general</label>
                       <textarea
                         name="description"
-                        value={editedProject.description || ''}
+                        value={editedProject?.description || ''}
                         onChange={handleInputChange}
                         rows={4}
-                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
                         placeholder="Describe objetivos, entregables y contexto del proyecto"
                       />
                     </div>
@@ -766,9 +769,9 @@ const ModalDetalles = () => {
                       <label className="text-sm font-medium text-gray-600">Equipo</label>
                       <input
                         type="text"
-                        value={editedProject.team?.join(', ') || ''}
+                        value={editedProject?.team?.join(', ') || ''}
                         onChange={handleTeamChange}
-                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
                         placeholder="Nombre1, Nombre2, Nombre3"
                       />
                     </div>
@@ -791,7 +794,7 @@ const ModalDetalles = () => {
                             onClick={handleOpenRecordingCalendar}
                             disabled={!editedProject.recordingDate}
                             className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold transition ${editedProject.recordingDate
-                              ? 'border-violet-300 text-violet-700 bg-violet-50 hover:bg-violet-100'
+                              ? 'border-violet-300 text-#FF4B2A bg-#FF4B2A/10 hover:bg-#FF4B2A/20'
                               : 'cursor-not-allowed border-gray-300 text-gray-400 bg-gray-100 dark:border-white/10 dark:text-white/30 dark:bg-white/5'
                               }`}
                           >
@@ -804,37 +807,37 @@ const ModalDetalles = () => {
                             <label className="text-sm font-medium text-gray-600 dark:text-white/80">Día de grabación</label>
                             <input
                               type="date"
-                              value={editedProject.recordingDate || ''}
+                              value={editedProject?.recordingDate || ''}
                               onChange={handleRecordingDateChange}
-                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/80"
+                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/80"
                             />
                           </div>
                           <div>
                             <label className="text-sm font-medium text-gray-600 dark:text-white/80">Hora</label>
                             <input
                               type="time"
-                              value={editedProject.recordingTime || ''}
+                              value={editedProject?.recordingTime || ''}
                               onChange={handleRecordingFieldChange('recordingTime')}
-                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/80"
+                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/80"
                             />
                           </div>
                           <div>
                             <label className="text-sm font-medium text-gray-600 dark:text-white/80">Lugar</label>
                             <input
                               type="text"
-                              value={editedProject.recordingLocation || ''}
+                              value={editedProject?.recordingLocation || ''}
                               onChange={handleRecordingFieldChange('recordingLocation')}
-                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/80 dark:placeholder:text-white/40"
+                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/80 dark:placeholder:text-white/40"
                               placeholder="Estudio, locación, referencia"
                             />
                           </div>
                           <div>
                             <label className="text-sm font-medium text-gray-600 dark:text-white/80">Descripción de la grabación</label>
                             <textarea
-                              value={editedProject.recordingDescription || ''}
+                              value={editedProject?.recordingDescription || ''}
                               onChange={handleRecordingFieldChange('recordingDescription')}
                               rows={3}
-                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/80 dark:placeholder:text-white/40"
+                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/80 dark:placeholder:text-white/40"
                               placeholder="Ángulos, requerimientos técnicos o mensajes clave"
                             />
                           </div>
@@ -852,9 +855,9 @@ const ModalDetalles = () => {
                           <input
                             type="date"
                             name="startDate"
-                            value={editedProject.startDate || ''}
+                            value={editedProject?.startDate || ''}
                             onChange={handleInputChange}
-                            className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                            className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
                           />
                         </div>
                         <div>
@@ -863,9 +866,9 @@ const ModalDetalles = () => {
                             <input
                               type="date"
                               name="deadline"
-                              value={editedProject.deadline || ''}
+                              value={editedProject?.deadline || ''}
                               onChange={handleInputChange}
-                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
                             />
                           </div>
                         </div>
@@ -877,9 +880,9 @@ const ModalDetalles = () => {
                       <input
                         type="text"
                         name="deliverableLink"
-                        value={editedProject.deliverableLink || ''}
+                        value={editedProject?.deliverableLink || ''}
                         onChange={handleInputChange}
-                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
                         placeholder="Enlace al video, carpeta o archivo final"
                       />
                     </div>
@@ -899,7 +902,7 @@ const ModalDetalles = () => {
                                 href={resource}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="max-w-[200px] truncate text-violet-600 transition group-hover:text-violet-700"
+                                className="max-w-[200px] truncate text-#FF4B2A transition group-hover:text-#FF4B2A"
                               >
                                 {resource}
                               </a>
@@ -917,7 +920,7 @@ const ModalDetalles = () => {
                       <button
                         type="button"
                         onClick={handleAddResource}
-                        className="mt-3 inline-flex items-center gap-2 rounded-md border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 transition hover:bg-violet-100"
+                        className="mt-3 inline-flex items-center gap-2 rounded-md border border-violet-300 bg-#FF4B2A/10 px-3 py-1.5 text-xs font-medium text-#FF4B2A transition hover:bg-#FF4B2A/20"
                       >
                         <Plus size={14} />
                         Añadir recurso
@@ -960,7 +963,7 @@ const ModalDetalles = () => {
                                 type="text"
                                 value={value}
                                 onChange={(event) => handlePropertyChange(key, event.target.value)}
-                                className="w-full rounded-md bg-white border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                                className="w-full rounded-md bg-white border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
                               />
                             </div>
                           ))}
@@ -969,35 +972,38 @@ const ModalDetalles = () => {
                   )}
                 </div>
 
-                <div className="flex flex-col gap-3 border-t border-gray-200 bg-gray-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-white/10 dark:bg-white/[0.03]">
+                <div className="flex flex-col gap-4 border-t border-border/40 bg-slate-50 px-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-10 dark:border-white/5 dark:bg-[#0B0C10]/50">
                   {editedProject.id ? (
                     <button
                       type="button"
-                      className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-transparent px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10"
+                      className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-transparent px-5 py-2 text-sm font-semibold uppercase tracking-wide text-red-500 transition-all hover:bg-red-500/10 active:scale-95"
                       onClick={handleDelete}
                     >
-                      <Trash2 size={16} />
-                      Eliminar proyecto
+                      <Trash2 size={18} />
+                      Eliminar
                     </button>
                   ) : (
-                    <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-white/60">
-                      Nuevo proyecto
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-accent animate-pulse" />
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-secondary/50">
+                        Nuevo Registro
+                      </span>
+                    </div>
                   )}
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-4">
                     <button
                       type="button"
-                      className="min-h-[44px] rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-white/10 dark:bg-[#151623] dark:text-white/80 dark:hover:bg-white/5"
+                      className="min-h-[48px] rounded-2xl border border-border bg-white px-8 py-2 text-sm font-semibold uppercase tracking-wide text-secondary transition-all hover:bg-slate-50 active:scale-95 dark:border-white/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
                       onClick={closeModal}
                     >
                       Cancelar
                     </button>
                     <button
                       type="button"
-                      className="min-h-[44px] rounded-lg border border-transparent bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-violet-700 dark:bg-[#7C3AED] dark:hover:bg-[#8B5CF6]"
+                      className="min-h-[48px] rounded-2xl bg-dark-bg px-10 py-2 text-sm font-semibold uppercase tracking-[0.15em] text-white shadow-xl transition-all hover:-translate-y-1 hover:shadow-2xl active:scale-95 dark:bg-accent dark:text-dark-bg dark:shadow-accent/20"
                       onClick={handleSave}
                     >
-                      {editedProject.id ? 'Guardar cambios' : 'Crear proyecto'}
+                      {editedProject.id ? 'Guardar Cambios' : 'Crear Proyecto'}
                     </button>
                   </div>
                 </div>

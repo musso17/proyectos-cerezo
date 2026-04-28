@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Calendar as CalendarIcon, Edit2, Trash2 } from 'lucide-react';
+import clsx from 'clsx';
+import { Calendar as CalendarIcon, Edit2, Trash2, ChevronDown } from 'lucide-react';
 import useStore from '../../hooks/useStore';
 import { filterProjects } from '../../utils/filterProjects';
 import { getClientBadgeClass } from '../../utils/clientStyles';
@@ -16,46 +17,58 @@ const getLabel = (value, fallback) => {
 
 const formatDate = (value) => {
   if (!value) return '—';
-  const str = value.toString().trim();
-  const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (isoMatch) {
-    const [, year, month, day] = isoMatch;
-    return `${day}/${month}/${year}`;
-  }
-  const altMatch = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (altMatch) {
-    return str;
-  }
+  const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  
   try {
-    const date = new Date(str);
+    const str = value.toString().trim();
+    let date;
+    const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) {
+      date = new Date(str.length <= 10 ? `${str}T12:00:00` : str);
+    } else {
+      date = new Date(str);
+    }
+    
     if (Number.isNaN(date.getTime())) return str;
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
+    
+    const day = date.getDate();
+    const month = months[date.getMonth()];
+    return `${day} ${month}`;
   } catch {
-    return str;
+    return value;
   }
 };
 
 
+const TYPE_COLORS = {
+  grabacion: '#FF4B2A',
+  edicion: '#5F6468',
+  fotografia: '#000000',
+};
+
 const TYPE_BADGES = {
-  grabacion: {
-    label: 'Grabación',
-    className: 'border border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7]',
-  },
-  edicion: {
-    label: 'Edición',
-    className: 'border border-[#D9D6FF] bg-[#EEF1FF] text-[#6C63FF]',
-  },
-  fotografia: {
-    label: 'Fotografía',
-    className: 'border border-[#99F6E4] bg-[#f0fdfa] text-[#0D9488]', // Teal/Cyan style
-  },
+  grabacion: { label: 'Grabación', color: '#FF4B2A' },
+  edicion: { label: 'Edición', color: '#5F6468' },
+  fotografia: { label: 'Fotografía', color: '#000000' },
+};
+
+const Avatar = ({ name }) => {
+  if (!name) return null;
+  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const formattedName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[10px] font-semibold text-secondary dark:bg-white/5 dark:text-white/60">
+        {initials}
+      </div>
+      <span className="text-xs font-medium text-secondary/80 dark:text-white/70">{formattedName}</span>
+    </div>
+  );
 };
 
 const getProjectTypeBadge = (project) => {
-  if (!project) return { label: 'Sin tipo', className: 'bg-slate-700/50 text-secondary border border-[#E5E7EB]' };
+  if (!project) return { label: 'Sin tipo', color: '#94A3B8' };
 
   const rawStage = project.stage || project.properties?.stage || '';
   const rawType = project.type || project.properties?.registrationType || '';
@@ -66,7 +79,6 @@ const getProjectTypeBadge = (project) => {
   if (normalizedStage && TYPE_BADGES[normalizedStage]) {
     return TYPE_BADGES[normalizedStage];
   }
-  // Handle 'fotografía' with accent
   if (normalizedStage === 'fotografía') return TYPE_BADGES.fotografia;
 
   if (normalizedType && TYPE_BADGES[normalizedType]) {
@@ -76,7 +88,7 @@ const getProjectTypeBadge = (project) => {
 
   return {
     label: rawType || rawStage || 'Sin tipo',
-    className: 'border border-[#D1D5DB] bg-[#F4F5F7] text-secondary',
+    color: '#94A3B8',
   };
 };
 
@@ -197,28 +209,30 @@ const StatusSelector = ({ project }) => {
     }
   };
 
-  const getBadgeClass = (status) => {
+  const getStatusDotColor = (status) => {
     switch (status) {
-      case 'Programado': return 'bg-[#F4F5F7] text-secondary border-[#D1D5DB] dark:bg-white/5 dark:text-white/80 dark:border-white/10';
-      case 'En progreso': return 'bg-[#EEF1FF] text-[#6C63FF] border-[#D9D6FF] dark:bg-[#1E1B4B] dark:text-[#C4B5FD] dark:border-[#4C1D95]/50';
-      case 'En edición': return 'bg-[#EEF1FF] text-[#6C63FF] border-[#D9D6FF] dark:bg-[#1E1B4B] dark:text-[#C4B5FD] dark:border-[#4C1D95]/50';
-      case 'En revisión': return 'bg-[#FFF4E6] text-[#C07A00] border-[#FFE0B0] dark:bg-[#422006] dark:text-[#FCD34D] dark:border-[#FCD34D]/40';
-      case 'Completado': return 'bg-[#F1FAF3] text-[#2F9E44] border-[#C8E6C9] dark:bg-[#052E1D] dark:text-[#6EE7B7] dark:border-[#34D399]/40';
-      default: return 'bg-gray-100 text-gray-600 border-gray-200';
+      case 'Programado': return 'bg-slate-300';
+      case 'En progreso': return 'bg-[#FF4B2A]';
+      case 'En edición': return 'bg-[#FF4B2A] shadow-[0_0_8px_rgba(255,75,42,0.4)]';
+      case 'En revisión': return 'bg-[#5F6468]';
+      case 'Completado': return 'bg-black dark:bg-white';
+      default: return 'bg-gray-300';
     }
   };
 
   return (
     <div
-      className={`relative inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide transition-colors ${getBadgeClass(currentStatus)}`}
+      className="group relative flex items-center gap-2.5 rounded-full border border-border/40 bg-white/50 px-4 py-2.5 transition-all hover:bg-white dark:border-white/5 dark:bg-white/[0.02]"
       onClick={(e) => e.stopPropagation()}
     >
+      <div className={`h-2 w-2 rounded-full ${getStatusDotColor(currentStatus)}`} />
+      <span className="text-[11px] font-medium text-secondary/80 dark:text-white/60">{currentStatus}</span>
+      
       <select
         value={currentStatus}
         onChange={handleChange}
         disabled={loading}
-        className="appearance-none bg-transparent outline-none w-full cursor-pointer pl-0 pr-4 z-10"
-        style={{ textAlignLast: 'center' }}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
       >
         <option value="Programado">Programado</option>
         <option value="En progreso">En progreso</option>
@@ -226,12 +240,11 @@ const StatusSelector = ({ project }) => {
         <option value="En revisión">En revisión</option>
         <option value="Completado">Completado</option>
       </select>
-      {/* Custom arrow if needed, but simple select is functional */}
-      <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 opacity-50">
-        <svg width="8" height="6" viewBox="0 0 8 6" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-          <path d="M4 6L0 0H8L4 6Z" />
-        </svg>
-      </div>
+
+      <ChevronDown
+        size={12}
+        className="text-secondary/30 transition-transform group-hover:text-secondary/60"
+      />
     </div>
   );
 };
@@ -349,14 +362,14 @@ const VistaTabla = ({ projects: projectsProp }) => {
   };
 
   return (
-    <div className="soft-scroll flex h-full flex-col gap-4 overflow-auto p-4 md:p-0">
-      <div className="glass-panel grid items-end gap-4 p-5 text-xs text-secondary sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
+    <div className="flex h-full flex-col gap-6 p-4 md:p-6 animate-fade-up">
+      <div className="glass-panel grid items-end gap-6 p-8 rounded-[2rem] text-xs text-secondary sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
         <div className="flex flex-col gap-2">
-          <label className="mb-1 font-semibold uppercase tracking-[0.26em] text-secondary/80">Tipo</label>
+          <label className="mb-1 font-semibold uppercase tracking-[0.2em] text-secondary/40">Tipo</label>
           <select
             value={filters.type}
             onChange={handleFilterChange('type')}
-            className="w-full min-w-[160px] rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+            className="w-full min-w-[160px] rounded-2xl border border-border bg-white px-5 py-3 text-sm font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
           >
             {filterOptions.types.map((option) => (
               <option key={option} value={option}>
@@ -367,11 +380,11 @@ const VistaTabla = ({ projects: projectsProp }) => {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="mb-1 font-semibold uppercase tracking-[0.26em] text-secondary/80">Encargado</label>
+          <label className="mb-1 font-semibold uppercase tracking-[0.2em] text-secondary/40">Encargado</label>
           <select
             value={filters.manager}
             onChange={handleFilterChange('manager')}
-            className="w-full min-w-[160px] rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+            className="w-full min-w-[160px] rounded-2xl border border-border bg-white px-5 py-3 text-sm font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
           >
             {filterOptions.managers.map((option) => (
               <option key={option} value={option}>
@@ -382,11 +395,11 @@ const VistaTabla = ({ projects: projectsProp }) => {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="mb-1 font-semibold uppercase tracking-[0.26em] text-secondary/80">Estado</label>
+          <label className="mb-1 font-semibold uppercase tracking-[0.2em] text-secondary/40">Estado</label>
           <select
             value={filters.status}
             onChange={handleFilterChange('status')}
-            className="w-full min-w-[160px] rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+            className="w-full min-w-[160px] rounded-2xl border border-border bg-white px-5 py-3 text-sm font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
           >
             {filterOptions.statuses.map((option) => (
               <option key={option} value={option}>
@@ -397,11 +410,11 @@ const VistaTabla = ({ projects: projectsProp }) => {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="mb-1 font-semibold uppercase tracking-[0.26em] text-secondary/80">Cliente</label>
+          <label className="mb-1 font-semibold uppercase tracking-[0.2em] text-secondary/40">Cliente</label>
           <select
             value={filters.client}
             onChange={handleFilterChange('client')}
-            className="w-full min-w-[160px] rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+            className="w-full min-w-[160px] rounded-2xl border border-border bg-white px-5 py-3 text-sm font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
           >
             {filterOptions.clients.map((option) => (
               <option key={option} value={option}>
@@ -414,143 +427,29 @@ const VistaTabla = ({ projects: projectsProp }) => {
         <button
           type="button"
           onClick={handleResetFilters}
-          className="w-full rounded-xl border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-semibold text-accent transition hover:shadow-sm sm:w-auto sm:justify-self-end sm:self-end"
+          className="w-full rounded-2xl bg-dark-bg px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white transition-all hover:-translate-y-1 active:scale-95 sm:w-auto dark:bg-accent dark:text-dark-bg"
         >
-          Limpiar filtros
+          Limpiar
         </button>
       </div>
 
-      <div className="flex flex-col gap-4 sm:hidden">
-        {searchFilteredProjects.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[#CBD5F5] bg-[#F9FAFF] p-6 text-center text-sm text-secondary">
-            No hay proyectos para mostrar.
-          </div>
-        ) : (
-          searchFilteredProjects.map((project, index) => {
-            const managers = getProjectManagers(project);
-            const managerLabel = managers.length > 0 ? managers.join(', ') : 'Sin asignar';
-            const calendarLink = generarLinkGoogleCalendar({
-              contenido: project.name || 'Proyecto',
-              detalle: project.description || '',
-              fechaInicio: project.startDate || '',
-              fechaFin: project.deadline || '',
-              encargado: managerLabel,
-              cliente: project.client || '',
-            });
-            const calendarDisabled = !calendarLink;
-
-            return (
-              <div
-                key={project.id || index}
-                className="space-y-4 rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm transition hover:shadow-md"
-                onClick={() => openModal(project)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    openModal(project);
-                  }
-                }}
-              >
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-semibold text-primary">
-                      {project.name || 'Sin título'}
-                    </h3>
-                    {renderTypeBadge(project, 'w-fit')}
-                  </div>
-                  <div className="space-y-2 text-sm text-secondary">
-                    <p>
-                      <span className="text-secondary/70">Responsable: </span>
-                      <span className="text-primary">{managerLabel}</span>
-                    </p>
-                    <p>
-                      <span className="text-secondary/70">Cliente: </span>
-                      <span className="text-primary">{project.client || 'Sin cliente'}</span>
-                    </p>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-secondary/70">
-                          Inicio:{' '}
-                          <span className="text-primary">{formatDate(project.startDate)}</span>
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-secondary/70">
-                          Entrega:{' '}
-                          <span className="text-primary">{formatDate(project.deadline)}</span>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            if (!calendarLink) return;
-                            window.open(calendarLink, '_blank', 'noopener');
-                          }}
-                          disabled={calendarDisabled}
-                          className={`flex h-8 w-8 items-center justify-center rounded-full transition focus:outline-none focus:ring-2 focus:ring-accent/50 ${calendarDisabled
-                            ? 'cursor-not-allowed border border-[#E5E7EB] text-secondary'
-                            : 'border border-accent/40 text-accent hover:bg-accent/10'
-                            }`}
-                          aria-label="Agendar en Calendar"
-                        >
-                          <CalendarIcon size={14} />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="inline-flex items-center gap-2">
-                        <StatusSelector project={project} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      openModal(project);
-                    }}
-                    className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
-                  >
-                    Ver detalles
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleDelete(project, event);
-                    }}
-                    className="w-full rounded-xl border border-[#F4C7C7] bg-[#FDECEC] px-4 py-3 text-sm font-semibold text-[#B91C1C] transition hover:shadow-sm"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      <div className="glass-panel overflow-hidden rounded-xl">
-        <div className="overflow-x-auto">
-          <table className="hidden w-full border-collapse text-sm text-secondary sm:table">
+      <div className="glass-panel overflow-hidden rounded-[3rem] border border-border shadow-2xl">
+        <div className="overflow-x-auto soft-scroll">
+          <table className="w-full border-collapse text-sm text-secondary">
             <thead>
-              <tr className="bg-[#F9FAFB] text-xs uppercase tracking-[0.26em] text-secondary/80 dark:bg-[#1B1C20] dark:text-white/50">
+              <tr className="bg-slate-50/50 text-[11px] font-medium uppercase tracking-[0.25em] text-secondary/40 backdrop-blur-xl dark:bg-black/40">
                 {['Proyecto', 'Encargado', 'Estado', 'Inicio', 'Entrega', 'Cliente', 'Acciones'].map((header) => (
-                  <th key={header} className="px-6 py-4 text-left font-semibold">
+                  <th key={header} className="px-8 py-6 text-left first:pl-12 last:pr-12">
                     {header}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border/40 dark:divide-white/5">
               {searchFilteredProjects.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-secondary">
-                    No hay proyectos para mostrar.
+                  <td colSpan={7} className="px-8 py-20 text-center">
+                    <p className="text-xs font-medium text-secondary/50 uppercase tracking-wide">No se encontraron proyectos</p>
                   </td>
                 </tr>
               ) : (
@@ -568,65 +467,63 @@ const VistaTabla = ({ projects: projectsProp }) => {
                   return (
                     <tr
                       key={project.id || index}
-                      className="border-t border-[#E5E7EB] transition-colors duration-150 ease-out hover:bg-[#F7F8FA] dark:border-[#2B2D31] dark:odd:bg-white/5 dark:hover:bg-white/5"
+                      className="group transition-all duration-300 hover:bg-slate-50/80 dark:hover:bg-white/[0.02]"
                       onClick={() => openModal(project)}
                     >
-                      <td className="px-6 py-5 text-sm font-semibold text-primary">
-                        {project.name || 'Sin título'}
-                        <div className="mt-2">
-                          {renderTypeBadge(project)}
+                      <td className="px-8 py-10 first:pl-12">
+                        <div className="flex gap-4">
+                          <div 
+                            className="w-1 rounded-full shrink-0" 
+                            style={{ backgroundColor: TYPE_COLORS[(project.stage || project.properties?.stage || 'edicion').toLowerCase()] || '#5F6468' }} 
+                          />
+                          <div className="flex flex-col gap-1.5">
+                            <span className="text-[15px] font-semibold text-primary tracking-tight dark:text-white group-hover:text-accent transition-colors">
+                              {project.name || 'Sin título'}
+                            </span>
+                            <span className="font-mono text-[9px] uppercase tracking-wider text-secondary/40">
+                              {getProjectTypeBadge(project).label}
+                            </span>
+                          </div>
                         </div>
                       </td>
-                      <td className="px-6 py-5 text-sm text-secondary">
-                        {(() => {
-                          const managers = getProjectManagers(project);
-                          return managers.length > 0 ? managers.join(', ') : 'Sin asignar';
-                        })()}
+                      <td className="px-8 py-10">
+                        <div className="flex flex-col gap-2">
+                          {getProjectManagers(project).map((m, i) => (
+                            <Avatar key={i} name={m} />
+                          ))}
+                          {getProjectManagers(project).length === 0 && (
+                            <span className="text-xs text-secondary/30 italic">Sin asignar</span>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-6 py-5">
+                      <td className="px-8 py-10">
                         <StatusSelector project={project} />
                       </td>
-                      <td className="px-6 py-5 text-sm text-secondary">{formatDate(project.startDate)}</td>
-                      <td className="px-6 py-5 text-sm text-secondary">
-                        <div className="flex items-center gap-2">
-                          <span>{formatDate(project.deadline)}</span>
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              if (!calendarLink) return;
-                              window.open(calendarLink, '_blank', 'noopener');
-                            }}
-                            disabled={calendarDisabled}
-                            className={`flex h-8 w-8 items-center justify-center rounded-full transition focus:outline-none focus:ring-2 focus:ring-accent/30 ${calendarDisabled
-                              ? 'cursor-not-allowed border border-[#E5E7EB] text-secondary dark:border-[#2B2D31] dark:text-white/40'
-                              : 'border border-accent/40 text-accent hover:bg-accent/10 dark:border-[#2B2D31] dark:text-white/70 dark:hover:bg-white/10'
-                              }`}
-                            aria-label="Agendar entrega en Calendar"
-                          >
-                            <CalendarIcon size={14} />
-                          </button>
-                        </div>
+                      <td className="px-8 py-10 text-xs font-medium text-secondary/70 dark:text-white/50">
+                        {formatDate(project.startDate)}
                       </td>
-                      <td className="px-6 py-5">
+                      <td className="px-8 py-10 text-xs font-medium text-secondary/70 dark:text-white/50">
+                        {formatDate(project.deadline)}
+                      </td>
+                      <td className="px-8 py-10">
                         {(() => {
                           const clientLabel = project.client || 'Sin cliente';
-                          return <span className={getClientBadgeClass(clientLabel)}>{clientLabel}</span>;
+                          return <span className="text-xs font-semibold tracking-tight text-primary dark:text-white/80">{clientLabel}</span>;
                         })()}
                       </td>
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-2">
+                      <td className="px-8 py-10 last:pr-12">
+                        <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             type="button"
                             onClick={(event) => handleEdit(project, event)}
-                            className="glass-button rounded-full p-2 text-secondary transition hover:text-accent dark:text-white/80"
+                            className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100/80 text-secondary transition-all hover:scale-110 hover:bg-dark-bg hover:text-white active:scale-95 dark:bg-white/5 dark:text-white/50 dark:hover:bg-accent dark:hover:text-dark-bg"
                           >
                             <Edit2 size={14} />
                           </button>
                           <button
                             type="button"
                             onClick={(event) => handleDelete(project, event)}
-                            className="glass-button rounded-full p-2 text-[#B91C1C] transition hover:text-red-500 dark:text-red-300"
+                            className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50/80 text-red-500 transition-all hover:scale-110 hover:bg-red-500 hover:text-white active:scale-95 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500 dark:hover:text-white"
                           >
                             <Trash2 size={14} />
                           </button>
