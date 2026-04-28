@@ -1,15 +1,19 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@supabase/supabase-js";
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENAI_API_KEY);
+export const dynamic = 'force-dynamic';
+
+const genAI = process.env.GOOGLE_GENAI_API_KEY ? new GoogleGenerativeAI(process.env.GOOGLE_GENAI_API_KEY) : null;
 const GEMINI_MODEL =
   process.env.GOOGLE_GENAI_MODEL ||
   process.env.NEXT_PUBLIC_GOOGLE_GENAI_MODEL ||
   "gemini-2.5-flash";
 
-const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+const model = genAI ? genAI.getGenerativeModel({ model: GEMINI_MODEL }) : null;
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabase = (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+  ? createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+  : null;
 
 const SYSTEM_PROMPT = `Eres Cerezo Planner Agent.
 
@@ -51,6 +55,14 @@ CRITERIOS DE ALERTA:
 
 export async function POST(req) {
   try {
+    if (!supabase || !model) {
+      console.error("[Agent] Initialization error: Missing environment variables.");
+      return new Response(JSON.stringify({ 
+        error: "initialization_error", 
+        message: "Missing environment variables (Supabase or Google GenAI). Check Vercel dashboard." 
+      }), { status: 500 });
+    }
+
     const {
       mode = "diagnose",
       projects: fallbackProjects = [],
