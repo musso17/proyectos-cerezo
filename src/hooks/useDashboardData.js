@@ -2,7 +2,7 @@ import { useMemo, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { isSameMonth, parseISO } from 'date-fns';
 import useStore from './useStore';
-import { buildDashboardData, calculateEfficiencyMetrics } from '../utils/dashboardHelpers';
+import { buildDashboardData, calculateEfficiencyMetrics, extractProjectInfo } from '../utils/dashboardHelpers';
 
 const selectDashboardState = (state) => ({
   projects: state.projects,
@@ -32,10 +32,11 @@ export const useDashboardData = () => {
 
   const { carbonoProjectsThisMonth, variableProjectsCount } = useMemo(() => {
     const now = selectedDashboardDate;
-    const carbonoProjects = (projects || []).filter(p => 
-      (p.client?.toLowerCase() === 'carbono' || p.cliente?.toLowerCase() === 'carbono' || p.properties?.tag === 'carbono') &&
-      p.startDate && isSameMonth(parseISO(p.startDate), now)
-    );
+    const carbonoProjects = (projects || []).filter(p => {
+      const info = extractProjectInfo(p);
+      return (p.client?.toLowerCase() === 'carbono' || p.cliente?.toLowerCase() === 'carbono' || p.properties?.tag === 'carbono') &&
+      info.startDate && isSameMonth(info.startDate, now);
+    });
 
     const variableProjects = (projects || []).filter(p => 
       !(p.client?.toLowerCase() === 'carbono' || p.cliente?.toLowerCase() === 'carbono' || p.properties?.tag === 'carbono')

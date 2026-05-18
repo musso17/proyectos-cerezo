@@ -1,9 +1,13 @@
 import React from 'react';
 import { AlertCircle, Calendar } from 'lucide-react';
+import { extractProjectInfo } from '../../utils/dashboardHelpers';
 
 const UnclassifiedProjectsPanel = ({ projects, onAssign }) => {
   const unclassified = (projects || []).filter(
-    (p) => !p.startDate && (p.status || '').toLowerCase() !== 'completado'
+    (p) => {
+      const info = extractProjectInfo(p);
+      return !info.startDate && !info.isCompleted && (p.status || '').toLowerCase() !== 'completado';
+    }
   );
 
   if (unclassified.length === 0) return null;

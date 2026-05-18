@@ -54,9 +54,10 @@ const VistaCarbonoDashboard = () => {
     const managerLoad = new Map();
     const referenceDate = selectedDashboardDate;
 
-    const carbonoProjectsThisMonth = carbonoProjects.filter(
-      (p) => p.startDate && isSameMonth(parseISO(p.startDate), referenceDate)
-    ).length;
+    const carbonoProjectsThisMonth = carbonoProjects.filter((p) => {
+      const info = extractProjectInfo(p);
+      return info.startDate && isSameMonth(info.startDate, referenceDate);
+    }).length;
 
     const RETAINER_LIMIT = 6;
 

@@ -25,7 +25,7 @@ export const useCalendarData = ({ projects, searchTerm, selectedMember, currentM
   }, [currentMonth]);
 
   const activeProjects = useMemo(() => {
-    return projects.filter((project) => (project?.status || '').toString().trim().toLowerCase() !== 'completado');
+    return projects;
   }, [projects]);
 
   const visibleProjects = useMemo(

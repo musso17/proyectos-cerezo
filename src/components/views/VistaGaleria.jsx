@@ -167,11 +167,49 @@ const VistaGaleria = ({ projects: projectsProp }) => {
   const projectsFromStore = useStore((state) => state.projects);
   const projects = projectsProp !== undefined ? projectsProp : projectsFromStore;
 
+  const [selectedClient, setSelectedClient] = useState('Todos');
+  const [selectedMonth, setSelectedMonth] = useState('Todos');
+
   const completedProjects = useMemo(() => {
     return (projects || [])
       .filter(p => normalizeStatus(p.status) === 'Completado')
       .sort((a, b) => new Date(b.deadline || b.updated_at) - new Date(a.deadline || a.updated_at));
   }, [projects]);
+
+  const clients = useMemo(() => {
+    const allClients = completedProjects.map(p => p.client).filter(Boolean);
+    return ['Todos', ...new Set(allClients)].sort();
+  }, [completedProjects]);
+
+  const months = useMemo(() => {
+    const allMonths = completedProjects.map(p => {
+      const completionDate = getProjectCompletionDate(p);
+      if (!completionDate) return null;
+      try {
+        return format(parseISO(completionDate), 'MMMM yyyy', { locale: es });
+      } catch (e) {
+        return null;
+      }
+    }).filter(Boolean);
+    return ['Todos', ...new Set(allMonths)];
+  }, [completedProjects]);
+
+  const filteredGalleryProjects = useMemo(() => {
+    return completedProjects.filter(p => {
+      if (selectedClient !== 'Todos' && p.client !== selectedClient) return false;
+      if (selectedMonth !== 'Todos') {
+        const completionDate = getProjectCompletionDate(p);
+        if (!completionDate) return false;
+        try {
+          const monthStr = format(parseISO(completionDate), 'MMMM yyyy', { locale: es });
+          if (monthStr !== selectedMonth) return false;
+        } catch (e) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [completedProjects, selectedClient, selectedMonth]);
 
   return (
     <div className="flex h-full flex-col gap-8 p-4 md:p-6 animate-fade-up">
@@ -185,15 +223,32 @@ const VistaGaleria = ({ projects: projectsProp }) => {
         </div>
       </div>
 
-      {completedProjects.length > 0 ? (
+      <div className="flex flex-col sm:flex-row gap-4 mb-2">
+        <select
+          value={selectedClient}
+          onChange={(e) => setSelectedClient(e.target.value)}
+          className="rounded-xl border border-border bg-white px-4 py-2 text-sm font-medium text-primary focus:border-accent focus:outline-none dark:border-white/5 dark:bg-[#16171D] dark:text-white"
+        >
+          {clients.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(e.target.value)}
+          className="rounded-xl border border-border bg-white px-4 py-2 text-sm font-medium text-primary focus:border-accent focus:outline-none dark:border-white/5 dark:bg-[#16171D] dark:text-white"
+        >
+          {months.map(m => <option key={m} value={m}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>)}
+        </select>
+      </div>
+
+      {filteredGalleryProjects.length > 0 ? (
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {completedProjects.map((project) => (
+          {filteredGalleryProjects.map((project) => (
             <GalleryCard key={project.id} project={project} />
           ))}
         </div>
       ) : (
         <div className="flex h-64 flex-col items-center justify-center rounded-[3rem] border-2 border-dashed border-border/40 bg-slate-50 dark:bg-white/[0.02]">
-          <p className="text-xs font-semibold uppercase tracking-wide text-secondary/40">No hay proyectos completados</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-secondary/40">No hay proyectos encontrados con esos filtros</p>
         </div>
       )}
     </div>
