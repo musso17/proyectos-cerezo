@@ -67,9 +67,10 @@ export default function UserSettingsPanel({ onClose }) {
         });
         if (error) throw error;
 
-        // Re-fetch the session to get the definitive updated metadata
-        const { data: fresh } = await supabase.auth.getUser();
-        setCurrentUser(fresh?.user ?? data?.user ?? currentUser);
+        // Force-refresh the JWT so user_metadata is up to date
+        const { data: sessionData } = await supabase.auth.refreshSession();
+        const updatedUser = sessionData?.user ?? data?.user ?? currentUser;
+        setCurrentUser(updatedUser);
       }
 
       toast.success('Ajustes guardados');

@@ -36,8 +36,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { TEAM_STYLES } from '../../constants/team';
-import { AVATAR_COLORS } from '../UserSettingsPanel';
-
 const MIC_KEY = 'cerezo-default-mic';
 const getDefaultMic = () => {
   if (typeof window === 'undefined') return true;
@@ -373,7 +371,7 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, isMinimized, localAvat
     localInList ? allRaw : localParticipant ? [localParticipant, ...allRaw] : allRaw
   ).map((p) => ({ participant: p, isLocal: p.identity === localParticipant?.identity }));
 
-  const toggleMic = () => room?.localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
+  const toggleMic = () => room?.localParticipant?.setMicrophoneEnabled(!isMicrophoneEnabled);
   const handleLeave = () => { room?.disconnect(); onLeave(); };
 
   // ── Minimized pill ──────────────────────────────────────────────────────────
@@ -568,7 +566,7 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, isMinimized, localAvat
 
           {/* Screen share */}
           <button
-            onClick={toggleScreenShare}
+            onClick={() => typeof toggleScreenShare === 'function' && toggleScreenShare()}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all duration-200 ${
               isScreenSharing
                 ? 'bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 border border-indigo-500/40'
