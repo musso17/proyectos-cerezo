@@ -12,6 +12,57 @@ import {
 } from 'lucide-react';
 import useStore from '../hooks/useStore';
 
+const VOICE_ROOMS = [
+  { id: 'General', emoji: '🎙️' },
+  { id: 'Carbono', emoji: '🚗' },
+];
+
+const VoiceRoomList = () => {
+  const activeVoiceRoom = useStore((state) => state.activeVoiceRoom);
+  const setActiveVoiceRoom = useStore((state) => state.setActiveVoiceRoom);
+
+  return (
+    <ul className="flex flex-col gap-1">
+      {VOICE_ROOMS.map(({ id, emoji }) => {
+        const isActive = activeVoiceRoom === id;
+        return (
+          <li key={id}>
+            <button
+              type="button"
+              onClick={() => setActiveVoiceRoom(isActive ? null : id)}
+              className={clsx(
+                'flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm transition-all duration-200',
+                isActive
+                  ? 'bg-green-500/10 dark:bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 font-medium shadow-[0_0_12px_rgba(34,197,94,0.1)]'
+                  : 'text-slate-500 hover:bg-slate-50 dark:text-slate-500 dark:hover:bg-white/5 border border-transparent'
+              )}
+            >
+              {/* Dot indicator */}
+              <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-slate-100 dark:bg-white/5">
+                <div
+                  className={clsx(
+                    'absolute top-1 right-1 w-1.5 h-1.5 rounded-full',
+                    isActive ? 'bg-green-500 animate-pulse' : 'bg-slate-300 dark:bg-slate-600'
+                  )}
+                />
+                <span className="text-sm leading-none">{emoji}</span>
+              </div>
+
+              <span className="flex-1 text-left truncate">{id}</span>
+
+              {isActive && (
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-green-500/80 shrink-0">
+                  En vivo
+                </span>
+              )}
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+};
+
 const Sidebar = () => {
   const currentView = useStore((state) => state.currentView);
   const setCurrentView = useStore((state) => state.setCurrentView);
@@ -90,6 +141,12 @@ const Sidebar = () => {
               );
             })}
         </ul>
+
+        {/* Salas de Voz */}
+        <div className="mt-8">
+          <p className="px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-2">Salas de Voz</p>
+          <VoiceRoomList />
+        </div>
       </nav>
 
       {!isFranciscoUser(currentUser) && (

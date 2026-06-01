@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Plus, Menu, LogOut, Sun, Moon } from 'lucide-react';
+import { Search, Plus, Menu, LogOut, Sun, Moon, Settings } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../supabaseclient';
 import useStore from '../hooks/useStore';
+import UserSettingsPanel from './UserSettingsPanel';
 
 const Navbar = () => {
   const openModal = useStore((state) => state.openModal);
@@ -16,8 +17,10 @@ const Navbar = () => {
   const theme = useStore((state) => state.theme);
   const toggleTheme = useStore((state) => state.toggleTheme);
   const setCurrentUser = useStore((state) => state.setCurrentUser);
+  const currentUser = useStore((state) => state.currentUser);
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const handleAddNew = () => {
     openModal({ properties: {} });
@@ -115,6 +118,15 @@ const Navbar = () => {
           </div>
         </div>
         <div className="flex items-center justify-end gap-3">
+          <select
+            value={useStore((state) => state.userAvailability)}
+            onChange={(e) => useStore.getState().setUserAvailability(e.target.value)}
+            className="hidden sm:block h-11 px-3 rounded-2xl border border-slate-200 bg-white text-sm font-medium text-slate-700 transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 dark:border-white/5 dark:bg-[#1E1F23] dark:text-white/80"
+          >
+            <option value="Activo - Editando">🟢 Activo - Editando</option>
+            <option value="Ocupado">🟡 Ocupado</option>
+            <option value="Fuera de la oficina">⚪ Fuera de la oficina</option>
+          </select>
           <button
             type="button"
             onClick={toggleTheme}
@@ -122,6 +134,14 @@ const Navbar = () => {
             aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
           >
             {theme === 'dark' ? <Sun size={18} className="text-accent" /> : <Moon size={18} />}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowSettings(true)}
+            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-secondary transition-all duration-300 hover:scale-110 active:scale-95 dark:border-white/5 dark:bg-[#1E1F23] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white/90"
+            aria-label="Ajustes de perfil"
+          >
+            <Settings size={18} />
           </button>
           <button
             type="button"
@@ -150,6 +170,7 @@ const Navbar = () => {
       >
         <Plus size={28} strokeWidth={3} />
       </button>
+      {showSettings && <UserSettingsPanel onClose={() => setShowSettings(false)} />}
     </>
   );
 };
