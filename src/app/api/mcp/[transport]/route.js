@@ -1,5 +1,6 @@
 import { createMcpHandler } from 'mcp-handler';
 import { createClient } from '@supabase/supabase-js';
+import { randomUUID } from 'crypto';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -91,6 +92,7 @@ const handler = createMcpHandler(
           }
           const managers = encargado ? [encargado] : [];
           const payload = {
+            id: randomUUID(),
             name: nombre,
             client: cliente,
             manager: managers.join(', '),
