@@ -145,7 +145,7 @@ export default function UserSettingsPanel({ onClose }) {
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Ej. Marcelo M."
               maxLength={40}
-              className="w-full rounded-2xl border border-slate-200 dark:border-white/8 bg-white dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+              className="w-full rounded-lg border border-slate-200 dark:border-white/8 bg-white dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
             />
             <p className="text-[11px] text-slate-400">
               Aparece en la sala de voz y en el chat. Si lo dejas vacío se usará tu email.
@@ -191,7 +191,7 @@ export default function UserSettingsPanel({ onClose }) {
                 <button
                   key={opt.value}
                   onClick={() => setUserAvailability(opt.value)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium text-left transition-all border ${
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-left transition-all border ${
                     userAvailability === opt.value
                       ? 'border-accent/40 bg-accent/5 text-accent dark:text-[#FF4B2A]'
                       : 'border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8'
@@ -214,7 +214,7 @@ export default function UserSettingsPanel({ onClose }) {
             </label>
             <button
               onClick={() => setDefaultMic((v) => !v)}
-              className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl border transition-all ${
+              className={`w-full flex items-center gap-4 px-4 py-4 rounded-lg border transition-all ${
                 defaultMic
                   ? 'border-emerald-200 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/5'
                   : 'border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/5'
@@ -246,7 +246,7 @@ export default function UserSettingsPanel({ onClose }) {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-accent text-white font-semibold text-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-accent/20"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-accent text-white font-semibold text-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-accent/20"
           >
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={3} />}
             {saving ? 'Guardando…' : 'Guardar cambios'}

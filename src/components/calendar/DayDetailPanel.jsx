@@ -11,7 +11,7 @@ const DayDetailPanel = ({
   if (!selectedDayDate) return null;
 
   return (
-    <div className="mt-6 rounded-3xl border border-[#E5E7EB] bg-white p-6 dark:border-[#2B2D31] dark:bg-[#1E1F23]">
+    <div className="mt-6 rounded-xl border border-[#E5E7EB] bg-white p-6 dark:border-[#2B2D31] dark:bg-[#1E1F23]">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-xl font-semibold text-primary dark:text-white/90">
@@ -36,7 +36,7 @@ const DayDetailPanel = ({
           {selectedDayDetails.map((item) => (
             <div
               key={`${item.id}-${item.sortTime}`}
-              className="rounded-2xl border border-[#E5E7EB] bg-white p-4 transition hover:border-accent/60 hover:bg-[#F1F5F9] dark:border-[#2B2D31] dark:bg-[#0F0F11] dark:hover:border-purple-400/60 dark:hover:bg-white/10"
+              className="rounded-lg border border-[#E5E7EB] bg-white p-4 transition hover:border-accent/60 hover:bg-[#F1F5F9] dark:border-[#2B2D31] dark:bg-[#0F0F11] dark:hover:border-purple-400/60 dark:hover:bg-white/10"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-[200px] max-w-full">

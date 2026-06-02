@@ -194,7 +194,7 @@ const VistaTimeline = () => {
     <div className="flex h-full flex-col gap-6 p-4 md:p-6 animate-fade-up">
       {/* Mobile warning */}
       <div className="md:hidden flex flex-col items-center justify-center p-12 glass-panel">
-        <div className="rounded-2xl bg-amber-500/10 p-4 mb-4">
+        <div className="rounded-lg bg-amber-500/10 p-4 mb-4">
           <CalendarIcon className="text-amber-500" size={32} />
         </div>
         <h2 className="text-xl font-semibold text-primary tracking-tight">Vista de escritorio</h2>
@@ -216,7 +216,7 @@ const VistaTimeline = () => {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="glass-panel flex p-1 rounded-2xl">
+            <div className="glass-panel flex p-1 rounded-lg">
               <button
                 onClick={() => setViewMode('week')}
                 className={clsx(
@@ -240,19 +240,19 @@ const VistaTimeline = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={handlePrevious}
-                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-white text-secondary transition-all hover:scale-110 active:scale-95 dark:border-white/10 dark:bg-white/5"
+                className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-white text-secondary transition-all hover:scale-110 active:scale-95 dark:border-white/10 dark:bg-white/5"
               >
                 <ChevronLeft size={20} />
               </button>
               <button
                 onClick={handleToday}
-                className="glass-panel px-6 py-2 rounded-2xl text-[10px] font-semibold uppercase tracking-[0.2em] text-secondary/70 hover:text-primary dark:hover:text-white"
+                className="glass-panel px-6 py-2 rounded-lg text-[10px] font-semibold uppercase tracking-[0.2em] text-secondary/70 hover:text-primary dark:hover:text-white"
               >
                 Hoy
               </button>
               <button
                 onClick={handleNext}
-                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-white text-secondary transition-all hover:scale-110 active:scale-95 dark:border-white/10 dark:bg-white/5"
+                className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-white text-secondary transition-all hover:scale-110 active:scale-95 dark:border-white/10 dark:bg-white/5"
               >
                 <ChevronRight size={20} />
               </button>
@@ -260,7 +260,7 @@ const VistaTimeline = () => {
           </div>
         </div>
 
-        <div className="glass-panel p-4 rounded-[2.5rem]">
+        <div className="glass-panel p-4 rounded-xl">
           <div className="flex items-center justify-center mb-6">
             <span className="text-sm font-semibold uppercase tracking-[0.4em] text-primary dark:text-accent">
               {timelineTitle}
@@ -268,14 +268,14 @@ const VistaTimeline = () => {
           </div>
 
           {visibleDates.length === 0 || memberOrder.length === 0 ? (
-            <div className="rounded-[2rem] border-2 border-dashed border-border/40 p-12 text-center">
+            <div className="rounded-xl border-2 border-dashed border-border/40 p-12 text-center">
               <p className="text-xs font-medium text-secondary/50 uppercase tracking-wide">
                 Sin proyectos programados en este periodo
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto soft-scroll">
-              <div className="min-w-[1000px] rounded-[2rem] border border-border/40 overflow-hidden bg-slate-50 dark:bg-[#0B0C10]/50">
+              <div className="min-w-[1000px] rounded-xl border border-border/40 overflow-hidden bg-slate-50 dark:bg-[#0B0C10]/50">
                 <div
                   className="grid text-xs uppercase tracking-wide"
                   style={{ gridTemplateColumns }}

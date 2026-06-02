@@ -244,7 +244,7 @@ const MessageBubble = ({ msg, isOwn }) => {
       {/* Bubble */}
       <div className={`max-w-[75%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-0.5`}>
         {!isOwn && <span className="text-[10px] text-slate-500 px-1">{name}</span>}
-        <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
+        <div className={`px-3 py-2 rounded-lg text-sm leading-relaxed break-words ${
           isOwn
             ? 'bg-indigo-600 text-white rounded-tr-sm'
             : 'bg-slate-800 text-slate-200 rounded-tl-sm'
@@ -303,7 +303,7 @@ const ChatPanel = ({ messages, onSend, localIdentity }) => {
 
       {/* Input */}
       <form onSubmit={handleSubmit} className="shrink-0 px-3 pb-4 pt-2 border-t border-slate-800/60">
-        <div className="flex items-center gap-2 bg-slate-800/60 border border-slate-700/50 rounded-2xl px-3 py-2 focus-within:border-indigo-500/50 transition-colors">
+        <div className="flex items-center gap-2 bg-slate-800/60 border border-slate-700/50 rounded-lg px-3 py-2 focus-within:border-indigo-500/50 transition-colors">
           <input
             type="text"
             value={text}
@@ -554,7 +554,7 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, isMinimized, localAvat
           {/* Mic */}
           <button
             onClick={toggleMic}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all duration-200 ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
               isMicrophoneEnabled
                 ? 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'
                 : 'bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30'
@@ -567,7 +567,7 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, isMinimized, localAvat
           {/* Screen share */}
           <button
             onClick={() => typeof toggleScreenShare === 'function' && toggleScreenShare()}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all duration-200 ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
               isScreenSharing
                 ? 'bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 border border-indigo-500/40'
                 : 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'
@@ -580,7 +580,7 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, isMinimized, localAvat
           {/* Chat toggle */}
           <button
             onClick={handleToggleChat}
-            className={`relative flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all duration-200 ${
+            className={`relative flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
               showChat
                 ? 'bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 border border-indigo-500/40'
                 : 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'
@@ -598,7 +598,7 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, isMinimized, localAvat
           {/* Leave */}
           <button
             onClick={handleLeave}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-red-500/15 hover:bg-red-500/25 text-red-400 text-sm font-medium border border-red-500/30 transition-all duration-200"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-500/15 hover:bg-red-500/25 text-red-400 text-sm font-medium border border-red-500/30 transition-all duration-200"
           >
             <LogOut size={15} />
             Salir
@@ -845,7 +845,7 @@ export default function VistaVoiceRoom() {
   if (!serverUrl) {
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-6">
-        <div className="max-w-sm w-full bg-slate-900 border border-red-500/30 rounded-2xl p-6 text-center shadow-2xl">
+        <div className="max-w-sm w-full bg-slate-900 border border-red-500/30 rounded-lg p-6 text-center shadow-2xl">
           <div className="w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center mx-auto mb-4">
             <MicOff size={20} className="text-red-400" />
           </div>
@@ -867,7 +867,7 @@ export default function VistaVoiceRoom() {
   // ── Minimized floating pill ──
   if (isVoiceRoomMinimized) {
     return (
-      <div className="w-full h-full bg-slate-900/95 backdrop-blur-md border border-slate-700/60 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="w-full h-full bg-slate-900/95 backdrop-blur-md border border-slate-700/60 rounded-lg shadow-2xl overflow-hidden">
         {!token ? (
           <div className="flex items-center justify-center w-full h-full gap-2 text-slate-500">
             <div className="w-4 h-4 rounded-full border-2 border-t-blue-500 border-slate-700 animate-spin" />

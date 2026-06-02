@@ -48,7 +48,7 @@ const LoginPage = () => {
             'rounded-xl border border-[#E5E7EB] bg-white text-primary shadow-[0_12px_24px_rgba(15,23,42,0.08)]',
         }}
       />
-      <div className="w-full max-w-md space-y-7 rounded-2xl border border-[#E5E7EB] bg-white p-10 shadow-[0_20px_40px_rgba(15,23,42,0.1)]">
+      <div className="w-full max-w-md space-y-7 rounded-lg border border-[#E5E7EB] bg-white p-10 shadow-[0_20px_40px_rgba(15,23,42,0.1)]">
         <div className="space-y-3 text-center">
           <div className="inline-flex items-center justify-center rounded-full bg-accent/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-accent">
             Studio Planner

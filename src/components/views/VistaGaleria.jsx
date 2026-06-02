@@ -92,7 +92,7 @@ const CopyButton = ({ link }) => {
       type="button"
       onClick={handleCopy}
       title={copied ? '¡Copiado!' : 'Copiar enlace'}
-      className={`flex h-12 w-12 items-center justify-center rounded-2xl border transition-all hover:scale-110 active:scale-95 ${
+      className={`flex h-12 w-12 items-center justify-center rounded-lg border transition-all hover:scale-110 active:scale-95 ${
         copied
           ? 'border-green-400/40 bg-green-500/10 text-green-500 dark:border-green-400/30 dark:bg-green-500/10'
           : 'border-border bg-white text-secondary hover:border-accent/30 hover:text-accent dark:border-white/10 dark:bg-white/5 dark:text-white/70'
@@ -140,7 +140,7 @@ const GalleryCard = ({ project, isMissing }) => {
 
   return (
     <div
-      className={`flex flex-col rounded-[2.5rem] border bg-white shadow-sm transition-all hover:shadow-2xl hover:-translate-y-1 dark:bg-[#16171D] dark:shadow-[0_20px_60px_rgba(0,0,0,0.5)] ${
+      className={`flex flex-col rounded-xl border bg-white shadow-sm transition-all hover:shadow-2xl hover:-translate-y-1 dark:bg-[#16171D] dark:shadow-[0_20px_60px_rgba(0,0,0,0.5)] ${
         isMissing
           ? 'border-amber-400/30 dark:border-amber-500/20'
           : 'border-border/40 dark:border-white/5'
@@ -182,7 +182,7 @@ const GalleryCard = ({ project, isMissing }) => {
         </div>
       </div>
 
-      <div className="mt-auto border-t border-border/40 bg-slate-50 p-6 rounded-b-[2.5rem] dark:border-white/5 dark:bg-white/[0.02]">
+      <div className="mt-auto border-t border-border/40 bg-slate-50 p-6 rounded-b-xl dark:border-white/5 dark:bg-white/[0.02]">
         <label
           htmlFor={`link-${project.id}`}
           className="mb-3 block text-[10px] font-semibold uppercase tracking-[0.2em] text-secondary/50 dark:text-white/30"
@@ -198,13 +198,13 @@ const GalleryCard = ({ project, isMissing }) => {
               onChange={(e) => setLink(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSave()}
               placeholder="Enlace del proyecto..."
-              className="w-full flex-grow rounded-2xl border border-border bg-white px-4 py-3 text-xs font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
+              className="w-full flex-grow rounded-lg border border-border bg-white px-4 py-3 text-xs font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
             />
             <button
               type="button"
               onClick={handleSave}
               disabled={isSaving}
-              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-dark-bg text-white shadow-lg transition-all hover:scale-110 active:scale-95 dark:bg-accent dark:text-dark-bg"
+              className="flex h-11 w-11 items-center justify-center rounded-lg bg-dark-bg text-white shadow-lg transition-all hover:scale-110 active:scale-95 dark:bg-accent dark:text-dark-bg"
             >
               {isSaving ? <CheckCircle size={20} className="animate-spin" /> : <Save size={20} />}
             </button>
@@ -215,7 +215,7 @@ const GalleryCard = ({ project, isMissing }) => {
               href={link}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex flex-1 items-center justify-center gap-3 rounded-2xl bg-dark-bg px-6 py-3 text-xs font-semibold uppercase tracking-wide text-white shadow-xl transition-all hover:scale-[1.02] active:scale-95 dark:bg-accent dark:text-dark-bg"
+              className="flex flex-1 items-center justify-center gap-3 rounded-lg bg-dark-bg px-6 py-3 text-xs font-semibold uppercase tracking-wide text-white shadow-xl transition-all hover:scale-[1.02] active:scale-95 dark:bg-accent dark:text-dark-bg"
             >
               <ExternalLink size={16} strokeWidth={3} /> Ver
             </a>
@@ -223,7 +223,7 @@ const GalleryCard = ({ project, isMissing }) => {
             <button
               type="button"
               onClick={() => setIsEditing(true)}
-              className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-white text-secondary transition-all hover:scale-110 active:scale-95 dark:border-white/10 dark:bg-white/5 dark:text-white/70"
+              className="flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-white text-secondary transition-all hover:scale-110 active:scale-95 dark:border-white/10 dark:bg-white/5 dark:text-white/70"
             >
               <Edit size={18} />
             </button>
@@ -457,7 +457,7 @@ const VistaGaleria = ({ projects: projectsProp }) => {
           ))}
         </div>
       ) : (
-        <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-[3rem] border-2 border-dashed border-border/40 bg-slate-50 dark:bg-white/[0.02]">
+        <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border/40 bg-slate-50 dark:bg-white/[0.02]">
           {showMissing ? (
             <>
               <CheckCircle size={28} className="text-green-500 opacity-60" />

@@ -216,7 +216,7 @@ const Header = ({ title, subtitle }) => (
 );
 
 const EmptyState = ({ message }) => (
-  <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-[#CBD5F5] bg-[#F9FAFF] p-6 text-xs text-secondary dark:border-[#2B2D31] dark:bg-[#1B1C20] dark:text-white/50">
+  <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-[#CBD5F5] bg-[#F9FAFF] p-6 text-xs text-secondary dark:border-[#2B2D31] dark:bg-[#1B1C20] dark:text-white/50">
     {message}
   </div>
 );

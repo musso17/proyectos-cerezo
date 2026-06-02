@@ -129,7 +129,7 @@ const VistaAgenteDashboard = () => {
 
         {/* Columna Principal: Tareas y Recordatorios */}
         <div className="space-y-6">
-          <div className="glass-panel rounded-3xl p-4 sm:p-5">
+          <div className="glass-panel rounded-xl p-4 sm:p-5">
             <Header title={grabaciones.title} icon={Video} />
             {grabaciones.items.length > 0 ? (
               <ul className="space-y-3 mt-4">
@@ -140,7 +140,7 @@ const VistaAgenteDashboard = () => {
             )}
           </div>
 
-          <div className="glass-panel rounded-3xl p-4 sm:p-5">
+          <div className="glass-panel rounded-xl p-4 sm:p-5">
             <Header title={isSameMonth(new Date(), selectedDashboardDate) ? "Entregas para hoy" : "Entregas del mes"} icon={Calendar} />
             {tareasHoy.length > 0 ? (
               <ul className="space-y-3 mt-4">

@@ -19,7 +19,7 @@ const CalendarGrid = ({
   const today = startOfDay(new Date());
 
   return (
-    <div className="hidden grid-cols-7 gap-px overflow-hidden rounded-2xl border border-border bg-border/40 sm:grid">
+    <div className="hidden grid-cols-7 gap-px overflow-hidden rounded-lg border border-border bg-border/40 sm:grid">
       {WEEKDAYS.map((weekday) => (
         <div
           key={weekday}

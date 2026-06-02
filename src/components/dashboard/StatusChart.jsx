@@ -20,13 +20,13 @@ const ChartContainer = ({ children }) => (
 );
 
 const EmptyState = ({ message }) => (
-  <div className="flex h-full items-center justify-center rounded-[2rem] border-2 border-dashed border-border/40 bg-slate-50/50 p-6 text-xs font-medium text-secondary/40 uppercase tracking-wide">
+  <div className="flex h-full items-center justify-center rounded-xl border-2 border-dashed border-border/40 bg-slate-50/50 p-6 text-xs font-medium text-secondary/40 uppercase tracking-wide">
     {message}
   </div>
 );
 
 const StatusChart = ({ data }) => (
-  <div className="glass-panel col-span-1 flex flex-col gap-3 p-6 sm:p-8 rounded-[2.5rem] transition-all hover:shadow-2xl">
+  <div className="glass-panel col-span-1 flex flex-col gap-3 p-6 sm:p-8 rounded-xl transition-all hover:shadow-2xl">
     <Header title="Fases Activas" subtitle="Distribución operativa" />
     <ChartContainer>
       {data.length > 0 ? (

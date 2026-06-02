@@ -23,7 +23,7 @@ const ProjectDashboardList = ({ projects, selectedMonth, title = "Proyectos del 
   });
 
   return (
-    <div className="glass-panel flex flex-col gap-6 p-8 rounded-[2.5rem] transition-all hover:shadow-2xl animate-fade-up">
+    <div className="glass-panel flex flex-col gap-6 p-8 rounded-xl transition-all hover:shadow-2xl animate-fade-up">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-primary tracking-tight dark:text-white">{title}</h2>
         <span className="text-[10px] font-medium text-secondary/40 uppercase tracking-[0.2em] border border-border/40 px-3 py-1 rounded-full">
@@ -35,7 +35,7 @@ const ProjectDashboardList = ({ projects, selectedMonth, title = "Proyectos del 
         {filteredProjects.length > 0 ? (
           <ul className="flex flex-col gap-4">
             {filteredProjects.map((project) => (
-              <li key={project.id} className="group relative rounded-2xl p-4 transition-all hover:bg-slate-50 dark:hover:bg-white/[0.03]">
+              <li key={project.id} className="group relative rounded-lg p-4 transition-all hover:bg-slate-50 dark:hover:bg-white/[0.03]">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4 min-w-0 flex-1">
                     <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${getStatusDotColor(project.status)}`} />
@@ -60,7 +60,7 @@ const ProjectDashboardList = ({ projects, selectedMonth, title = "Proyectos del 
             ))}
           </ul>
         ) : (
-          <div className="flex h-32 flex-col items-center justify-center rounded-[2rem] border-2 border-dashed border-border/40 bg-slate-50/50 p-6">
+          <div className="flex h-32 flex-col items-center justify-center rounded-xl border-2 border-dashed border-border/40 bg-slate-50/50 p-6">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-secondary/30 text-center">No hay proyectos registrados</p>
           </div>
         )}

@@ -34,8 +34,8 @@ export default {
         'status-delivered': '#000000',
       },
       borderRadius: {
-        '3xl': '2rem',
-        '4xl': '2.5rem',
+        '3xl': '0.75rem',
+        '4xl': '0.75rem',
       },
       keyframes: {
         'fade-up': {

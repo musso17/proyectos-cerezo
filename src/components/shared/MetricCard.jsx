@@ -1,7 +1,7 @@
 import React from 'react';
 
 const MetricCard = ({ title, value, description, icon: Icon, accent }) => (
-  <div className="glass-panel group flex flex-col justify-between p-6 sm:p-8 rounded-[2.5rem] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_40px_80px_-15px_rgba(255,75,42,0.2)] overflow-hidden relative">
+  <div className="glass-panel group flex flex-col justify-between p-6 sm:p-8 rounded-xl transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_40px_80px_-15px_rgba(255,75,42,0.2)] overflow-hidden relative">
     {/* Background Glow */}
     <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-[#FF4B2A]/5 blur-[60px] group-hover:bg-[#FF4B2A]/15 transition-all duration-700" />
     

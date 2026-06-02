@@ -41,7 +41,7 @@ const TaskCard = ({ task, onComplete, index }) => {
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
                     onClick={() => openModal(task.originalProject)}
-                    className={`group relative flex overflow-hidden rounded-[1.5rem] bg-white transition-all dark:bg-[#1E1F23] ${
+                    className={`group relative flex overflow-hidden rounded-lg bg-white transition-all dark:bg-[#1E1F23] ${
                         snapshot.isDragging
                         ? 'shadow-2xl ring-2 ring-accent/20 z-50 scale-[1.02]'
                         : 'shadow-[0_8px_20px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.08)] hover:-translate-y-1'
@@ -100,7 +100,7 @@ const EditorColumn = ({ member, tasks, onComplete }) => {
     const formattedName = member.charAt(0).toUpperCase() + member.slice(1).toLowerCase();
 
     return (
-        <div className="flex min-w-[340px] flex-col gap-6 rounded-[2.5rem] bg-slate-100/30 p-6 dark:bg-white/[0.02] h-full">
+        <div className="flex min-w-[340px] flex-col gap-6 rounded-xl bg-slate-100/30 p-6 dark:bg-white/[0.02] h-full">
             <div className="flex items-center justify-between px-2">
                 <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[11px] font-bold text-primary shadow-sm dark:bg-white/10 dark:text-white">
@@ -123,12 +123,12 @@ const EditorColumn = ({ member, tasks, onComplete }) => {
                     <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`flex flex-col gap-4 h-full overflow-y-auto pr-1 pb-4 soft-scroll min-h-[200px] transition-all rounded-[2rem] ${
+                        className={`flex flex-col gap-4 h-full overflow-y-auto pr-1 pb-4 soft-scroll min-h-[200px] transition-all rounded-xl ${
                             snapshot.isDraggingOver ? 'bg-white/60 dark:bg-white/[0.05] ring-2 ring-accent/10' : ''
                         }`}
                     >
                         {tasks.length === 0 && !snapshot.isDraggingOver && (
-                            <div className="flex grow flex-col items-center justify-center rounded-[2rem] bg-slate-50/50 dark:bg-white/[0.01]">
+                            <div className="flex grow flex-col items-center justify-center rounded-xl bg-slate-50/50 dark:bg-white/[0.01]">
                                 <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-secondary/20">Disponible</p>
                             </div>
                         )}
@@ -336,7 +336,7 @@ const VistaEdicion = () => {
                                 placeholder="Buscar proyecto..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-80 rounded-[1.5rem] border border-border/40 bg-slate-50/50 py-3.5 pl-12 pr-6 text-sm outline-none transition-all focus:border-accent focus:bg-white dark:border-white/5 dark:bg-white/[0.02] dark:text-white dark:focus:border-accent"
+                                className="w-80 rounded-lg border border-border/40 bg-slate-50/50 py-3.5 pl-12 pr-6 text-sm outline-none transition-all focus:border-accent focus:bg-white dark:border-white/5 dark:bg-white/[0.02] dark:text-white dark:focus:border-accent"
                             />
                         </div>
                     </div>

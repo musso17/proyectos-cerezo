@@ -1,4 +1,4 @@
-export const ALLOWED_STATUSES = ['Programado', 'En progreso', 'En revisión', 'Completado'];
+export const ALLOWED_STATUSES = ['Programado', 'En progreso', 'En revisión', 'Completado', 'Stuck'];
 
 export const normalizeStatus = (status) => {
   if (!status) return 'Programado';

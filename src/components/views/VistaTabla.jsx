@@ -359,13 +359,13 @@ const VistaTabla = ({ projects: projectsProp }) => {
 
   return (
     <div className="flex h-full flex-col gap-6 p-4 md:p-6 animate-fade-up">
-      <div className="glass-panel grid items-end gap-6 p-8 rounded-[2rem] text-xs text-secondary sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
+      <div className="glass-panel grid items-end gap-6 p-8 rounded-xl text-xs text-secondary sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
         <div className="flex flex-col gap-2">
           <label className="mb-1 font-semibold uppercase tracking-[0.2em] text-secondary/40">Tipo</label>
           <select
             value={filters.type}
             onChange={handleFilterChange('type')}
-            className="w-full min-w-[160px] rounded-2xl border border-border bg-white px-5 py-3 text-sm font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
+            className="w-full min-w-[160px] rounded-lg border border-border bg-white px-5 py-3 text-sm font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
           >
             {filterOptions.types.map((option) => (
               <option key={option} value={option}>
@@ -380,7 +380,7 @@ const VistaTabla = ({ projects: projectsProp }) => {
           <select
             value={filters.manager}
             onChange={handleFilterChange('manager')}
-            className="w-full min-w-[160px] rounded-2xl border border-border bg-white px-5 py-3 text-sm font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
+            className="w-full min-w-[160px] rounded-lg border border-border bg-white px-5 py-3 text-sm font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
           >
             {filterOptions.managers.map((option) => (
               <option key={option} value={option}>
@@ -395,7 +395,7 @@ const VistaTabla = ({ projects: projectsProp }) => {
           <select
             value={filters.status}
             onChange={handleFilterChange('status')}
-            className="w-full min-w-[160px] rounded-2xl border border-border bg-white px-5 py-3 text-sm font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
+            className="w-full min-w-[160px] rounded-lg border border-border bg-white px-5 py-3 text-sm font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
           >
             {filterOptions.statuses.map((option) => (
               <option key={option} value={option}>
@@ -410,7 +410,7 @@ const VistaTabla = ({ projects: projectsProp }) => {
           <select
             value={filters.client}
             onChange={handleFilterChange('client')}
-            className="w-full min-w-[160px] rounded-2xl border border-border bg-white px-5 py-3 text-sm font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
+            className="w-full min-w-[160px] rounded-lg border border-border bg-white px-5 py-3 text-sm font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
           >
             {filterOptions.clients.map((option) => (
               <option key={option} value={option}>
@@ -423,13 +423,13 @@ const VistaTabla = ({ projects: projectsProp }) => {
         <button
           type="button"
           onClick={handleResetFilters}
-          className="w-full rounded-2xl bg-dark-bg px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white transition-all hover:-translate-y-1 active:scale-95 sm:w-auto dark:bg-accent dark:text-dark-bg"
+          className="w-full rounded-lg bg-dark-bg px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white transition-all hover:-translate-y-1 active:scale-95 sm:w-auto dark:bg-accent dark:text-dark-bg"
         >
           Limpiar
         </button>
       </div>
 
-      <div className="glass-panel overflow-hidden rounded-[3rem] border border-border shadow-2xl">
+      <div className="glass-panel overflow-hidden rounded-xl border border-border shadow-2xl">
         <div className="overflow-x-auto soft-scroll">
           <table className="w-full border-collapse text-sm text-secondary">
             <thead>

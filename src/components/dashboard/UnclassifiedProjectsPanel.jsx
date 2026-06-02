@@ -13,7 +13,7 @@ const UnclassifiedProjectsPanel = ({ projects, onAssign }) => {
   if (unclassified.length === 0) return null;
 
   return (
-    <div className="mb-6 overflow-hidden rounded-[2rem] border border-[#FF4B2A]/20 bg-[#FF4B2A]/5 shadow-sm dark:border-[#FF4B2A]/10 dark:bg-[#FF4B2A]/5">
+    <div className="mb-6 overflow-hidden rounded-xl border border-[#FF4B2A]/20 bg-[#FF4B2A]/5 shadow-sm dark:border-[#FF4B2A]/10 dark:bg-[#FF4B2A]/5">
       <div className="flex items-center gap-3 border-b border-[#FF4B2A]/10 px-6 py-4 dark:border-[#FF4B2A]/10">
         <AlertCircle className="text-[#FF4B2A]" size={18} />
         <h3 className="text-sm font-semibold uppercase tracking-tight text-[#FF4B2A] dark:text-white">
@@ -28,7 +28,7 @@ const UnclassifiedProjectsPanel = ({ projects, onAssign }) => {
           {unclassified.map((project) => (
             <li
               key={project.id}
-              className="flex items-center justify-between rounded-2xl bg-white/50 px-5 py-3 transition hover:bg-white dark:bg-white/5 dark:hover:bg-white/10"
+              className="flex items-center justify-between rounded-lg bg-white/50 px-5 py-3 transition hover:bg-white dark:bg-white/5 dark:hover:bg-white/10"
             >
               <div className="flex flex-col">
                 <span className="text-xs font-semibold text-primary dark:text-white/80">

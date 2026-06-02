@@ -30,7 +30,7 @@ const VoiceRoomList = () => {
               type="button"
               onClick={() => setActiveVoiceRoom(isActive ? null : id)}
               className={clsx(
-                'flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm transition-all duration-200',
+                'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200',
                 isActive
                   ? 'bg-green-500/10 dark:bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 font-medium shadow-[0_0_12px_rgba(34,197,94,0.1)]'
                   : 'text-slate-500 hover:bg-slate-50 dark:text-slate-500 dark:hover:bg-white/5 border border-transparent'
@@ -83,7 +83,7 @@ const Sidebar = () => {
   ];
 
   const containerClasses = clsx(
-    'hidden md:flex md:flex-col md:gap-6 md:overflow-y-auto md:rounded-[2.5rem] md:p-6 md:transition-all md:duration-300',
+    'hidden md:flex md:flex-col md:gap-6 md:overflow-y-auto md:rounded-xl md:p-6 md:transition-all md:duration-300',
     'md:sticky md:top-4 md:h-[calc(100vh-2rem)]',
     'bg-white text-slate-900 border border-[#edf2ff] shadow-[0_20px_55px_rgba(15,23,42,0.08)]',
     'dark:bg-[#16171D] dark:border-white/5 dark:shadow-[0_40px_80px_rgba(0,0,0,0.6)]'
@@ -116,7 +116,7 @@ const Sidebar = () => {
                     type="button"
                     onClick={() => handleNavigate(item.id)}
                     className={clsx(
-                      'flex w-full items-center gap-3 rounded-[1.5rem] px-4 py-3 text-sm font-medium transition-all duration-300',
+                      'flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-300',
                       isActive
                         ? 'bg-accent text-white shadow-[0_12px_40px_rgba(255,75,42,0.3)] scale-[1.02]'
                         : 'text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-white/5'
@@ -124,7 +124,7 @@ const Sidebar = () => {
                   >
                     <span
                       className={clsx(
-                        'flex h-9 w-9 items-center justify-center rounded-2xl transition-all duration-200',
+                        'flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200',
                         isActive
                           ? 'bg-white/20 text-white'
                           : 'bg-slate-100 text-slate-400 dark:bg-white/5 dark:text-slate-500'
@@ -158,7 +158,7 @@ const Sidebar = () => {
               toggleMobileSidebar();
             }
           }}
-          className="flex items-center justify-center rounded-2xl bg-dark-bg text-white dark:bg-accent dark:text-white px-4 py-3.5 text-sm font-semibold uppercase tracking-wide shadow-xl transition-all duration-300 hover:scale-105 active:scale-95"
+          className="flex items-center justify-center rounded-lg bg-dark-bg text-white dark:bg-accent dark:text-white px-4 py-3.5 text-sm font-semibold uppercase tracking-wide shadow-xl transition-all duration-300 hover:scale-105 active:scale-95"
         >
           Cotización
         </a>

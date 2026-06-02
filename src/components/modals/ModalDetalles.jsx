@@ -5,6 +5,9 @@ import { Dialog, Transition } from '@headlessui/react';
 import { X, Plus, Trash2, Calendar, ChevronDown } from 'lucide-react';
 import useStore from '../../hooks/useStore';
 import { generarLinkGoogleCalendar } from '../../utils/calendar';
+import VideoReviewPlayer from '../ui/VideoReviewPlayer';
+import { toast } from 'react-hot-toast';
+import confetti from 'canvas-confetti';
 
 const REGISTRATION_TYPES = [
   { value: 'spot', label: 'Spot' },
@@ -34,6 +37,7 @@ const ModalDetalles = () => {
   const managerDropdownRef = useRef(null);
   const [clientSelection, setClientSelection] = useState('');
   const [isCustomClient, setIsCustomClient] = useState(false);
+  const [sosComment, setSosComment] = useState('');
 
   const isFranciscoUser = (user) =>
     user?.email?.toString().trim().toLowerCase() === 'francisco@carbonomkt.com';
@@ -517,6 +521,36 @@ const ModalDetalles = () => {
     } else {
       addProject(payload);
     }
+    
+    // Cerezo Hub Phase 5: Check-out
+    if (payload.status === 'Completado') {
+      const u = useStore.getState().currentUser;
+      if (u) {
+        const term = (u.user_metadata?.full_name || u.email || '').toLowerCase();
+        // Buscar otras tareas activas del usuario
+        const activeTasks = projects.filter(p => {
+          if (p.id === payload.id) return false;
+          if (p.status === 'Completado') return false;
+          const m = (p.managers || []).join(' ').toLowerCase() + ' ' + (p.manager || '').toLowerCase();
+          return m.includes(term.split('@')[0]) || m.includes(term.split(' ')[0]);
+        });
+        
+        if (activeTasks.length === 0) {
+          // Última tarea completada
+          confetti({
+            particleCount: 150,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#FF4B2A', '#10B981', '#3B82F6']
+          });
+          toast.success('¡Has completado todas tus tareas de hoy! Modo Fuera de la oficina activado.', { duration: 5000 });
+          useStore.getState().setUserAvailability('Fuera de la oficina');
+        } else {
+          toast.success('Tarea completada. Quedan ' + activeTasks.length + ' tareas.');
+        }
+      }
+    }
+    
     closeModal();
   };
 
@@ -551,7 +585,7 @@ const ModalDetalles = () => {
               leave="ease-in duration-200"
               leaveFrom="opacity-100 translate-y-0 scale-100"
               leaveTo="opacity-0 translate-y-4 scale-95">
-              <Dialog.Panel className="flex h-full w-full max-w-full transform flex-col overflow-hidden rounded-none border border-border bg-white text-left align-middle shadow-2xl transition-all sm:h-auto sm:max-w-4xl sm:rounded-[3rem] dark:border-white/5 dark:bg-[#16171D] dark:shadow-[0_48px_96px_rgba(0,0,0,0.8)]">
+              <Dialog.Panel className="flex h-full w-full max-w-full transform flex-col overflow-hidden rounded-none border border-border bg-white text-left align-middle shadow-2xl transition-all sm:h-auto sm:max-w-4xl sm:rounded-xl dark:border-white/5 dark:bg-[#16171D] dark:shadow-[0_48px_96px_rgba(0,0,0,0.8)]">
                 <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border/40 px-4 py-4 sm:px-8 sm:py-8">
                   <Dialog.Title className="flex-1">
                     <input
@@ -572,7 +606,7 @@ const ModalDetalles = () => {
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="group rounded-2xl border border-border bg-white p-3 text-secondary transition-all hover:bg-slate-50 hover:scale-110 active:scale-95 dark:border-white/10 dark:bg-white/5 dark:text-white/50 dark:hover:bg-white/10 dark:hover:text-white"
+                    className="group rounded-lg border border-border bg-white p-3 text-secondary transition-all hover:bg-slate-50 hover:scale-110 active:scale-95 dark:border-white/10 dark:bg-white/5 dark:text-white/50 dark:hover:bg-white/10 dark:hover:text-white"
                   >
                     <X size={24} className="transition-transform group-hover:rotate-90" />
                   </button>
@@ -678,6 +712,7 @@ const ModalDetalles = () => {
                       >
                         <option value="Programado">Programado</option>
                         <option value="En progreso">En progreso</option>
+                        <option value="Stuck">Stuck (Atascado)</option>
                         <option value="En revisión">En revisión</option>
                         <option value="Completado">Completado</option>
                       </select>
@@ -778,6 +813,63 @@ const ModalDetalles = () => {
                   </div>
 
                   <div className="md:col-span-2 space-y-6">
+                    {editedProject?.properties?.tasks && editedProject.properties.tasks.length > 0 && (
+                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 dark:bg-slate-900/50 dark:border-slate-800">
+                        <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-3 flex items-center gap-2">
+                          📋 Anotaciones de la Sala de Voz
+                        </h4>
+                        <div className="space-y-2">
+                          {editedProject.properties.tasks.map(task => (
+                            <div key={task.id} className="flex items-start gap-2 bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-100 dark:border-slate-700">
+                              <span className="mt-0.5">{task.completed ? '✅' : '⏳'}</span>
+                              <span className={`text-sm ${task.completed ? 'text-slate-400 line-through' : 'text-slate-700 dark:text-slate-200'}`}>
+                                {task.text}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {editedProject?.status === 'Stuck' && (
+                      <div className="rounded-xl border border-red-200 bg-red-50/50 p-4 dark:border-red-900/30 dark:bg-red-900/10 animate-in slide-in-from-top-2">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                          <h3 className="text-sm font-bold text-red-600 dark:text-red-400">Alerta de Bloqueo / SOS</h3>
+                        </div>
+                        <div className="flex gap-3">
+                          <textarea
+                            value={sosComment}
+                            onChange={(e) => setSosComment(e.target.value)}
+                            placeholder="Escribe el motivo del bloqueo (Ej. Error de render en el minuto 01:10)..."
+                            className="flex-1 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 dark:border-red-900/50 dark:bg-slate-900 dark:text-white"
+                            rows={2}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              toast.error(`Notificación enviada a Edson: [${editedProject.manager || 'Alguien'} está atascado en ${editedProject.name}]`);
+                              setSosComment('');
+                            }}
+                            className="bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 font-semibold text-sm transition-all"
+                          >
+                            Enviar Alerta
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {editedProject?.status === 'En revisión' && (
+                      <div className="animate-in slide-in-from-top-2">
+                        <VideoReviewPlayer 
+                          project={editedProject} 
+                          onApprove={() => {
+                            setEditedProject(prev => ({ ...prev, status: 'Completado' }));
+                            toast.success('¡Video Aprobado!');
+                          }} 
+                        />
+                      </div>
+                    )}
+
                     {isRecordingStage && (
                       <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-4 dark:border-white/10 dark:bg-white/[0.03]">
                         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-3 dark:border-white/10">
@@ -976,7 +1068,7 @@ const ModalDetalles = () => {
                   {editedProject.id ? (
                     <button
                       type="button"
-                      className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-transparent px-5 py-2 text-sm font-semibold uppercase tracking-wide text-red-500 transition-all hover:bg-red-500/10 active:scale-95"
+                      className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg bg-transparent px-5 py-2 text-sm font-semibold uppercase tracking-wide text-red-500 transition-all hover:bg-red-500/10 active:scale-95"
                       onClick={handleDelete}
                     >
                       <Trash2 size={18} />
@@ -993,14 +1085,14 @@ const ModalDetalles = () => {
                   <div className="flex flex-wrap gap-4">
                     <button
                       type="button"
-                      className="min-h-[48px] rounded-2xl border border-border bg-white px-8 py-2 text-sm font-semibold uppercase tracking-wide text-secondary transition-all hover:bg-slate-50 active:scale-95 dark:border-white/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
+                      className="min-h-[48px] rounded-lg border border-border bg-white px-8 py-2 text-sm font-semibold uppercase tracking-wide text-secondary transition-all hover:bg-slate-50 active:scale-95 dark:border-white/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
                       onClick={closeModal}
                     >
                       Cancelar
                     </button>
                     <button
                       type="button"
-                      className="min-h-[48px] rounded-2xl bg-dark-bg px-10 py-2 text-sm font-semibold uppercase tracking-[0.15em] text-white shadow-xl transition-all hover:-translate-y-1 hover:shadow-2xl active:scale-95 dark:bg-accent dark:text-dark-bg dark:shadow-accent/20"
+                      className="min-h-[48px] rounded-lg bg-dark-bg px-10 py-2 text-sm font-semibold uppercase tracking-[0.15em] text-white shadow-xl transition-all hover:-translate-y-1 hover:shadow-2xl active:scale-95 dark:bg-accent dark:text-dark-bg dark:shadow-accent/20"
                       onClick={handleSave}
                     >
                       {editedProject.id ? 'Guardar Cambios' : 'Crear Proyecto'}

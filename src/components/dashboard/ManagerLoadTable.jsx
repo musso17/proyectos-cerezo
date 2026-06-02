@@ -14,7 +14,7 @@ const Header = ({ title, subtitle }) => (
 );
 
 const EmptyState = ({ message }) => (
-  <div className="flex h-full items-center justify-center rounded-[2rem] border-2 border-dashed border-border/40 bg-slate-50/50 p-6 text-xs font-medium text-secondary/40 uppercase tracking-wide">
+  <div className="flex h-full items-center justify-center rounded-xl border-2 border-dashed border-border/40 bg-slate-50/50 p-6 text-xs font-medium text-secondary/40 uppercase tracking-wide">
     {message}
   </div>
 );
@@ -32,7 +32,7 @@ const getLoadColor = (level) => {
 
 const ManagerLoadTable = ({ managerLoad }) => {
   return (
-    <div className="glass-panel col-span-1 flex flex-col gap-6 p-8 rounded-[2.5rem] transition-all hover:shadow-2xl animate-fade-up">
+    <div className="glass-panel col-span-1 flex flex-col gap-6 p-8 rounded-xl transition-all hover:shadow-2xl animate-fade-up">
       <Header title="Capacidad" subtitle="Carga por responsable" />
       
       {managerLoad.length > 0 ? (
@@ -40,7 +40,7 @@ const ManagerLoadTable = ({ managerLoad }) => {
           {managerLoad.map(({ manager, total, level }) => (
             <div
               key={manager}
-              className="group flex items-center justify-between rounded-2xl p-4 transition-all hover:bg-slate-50 dark:hover:bg-white/[0.03]"
+              className="group flex items-center justify-between rounded-lg p-4 transition-all hover:bg-slate-50 dark:hover:bg-white/[0.03]"
             >
               <div className="flex items-center gap-4">
                 <div className={`h-2.5 w-2.5 rounded-full ${getLoadColor(level)}`} />
@@ -62,7 +62,7 @@ const ManagerLoadTable = ({ managerLoad }) => {
         <EmptyState message="Sin asignaciones" />
       )}
       
-      <div className="mt-auto flex items-center gap-3 rounded-2xl bg-amber-500/5 border border-amber-500/10 p-4">
+      <div className="mt-auto flex items-center gap-3 rounded-lg bg-amber-500/5 border border-amber-500/10 p-4">
         <AlertTriangle size={14} className="text-amber-500 shrink-0" />
         <span className="text-[10px] font-medium text-amber-600/80 dark:text-amber-200/50 uppercase tracking-wider leading-relaxed">
           Sugerencia: Redistribuye cargas críticas para optimizar tiempos.

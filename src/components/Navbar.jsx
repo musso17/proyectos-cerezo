@@ -96,12 +96,12 @@ const Navbar = () => {
 
   return (
     <>
-      <header className="glass-panel animate-fade-up flex w-full flex-col gap-3 rounded-3xl px-4 py-4 transition-all duration-300 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6 md:rounded-[2.5rem]">
+      <header className="glass-panel animate-fade-up flex w-full flex-col gap-3 rounded-xl px-4 py-4 transition-all duration-300 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6 md:rounded-xl">
         <div className="flex w-full items-center gap-2 sm:max-w-md">
           <button
             type="button"
             onClick={toggleMobileSidebar}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[#E5E7EB] bg-white text-secondary transition hover:bg-[#EEF1F6] hover:text-primary md:hidden dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white/90"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[#E5E7EB] bg-white text-secondary transition hover:bg-[#EEF1F6] hover:text-primary md:hidden dark:border-[#2B2D31] dark:bg-[#1E1F23] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white/90"
             aria-label="Abrir menú"
           >
             <Menu size={18} />
@@ -113,7 +113,7 @@ const Navbar = () => {
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Buscar proyectos, clientes..."
-              className="w-full rounded-2xl border border-[#D1D5DB] bg-white py-2.5 pl-12 pr-4 text-sm text-primary font-medium placeholder:text-secondary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white dark:placeholder:text-white/20 transition-all duration-300"
+              className="w-full rounded-lg border border-[#D1D5DB] bg-white py-2.5 pl-12 pr-4 text-sm text-primary font-medium placeholder:text-secondary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white dark:placeholder:text-white/20 transition-all duration-300"
             />
           </div>
         </div>
@@ -121,7 +121,7 @@ const Navbar = () => {
           <select
             value={useStore((state) => state.userAvailability)}
             onChange={(e) => useStore.getState().setUserAvailability(e.target.value)}
-            className="hidden sm:block h-11 px-3 rounded-2xl border border-slate-200 bg-white text-sm font-medium text-slate-700 transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 dark:border-white/5 dark:bg-[#1E1F23] dark:text-white/80"
+            className="hidden sm:block h-11 px-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 dark:border-white/5 dark:bg-[#1E1F23] dark:text-white/80"
           >
             <option value="Activo - Editando">🟢 Activo - Editando</option>
             <option value="Ocupado">🟡 Ocupado</option>
@@ -130,7 +130,7 @@ const Navbar = () => {
           <button
             type="button"
             onClick={toggleTheme}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-secondary transition-all duration-300 hover:scale-110 active:scale-95 dark:border-white/5 dark:bg-[#1E1F23] dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white/90"
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-secondary transition-all duration-300 hover:scale-110 active:scale-95 dark:border-white/5 dark:bg-[#1E1F23] dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white/90"
             aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
           >
             {theme === 'dark' ? <Sun size={18} className="text-accent" /> : <Moon size={18} />}
@@ -138,7 +138,7 @@ const Navbar = () => {
           <button
             type="button"
             onClick={() => setShowSettings(true)}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-secondary transition-all duration-300 hover:scale-110 active:scale-95 dark:border-white/5 dark:bg-[#1E1F23] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white/90"
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-secondary transition-all duration-300 hover:scale-110 active:scale-95 dark:border-white/5 dark:bg-[#1E1F23] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white/90"
             aria-label="Ajustes de perfil"
           >
             <Settings size={18} />
@@ -147,7 +147,7 @@ const Navbar = () => {
             type="button"
             onClick={handleSignOut}
             disabled={signingOut}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-secondary transition-all duration-300 hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/5 dark:bg-[#1E1F23] dark:text-white/60 dark:hover:bg-[#2A1C1C] dark:hover:text-red-300"
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-secondary transition-all duration-300 hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/5 dark:bg-[#1E1F23] dark:text-white/60 dark:hover:bg-[#2A1C1C] dark:hover:text-red-300"
             aria-label="Cerrar sesión"
           >
             <LogOut size={18} />
@@ -155,7 +155,7 @@ const Navbar = () => {
           <button
             onClick={handleAddNew}
             type="button"
-            className="hidden items-center justify-center gap-2 rounded-2xl bg-dark-bg px-6 py-2.5 text-sm font-semibold uppercase tracking-wide text-white shadow-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[#FF4B2A]/20 sm:inline-flex dark:bg-accent dark:text-white dark:shadow-[#FF4B2A]/10"
+            className="hidden items-center justify-center gap-2 rounded-lg bg-dark-bg px-6 py-2.5 text-sm font-semibold uppercase tracking-wide text-white shadow-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[#FF4B2A]/20 sm:inline-flex dark:bg-accent dark:text-white dark:shadow-[#FF4B2A]/10"
           >
             <Plus size={18} strokeWidth={3} />
             <span>Nuevo</span>

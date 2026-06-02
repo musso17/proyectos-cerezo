@@ -48,7 +48,7 @@ const VistaDashboard = () => {
             </p>
           </div>
         </div>
-        <div className="glass-panel p-2 rounded-[1.5rem]">
+        <div className="glass-panel p-2 rounded-lg">
           <MonthNavigator
             currentMonth={selectedDashboardDate}
             handlePrevMonth={handlePrevMonth}
@@ -58,7 +58,7 @@ const VistaDashboard = () => {
       </div>
 
       {/* Tablero Personal (Cerezo Hub Journey Fase 1) */}
-      <div className="glass-panel rounded-3xl p-6 bg-gradient-to-br from-white/60 to-white/30 dark:from-white/10 dark:to-transparent border border-white/40 dark:border-white/5">
+      <div className="glass-panel rounded-xl p-6 bg-gradient-to-br from-white/60 to-white/30 dark:from-white/10 dark:to-transparent border border-white/40 dark:border-white/5">
         <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">
           Hola {currentUser?.user_metadata?.display_name?.split(' ')[0] || currentUser?.user_metadata?.full_name?.split(' ')[0] || currentUser?.email?.split('@')[0] || 'Equipo'}, hoy es {new Intl.DateTimeFormat('es-ES', { weekday: 'long' }).format(new Date())}.
         </h2>
@@ -77,7 +77,7 @@ const VistaDashboard = () => {
             .map((project, idx) => {
                const statusColor = project.status === 'En progreso' || project.status === 'En Proceso' ? 'bg-yellow-500' : 'bg-slate-500';
                return (
-                 <div key={project.id || idx} className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 cursor-pointer hover:shadow-md transition-all" onClick={() => openModal(project)}>
+                 <div key={project.id || idx} className="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm border border-slate-100 dark:border-slate-700 cursor-pointer hover:shadow-md transition-all" onClick={() => openModal(project)}>
                    <div className="flex items-center gap-2 mb-3">
                      <div className={`w-3 h-3 rounded-full ${statusColor}`}></div>
                      <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{project.status}</span>
@@ -101,8 +101,8 @@ const VistaDashboard = () => {
 
       <div className="flex flex-col gap-6">
         {!isOnline && (
-          <div className="glass-panel bg-amber-500/5 border-amber-500/20 text-amber-600 dark:text-amber-200 p-6 rounded-[2rem] flex items-center gap-4">
-            <div className="rounded-2xl bg-amber-500/10 p-3">
+          <div className="glass-panel bg-amber-500/5 border-amber-500/20 text-amber-600 dark:text-amber-200 p-6 rounded-xl flex items-center gap-4">
+            <div className="rounded-lg bg-amber-500/10 p-3">
               <AlertTriangle size={20} />
             </div>
             <span className="text-xs font-medium uppercase tracking-wide">
@@ -112,8 +112,8 @@ const VistaDashboard = () => {
         )}
 
         {carbonoProjectsThisMonth > 6 && (
-          <div className="glass-panel bg-red-500/5 border-red-500/20 text-red-500 dark:text-red-200 p-6 rounded-[2rem] flex items-center gap-4">
-            <div className="rounded-2xl bg-red-500/10 p-3">
+          <div className="glass-panel bg-red-500/5 border-red-500/20 text-red-500 dark:text-red-200 p-6 rounded-xl flex items-center gap-4">
+            <div className="rounded-lg bg-red-500/10 p-3">
               <AlertTriangle size={20} />
             </div>
             <span className="text-xs font-medium uppercase tracking-wide">
