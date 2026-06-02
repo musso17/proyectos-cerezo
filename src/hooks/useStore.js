@@ -785,6 +785,12 @@ const useStore = create((set, get) => ({
   sidebarOpen: false,
   editingTasks: [],
   isSidebarOpen: false, // Estado para el sidebar móvil
+  activeVoiceRoom: null,
+  isVoiceRoomMinimized: false,
+  setActiveVoiceRoom: (room) => set({ activeVoiceRoom: room, isVoiceRoomMinimized: false }),
+  setIsVoiceRoomMinimized: (minimized) => set({ isVoiceRoomMinimized: minimized }),
+  userAvailability: 'Activo - Editando',
+  setUserAvailability: (status) => set({ userAvailability: status }),
   revisionCycles: {},
   revisionCyclesLoading: {},
   revisionCyclesError: null,
