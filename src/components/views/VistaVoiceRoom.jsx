@@ -829,6 +829,31 @@ export default function VistaVoiceRoom() {
 
   if (!roomName) return null;
 
+  const serverUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
+
+  // ── Config guard: si falta la URL del servidor, mostrar mensaje en vez de crashear ──
+  if (!serverUrl) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-6">
+        <div className="max-w-sm w-full bg-slate-900 border border-red-500/30 rounded-2xl p-6 text-center shadow-2xl">
+          <div className="w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center mx-auto mb-4">
+            <MicOff size={20} className="text-red-400" />
+          </div>
+          <h3 className="text-white font-semibold mb-2">Sala de voz no configurada</h3>
+          <p className="text-sm text-slate-400 mb-4">
+            Falta la variable <code className="text-red-300 text-xs">NEXT_PUBLIC_LIVEKIT_URL</code> en este entorno. Avísale al administrador.
+          </p>
+          <button
+            onClick={() => setActiveVoiceRoom(null)}
+            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium transition-all"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ── Minimized floating pill ──
   if (isVoiceRoomMinimized) {
     return (
@@ -843,7 +868,7 @@ export default function VistaVoiceRoom() {
             video={false}
             audio={true}
             token={token}
-            serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
+            serverUrl={serverUrl}
             style={{ height: '100%', width: '100%' }}
             onDisconnected={() => setActiveVoiceRoom(null)}
           >
@@ -902,7 +927,7 @@ export default function VistaVoiceRoom() {
               video={false}
               audio={true}
               token={token}
-              serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
+              serverUrl={serverUrl}
               style={{ height: '100%', width: '100%' }}
               onDisconnected={() => setActiveVoiceRoom(null)}
             >
