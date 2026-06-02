@@ -190,7 +190,7 @@ export const isProjectActiveInMonth = (projectInfo, referenceDate) => {
   return false;
 };
 
-export const buildDashboardData = (projects, revisionCycles = {}, referenceDate = new Date()) => {
+export const buildDashboardData = (projects, referenceDate = new Date()) => {
   const now = referenceDate;
   const totals = { active: 0, recording: 0, editing: 0, delivered: 0 };
   let completedThisMonth = 0;
@@ -206,11 +206,6 @@ export const buildDashboardData = (projects, revisionCycles = {}, referenceDate 
   let totalProjectsCompleted = 0;
   let lateEvents = 0;
   const upcomingEvents = [];
-  let totalCycleCount = 0;
-  let reviewSamples = 0;
-  let reviewDaysAccumulator = 0;
-  let pendingReviewCount = 0;
-  let projectsWithCycles = 0;
 
   const editingStatusKeys = new Set([
     'enprogreso',
@@ -325,49 +320,6 @@ export const buildDashboardData = (projects, revisionCycles = {}, referenceDate 
       });
     }
 
-    // Contar proyectos con estado de revisión para el indicador general
-    const inReviewStatusKeys = new Set(['enrevision', 'revision', 'esperandofeedback', 'corrigiendo']);
-    const isInReviewStatus = !isCompleted && (
-      inReviewStatusKeys.has(statusKey) || 
-      statusKey.includes('revis') ||
-      statusLabel.toLowerCase().includes('revis')
-    );
-    
-    if (isInReviewStatus) {
-      pendingReviewCount += 1;
-    }
-
-    const projectCycles = Array.isArray(revisionCycles?.[id]) ? revisionCycles[id] : [];
-    if (projectCycles.length > 0) {
-      projectsWithCycles += 1;
-      totalCycleCount += projectCycles.length;
-
-      const orderedCycles = [...projectCycles].sort((a, b) => {
-        const numberA = Number(a.number) || 0;
-        const numberB = Number(b.number) || 0;
-        if (numberA !== numberB) return numberA - numberB;
-        const createdA = new Date(a.started_at || a.created_at || 0).getTime();
-        const createdB = new Date(b.started_at || b.created_at || 0).getTime();
-        return createdA - createdB;
-      });
-
-      const currentCycle = orderedCycles[orderedCycles.length - 1];
-      // Si el proyecto ya fue contado por su estado, no lo volvemos a contar por su ciclo
-      if (!isInReviewStatus && currentCycle && ['enviado', 'esperando_feedback'].includes(currentCycle.status)) {
-        pendingReviewCount += 1;
-      }
-
-      orderedCycles.forEach((cycle) => {
-        if (cycle.sent_at && cycle.client_returned_at) {
-          const start = parseISO(cycle.sent_at);
-          const end = parseISO(cycle.client_returned_at);
-          if (isValid(start) && isValid(end) && !isAfter(start, end)) {
-            reviewDaysAccumulator += Math.max(differenceInCalendarDays(end, start), 0);
-            reviewSamples += 1;
-          }
-        }
-      });
-    }
   });
 
   const avgDeliveryDays =
@@ -414,9 +366,6 @@ export const buildDashboardData = (projects, revisionCycles = {}, referenceDate 
     .sort((a, b) => a.date.getTime() - b.date.getTime())
     .slice(0, 8);
 
-  const averageReviewDays = reviewSamples > 0 ? Number((reviewDaysAccumulator / reviewSamples).toFixed(1)) : null;
-  const avgCyclesPerProject = projectsWithCycles > 0 ? Number((totalCycleCount / projectsWithCycles).toFixed(1)) : 0;
-
   return {
     totals,
     completedThisMonth,
@@ -431,12 +380,6 @@ export const buildDashboardData = (projects, revisionCycles = {}, referenceDate 
     lateEvents,
     upcomingEvents: upcoming,
     managerLoad: managerLoadData,
-    revisionMetrics: {
-      totalCycles: totalCycleCount,
-      averageReviewDays,
-      pendingReviews: pendingReviewCount,
-      avgCyclesPerProject,
-    },
   };
 };
 

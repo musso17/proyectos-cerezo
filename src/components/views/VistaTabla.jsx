@@ -154,10 +154,6 @@ const StatusSelector = ({ project }) => {
     const status = (project.status || '').toString().trim();
     if (status.toLowerCase() === 'completado') return 'Completado';
 
-    // Si el proyecto tiene revisión, intentamos inferir el estado
-    const step = project?.revision?.currentStep;
-    if (step === 'enviado' || step === 'esperando_feedback') return 'En revisión';
-
     // Mapeo directo de estados
     if (status) return status;
 

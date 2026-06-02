@@ -38,27 +38,6 @@ const normalizeManagers = (value) => {
     .filter(Boolean);
 };
 
-const REVISION_STEPS = ['editando', 'enviado', 'esperando_feedback', 'corrigiendo', 'aprobado'];
-
-const getSafeRevisionStep = (value, { sentAt, clientReturnedAt, approved } = {}) => {
-  const normalized = (value || '').toString().trim().toLowerCase();
-  if (REVISION_STEPS.includes(normalized)) {
-    return normalized;
-  }
-  if (approved) return 'aprobado';
-  if (clientReturnedAt) return 'corrigiendo';
-  if (sentAt) return 'esperando_feedback';
-  return 'editando';
-};
-
-const REVISION_STEP_LABELS = {
-  editando: 'Editando',
-  enviado: 'Enviado',
-  esperando_feedback: 'Esperando feedback',
-  corrigiendo: 'Corrigiendo',
-  aprobado: 'Aprobado',
-};
-
 const applyThemeToDocument = (theme) => {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
@@ -91,113 +70,13 @@ const deriveStatusFromState = (state) => {
   return 'Programado';
 };
 
-const recordRevisionEventLocally = (set, projectId, event) => {
-  set((state) => {
-    const current = state.revisionHistory?.[projectId] || [];
-    const next = sortRevisionEvents([...current, normalizeRevisionEvent(event)]);
-    return {
-      revisionHistory: {
-        ...state.revisionHistory,
-        [projectId]: next,
-      },
-    };
-  });
-};
-
-const normalizeRevisionEvent = (event) => {
-  if (!event) return event;
-  const occurredAt = event.occurred_at || event.occurredAt || event.created_at || event.createdAt || new Date().toISOString();
-  return {
-    ...event,
-    occurred_at: occurredAt,
-    occurredAt,
-    from_status: event.from_status || event.fromStatus || null,
-    to_status: event.to_status || event.toStatus || null,
-  };
-};
-
-const sortRevisionEvents = (events = []) =>
-  [...events].sort((a, b) => new Date(a.occurred_at || 0) - new Date(b.occurred_at || 0));
-
-const summarizeRevisionCycles = (cycles = []) => {
-  if (!cycles || cycles.length === 0) {
-    return {
-      totalCycles: 0,
-      currentNumber: 1,
-      currentStep: null,
-      pendingReview: false,
-      lastSentAt: null,
-      lastFeedbackAt: null,
-      approvedCycles: 0,
-      averageReviewDays: null,
-      lastCycleChange: null,
-    };
-  }
-
-  const sorted = [...cycles].sort((a, b) => {
-    const numberA = Number(a.number) || 0;
-    const numberB = Number(b.number) || 0;
-    if (numberA !== numberB) return numberA - numberB;
-    const createdA = new Date(a.started_at || a.created_at || 0).getTime();
-    const createdB = new Date(b.started_at || b.created_at || 0).getTime();
-    return createdA - createdB;
-  });
-  const current = sorted[sorted.length - 1] || null;
-  const totalCycles = sorted.length;
-
-  let reviewSamples = 0;
-  let reviewDaysAccumulator = 0;
-
-  sorted.forEach((cycle) => {
-    if (cycle.sent_at && cycle.client_returned_at) {
-      const start = new Date(cycle.sent_at);
-      const end = new Date(cycle.client_returned_at);
-      if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end >= start) {
-        reviewDaysAccumulator += differenceInCalendarDays(end, start) || 0;
-        reviewSamples += 1;
-      }
-    }
-  });
-
-  const averageReviewDays =
-    reviewSamples > 0 ? Number((reviewDaysAccumulator / reviewSamples).toFixed(1)) : null;
-
-  const lastSentAt = current?.sent_at || null;
-  const lastFeedbackAt = current?.client_returned_at || null;
-
-  const lastCycleChangeCandidate = [current?.client_returned_at, current?.sent_at, current?.started_at]
-    .filter(Boolean)
-    .map((value) => new Date(value))
-    .filter((date) => !Number.isNaN(date.getTime()))
-    .sort((a, b) => b.getTime() - a.getTime())[0];
-
-  return {
-    totalCycles,
-    currentNumber: Number(current?.number) || 1,
-    currentStep: current?.status || null,
-    pendingReview: current ? ['enviado', 'esperando_feedback'].includes(current.status) : false,
-    lastSentAt,
-    lastFeedbackAt,
-    approvedCycles: sorted.filter((cycle) => cycle.approved).length,
-    averageReviewDays,
-    lastCycleChange: lastCycleChangeCandidate ? lastCycleChangeCandidate.toISOString() : null,
-    label: current ? REVISION_STEP_LABELS[current.status] || current.status : null,
-  };
-};
-
-const applyRevisionMetaToProjects = (projects = [], revisionMap = {}) =>
+const deriveProjectStatuses = (projects = []) =>
   (projects || []).map((project) => {
-    const cycles = revisionMap?.[project.id] || [];
-    const revision = summarizeRevisionCycles(cycles);
-    const nextProject = {
-      ...project,
-      revision,
-    };
+    const nextProject = { ...project };
 
     const normalizedStatus = (project.status || '').toString().trim().toLowerCase();
     const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
     const state = (project.state || project.properties?.state || '').toString().trim().toLowerCase();
-    const step = revision.currentStep || '';
     const startDate = parseDateOnly(project.startDate);
     const recordingDate = parseDateOnly(
       project.recordingDate ||
@@ -216,10 +95,6 @@ const applyRevisionMetaToProjects = (projects = [], revisionMap = {}) =>
 
     if (normalizedStatus === 'completado' || isEntregado) {
       derivedStatus = 'Completado';
-    } else if (step === 'enviado' || step === 'esperando_feedback') {
-      derivedStatus = 'En revisión';
-    } else if (step === 'corrigiendo' || step === 'editando') {
-      derivedStatus = 'En progreso';
     } else if (
       (stage === 'edicion' || stage === 'grabacion' || stage === 'fotografia' || stage === 'fotografía') &&
       effectiveStart &&
@@ -625,9 +500,9 @@ const filterProjectsForUser = (projects, user) => {
   return projects || [];
 };
 
-const buildProjectsStateSnapshot = (state, projects, revisionCycles = state.revisionCycles) => {
+const buildProjectsStateSnapshot = (state, projects) => {
   const filteredProjects = filterProjectsForUser(projects || [], state.currentUser);
-  const enrichedProjects = applyRevisionMetaToProjects(filteredProjects, revisionCycles || {});
+  const enrichedProjects = deriveProjectStatuses(filteredProjects);
   return {
     projects: enrichedProjects,
     editingTasks: buildEditingTasks(enrichedProjects),
@@ -657,35 +532,6 @@ const formatDateOnly = (date) => {
   return format(date, 'yyyy-MM-dd');
 };
 
-const normalizeRevisionCycle = (cycle) => {
-  if (!cycle) return cycle;
-  const sentAt = cycle.sent_at || cycle.sentAt || null;
-  const clientReturnedAt = cycle.client_returned_at || cycle.clientReturnedAt || null;
-  const approved = Boolean(cycle.approved);
-  const status = getSafeRevisionStep(cycle.status, {
-    sentAt,
-    clientReturnedAt,
-    approved,
-  });
-  return {
-    ...cycle,
-    status,
-    step: status,
-    sent_at: sentAt,
-    client_returned_at: clientReturnedAt,
-    approved,
-  };
-};
-
-const sortRevisionCycles = (cycles = []) =>
-  [...cycles].sort((a, b) => {
-    const numberA = Number(a.number) || 0;
-    const numberB = Number(b.number) || 0;
-    if (numberA !== numberB) return numberA - numberB;
-    const createdA = new Date(a.started_at || a.created_at || 0).getTime();
-    const createdB = new Date(b.started_at || b.created_at || 0).getTime();
-    return createdA - createdB;
-  });
 
 const shouldGenerateEditingProject = (project) => {
   const stage = project?.stage || project?.properties?.stage || '';
@@ -791,18 +637,11 @@ const useStore = create((set, get) => ({
   setIsVoiceRoomMinimized: (minimized) => set({ isVoiceRoomMinimized: minimized }),
   userAvailability: 'Activo - Editando',
   setUserAvailability: (status) => set({ userAvailability: status }),
-  revisionCycles: {},
-  revisionCyclesLoading: {},
-  revisionCyclesError: null,
-  revisionHistory: {},
-  revisionHistoryLoading: {},
-  revisionHistoryError: null,
   theme: getInitialTheme(),
   selectedDashboardDate: startOfMonth(new Date()),
   reportingData: {
     projects: [],
-    revisionCycles: [],
-    cycleEvents: [],
+    efficiency: [],
     lastSync: null,
     isOnline: true,
   },
@@ -929,556 +768,6 @@ const useStore = create((set, get) => ({
     return merged;
   },
 
-  // Revision cycles helpers
-  fetchRevisionCycles: async (projectId) => {
-    if (!projectId) return [];
-
-    set((state) => ({
-      revisionCyclesLoading: {
-        ...state.revisionCyclesLoading,
-        [projectId]: true,
-      },
-      revisionCyclesError: null,
-    }));
-
-    const finalize = () =>
-      set((state) => ({
-        revisionCyclesLoading: {
-          ...state.revisionCyclesLoading,
-          [projectId]: false,
-        },
-      }));
-
-    if (!supabaseClient) {
-      const localCycles = sortRevisionCycles(
-        (get().revisionCycles?.[projectId] || []).map(normalizeRevisionCycle)
-      );
-      set((state) => {
-        const nextRevisionCycles = {
-          ...state.revisionCycles,
-          [projectId]: localCycles,
-        };
-        return {
-          revisionCycles: nextRevisionCycles,
-          ...buildProjectsStateSnapshot(state, state.projects, nextRevisionCycles),
-        };
-      });
-      finalize();
-      return localCycles;
-    }
-
-    try {
-      const { data, error } = await supabaseClient
-        .from('revision_cycles')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('number', { ascending: true });
-
-      if (error) throw error;
-
-      const normalized = sortRevisionCycles((data || []).map(normalizeRevisionCycle));
-
-      set((state) => {
-        const nextRevisionCycles = {
-          ...state.revisionCycles,
-          [projectId]: normalized,
-        };
-        return {
-          revisionCycles: nextRevisionCycles,
-          ...buildProjectsStateSnapshot(state, state.projects, nextRevisionCycles),
-        };
-      });
-
-      await get().fetchRevisionHistory(projectId);
-      return normalized;
-    } catch (error) {
-      console.error('Error fetching revision cycles:', error);
-      set({ revisionCyclesError: error.message || 'Error fetching revision cycles' });
-      throw error;
-    } finally {
-      finalize();
-    }
-  },
-
-  fetchRevisionHistory: async (projectId) => {
-    if (!projectId) return [];
-
-    set((state) => ({
-      revisionHistoryLoading: {
-        ...state.revisionHistoryLoading,
-        [projectId]: true,
-      },
-      revisionHistoryError: null,
-    }));
-
-    const stop = () =>
-      set((state) => ({
-        revisionHistoryLoading: {
-          ...state.revisionHistoryLoading,
-          [projectId]: false,
-        },
-      }));
-
-    if (!supabaseClient) {
-      const localEvents = sortRevisionEvents(
-        (get().revisionHistory?.[projectId] || []).map(normalizeRevisionEvent)
-      );
-      set((state) => ({
-        revisionHistory: {
-          ...state.revisionHistory,
-          [projectId]: localEvents,
-        },
-      }));
-      stop();
-      return localEvents;
-    }
-
-    try {
-      const { data, error } = await supabaseClient
-        .from('revision_cycle_events')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('occurred_at', { ascending: true });
-
-      if (error) throw error;
-
-      const normalized = sortRevisionEvents((data || []).map(normalizeRevisionEvent));
-      set((state) => ({
-        revisionHistory: {
-          ...state.revisionHistory,
-          [projectId]: normalized,
-        },
-      }));
-      return normalized;
-    } catch (error) {
-      console.error('Error fetching revision history:', error);
-      set({ revisionHistoryError: error.message || 'Error fetching revision history' });
-      throw error;
-    } finally {
-      stop();
-    }
-  },
-
-  createRevisionCycle: async (projectId, options = {}) => {
-    if (!projectId) return null;
-    const { number, status = 'editando', notes = null } = options;
-    const project = get().projects.find((p) => p.id === projectId);
-    const baseCycleNumber =
-      number ??
-      (project?.current_cycle || project?.currentCycle || 1);
-
-    const payload = {
-      project_id: projectId,
-      number: baseCycleNumber,
-      status: getSafeRevisionStep(status),
-      notes,
-    };
-
-    if (!supabaseClient) {
-      const now = new Date().toISOString();
-      const localCycle = normalizeRevisionCycle({
-        id: generateLocalId(),
-        ...payload,
-        started_at: now,
-      });
-      set((state) => {
-        const nextRevisionCycles = {
-          ...state.revisionCycles,
-          [projectId]: sortRevisionCycles([
-            ...(state.revisionCycles?.[projectId] || []),
-            localCycle,
-          ]),
-        };
-        return {
-          revisionCycles: nextRevisionCycles,
-          ...buildProjectsStateSnapshot(state, state.projects, nextRevisionCycles),
-        };
-      });
-      recordRevisionEventLocally(set, projectId, {
-        project_id: projectId,
-        cycle_id: localCycle.id,
-        from_status: null,
-        to_status: localCycle.status,
-        occurred_at: new Date().toISOString(),
-      });
-      return localCycle;
-    }
-
-    try {
-      const { data, error } = await supabaseClient
-        .from('revision_cycles')
-        .insert(payload)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const inserted = normalizeRevisionCycle(data);
-      await supabaseClient
-        .from('revision_cycle_events')
-        .insert({
-          project_id: projectId,
-          cycle_id: inserted.id,
-          from_status: null,
-          to_status: inserted.status,
-          occurred_at: new Date().toISOString(),
-        });
-      await get().fetchRevisionCycles(projectId);
-
-      return inserted;
-    } catch (error) {
-      console.error('Error creating revision cycle:', error);
-      throw error;
-    }
-  },
-
-  moveRevisionCycleToStep: async (projectId, cycleId, step) => {
-    if (!projectId || !cycleId) return null;
-    const targetStep = getSafeRevisionStep(step);
-    if (targetStep === 'aprobado') {
-      await get().markCycleApproved(projectId, cycleId);
-      return 'aprobado';
-    }
-
-    const now = new Date().toISOString();
-    const cycles = get().revisionCycles?.[projectId] || [];
-    const existingCycle =
-      cycles.find((cycle) => cycle.id === cycleId) ||
-      (await (async () => {
-        if (!supabaseClient) return null;
-        try {
-          const { data } = await supabaseClient
-            .from('revision_cycles')
-            .select('*')
-            .eq('id', cycleId)
-            .limit(1)
-            .maybeSingle();
-          return data ? normalizeRevisionCycle(data) : null;
-        } catch (error) {
-          console.error('Error loading revision cycle', error);
-          return null;
-        }
-      })());
-
-    const cycleNumber = existingCycle?.number || 1;
-
-    const updates = { status: targetStep };
-    let deadlineOffset = null;
-    let projectState = null;
-
-
-    switch (targetStep) {
-      case 'editando':
-        updates.sent_at = null;
-        updates.client_returned_at = null;
-        updates.approved = false;
-        deadlineOffset = null;
-        projectState = 'postproduccion';
-        break;
-      case 'enviado':
-        updates.sent_at = now;
-        updates.client_returned_at = null;
-        updates.approved = false;
-        deadlineOffset = 1;
-        projectState = 'revision';
-        break;
-      case 'esperando_feedback':
-        updates.client_returned_at = null;
-        updates.approved = false;
-        deadlineOffset = null;
-        projectState = 'revision';
-        break;
-      case 'corrigiendo':
-        updates.client_returned_at = now;
-        updates.approved = false;
-        deadlineOffset = 2;
-        projectState = 'postproduccion';
-        break;
-      default:
-        break;
-    }
-
-    const eventPayload = {
-      project_id: projectId,
-      cycle_id: cycleId,
-      from_status: existingCycle?.status || null,
-      to_status: targetStep,
-      occurred_at: now,
-    };
-
-    if (!supabaseClient) {
-      set((state) => {
-        const list = state.revisionCycles?.[projectId] || [];
-        const updated = list.map((cycle) => {
-          if (cycle.id !== cycleId) return cycle;
-          const nextCycle = {
-            ...cycle,
-            status: targetStep,
-            step: targetStep,
-            sent_at:
-              targetStep === 'editando'
-                ? null
-                : targetStep === 'enviado'
-                  ? now
-                  : cycle.sent_at,
-            client_returned_at:
-              targetStep === 'corrigiendo'
-                ? now
-                : ['editando', 'enviado', 'esperando_feedback'].includes(targetStep)
-                  ? null
-                  : cycle.client_returned_at,
-            approved: false,
-          };
-          return normalizeRevisionCycle(nextCycle);
-        });
-        return {
-          revisionCycles: {
-            ...state.revisionCycles,
-            [projectId]: sortRevisionCycles(updated),
-          },
-        };
-      });
-      recordRevisionEventLocally(set, projectId, eventPayload);
-    } else {
-      try {
-        const payload = { ...updates };
-        const { error } = await supabaseClient
-          .from('revision_cycles')
-          .update(payload)
-          .eq('id', cycleId);
-        if (error) throw error;
-        await supabaseClient
-          .from('revision_cycle_events')
-          .insert(eventPayload);
-      } catch (error) {
-        console.error('Error moving revision cycle to step:', error);
-        throw error;
-      }
-    }
-
-    await get().fetchRevisionCycles(projectId);
-
-    const project = get().projects.find((p) => p.id === projectId);
-    if (project) {
-      const cyclePatch = {
-        current_cycle: cycleNumber,
-        currentCycle: cycleNumber,
-      };
-      if (projectState) {
-        cyclePatch.state = projectState;
-      }
-
-      if (deadlineOffset !== null) {
-        await get().autoAdjustDeadline(projectId, deadlineOffset, cyclePatch);
-      } else if (projectState) {
-        await get().updateProject(
-          {
-            ...project,
-            ...cyclePatch,
-          },
-          { skipLoading: true }
-        );
-      }
-    } else if (deadlineOffset !== null) {
-      await get().autoAdjustDeadline(projectId, deadlineOffset);
-    }
-
-    return targetStep;
-  },
-
-  advanceRevisionStep: async (projectId, cycleId, step) =>
-    get().moveRevisionCycleToStep(projectId, cycleId, step),
-
-  markCycleSent: async (projectId, cycleId) =>
-    get().moveRevisionCycleToStep(projectId, cycleId, 'enviado'),
-
-  markCycleClientReturn: async (projectId, cycleId) =>
-    get().moveRevisionCycleToStep(projectId, cycleId, 'corrigiendo'),
-
-  resetRevisionCycle: async (projectId) => {
-    if (!projectId) return null;
-    const cycles = get().revisionCycles?.[projectId] || [];
-    if (cycles.length === 0) {
-      await get().fetchRevisionCycles(projectId);
-      return null;
-    }
-
-    const ordered = sortRevisionCycles(cycles);
-    const current = ordered[ordered.length - 1];
-    if (!current) return null;
-
-    const futureCycles = ordered.filter(
-      (cycle) => Number(cycle.number) > Number(current.number)
-    );
-
-    if (!supabaseClient) {
-      const resetCycle = normalizeRevisionCycle({
-        ...current,
-        status: 'editando',
-        sent_at: null,
-        client_returned_at: null,
-        approved: false,
-      });
-      const updatedList = sortRevisionCycles(
-        [
-          ...ordered.filter((cycle) => Number(cycle.number) < Number(resetCycle.number)),
-          resetCycle,
-        ]
-      );
-      set((state) => {
-        const nextRevisionCycles = {
-          ...state.revisionCycles,
-          [projectId]: updatedList,
-        };
-        return {
-          revisionCycles: nextRevisionCycles,
-          revisionHistory: {
-            ...state.revisionHistory,
-            [projectId]: [],
-          },
-          ...buildProjectsStateSnapshot(state, state.projects, nextRevisionCycles),
-        };
-      });
-      return resetCycle;
-    }
-
-    try {
-      await supabaseClient
-        .from('revision_cycles')
-        .update({
-          status: 'editando',
-          sent_at: null,
-          client_returned_at: null,
-          approved: false,
-        })
-        .eq('id', current.id);
-
-      if (futureCycles.length > 0) {
-        await supabaseClient
-          .from('revision_cycles')
-          .delete()
-          .in('id', futureCycles.map((cycle) => cycle.id));
-      }
-
-      await supabaseClient
-        .from('revision_cycle_events')
-        .delete()
-        .eq('project_id', projectId);
-
-      await get().fetchRevisionCycles(projectId);
-      await get().fetchRevisionHistory(projectId);
-
-      const project = get().projects.find((p) => p.id === projectId);
-      if (project) {
-        await get().updateProject(
-          {
-            ...project,
-            state: 'postproduccion',
-          },
-          { skipLoading: true }
-        );
-      }
-    } catch (error) {
-      console.error('Error resetting revision cycle:', error);
-      throw error;
-    }
-
-    return null;
-  },
-
-  markCycleApproved: async (projectId, cycleId, options = {}) => {
-    if (!projectId || !cycleId) return null;
-    const { finalize = false } = options;
-
-    const eventPayload = {
-      project_id: projectId,
-      cycle_id: cycleId,
-      from_status: get().revisionCycles?.[projectId]?.find((c) => c.id === cycleId)?.status || 'corrigiendo',
-      to_status: 'aprobado',
-      occurred_at: new Date().toISOString(),
-    };
-
-    if (!supabaseClient) {
-      set((state) => {
-        const cycles = state.revisionCycles?.[projectId] || [];
-        const updated = cycles.map((cycle) =>
-          cycle.id === cycleId
-            ? normalizeRevisionCycle({
-              ...cycle,
-              approved: true,
-              status: 'aprobado',
-            })
-            : cycle
-        );
-        recordRevisionEventLocally(set, projectId, eventPayload);
-        return {
-          revisionCycles: {
-            ...state.revisionCycles,
-            [projectId]: sortRevisionCycles(updated),
-          },
-        };
-      });
-    } else {
-      try {
-        const { error } = await supabaseClient
-          .from('revision_cycles')
-          .update({ approved: true, status: 'aprobado' })
-          .eq('id', cycleId);
-        if (error) throw error;
-        await supabaseClient
-          .from('revision_cycle_events')
-          .insert(eventPayload);
-      } catch (error) {
-        console.error('Error approving revision cycle:', error);
-        throw error;
-      }
-    }
-
-    const project = get().projects.find((p) => p.id === projectId);
-    if (project) {
-      const currentNumber = project.current_cycle || project.currentCycle || 1;
-      const nextNumber = currentNumber + 1;
-
-      const nextProjectState = finalize ? 'entregado' : 'postproduccion';
-      const nextStatus = finalize ? 'Completado' : 'En progreso';
-
-      await get().updateProject(
-        {
-          ...project,
-          state: nextProjectState,
-          current_cycle: nextNumber,
-          currentCycle: nextNumber,
-          status: nextStatus,
-        },
-        { skipLoading: true }
-      );
-
-      if (!finalize) {
-        await get().createRevisionCycle(projectId, {
-          number: nextNumber,
-          status: 'editando',
-        });
-      }
-    }
-
-    await get().fetchRevisionCycles(projectId);
-  },
-
-  autoAdjustDeadline: async (projectId, offsetDays = 1, projectPatch = {}) => {
-    if (!projectId) return null;
-    const project = get().projects.find((p) => p.id === projectId);
-    if (!project) return null;
-    const base = new Date();
-    const nextDeadline = formatDateOnly(addDays(base, offsetDays));
-    const nextProject = {
-      ...project,
-      deadline: nextDeadline,
-      ...projectPatch,
-    };
-    await get().updateProject(nextProject, { skipLoading: true });
-    return nextDeadline;
-  },
-
   // ACCIÓN ORQUESTADORA PARA VISTAS NORMALES
   fetchProjects: async () => {
     set({ loading: true, error: null });
@@ -1517,36 +806,11 @@ const useStore = create((set, get) => ({
       });
       persistLocalProjects(projects);
 
-      let revisionMap = get().revisionCycles || {};
-      let revisionData = [];
-      try {
-        const { data: rData, error: revisionError } = await supabaseClient
-          .from('revision_cycles')
-          .select('*');
-        if (revisionError) {
-          console.error('Error fetching revision cycles:', revisionError);
-        } else if (Array.isArray(rData)) {
-          revisionData = rData;
-          revisionMap = rData.reduce((acc, item) => {
-            const normalized = normalizeRevisionCycle(item);
-            const key = normalized.project_id;
-            if (!key) return acc;
-            const list = acc[key] ? [...acc[key], normalized] : [normalized];
-            acc[key] = sortRevisionCycles(list);
-            return acc;
-          }, {});
-        }
-      } catch (revisionFetchError) {
-        console.error('Error loading revision cycles:', revisionFetchError);
-      }
-
       set((state) => ({
-        revisionCycles: revisionMap,
-        ...buildProjectsStateSnapshot(state, projects, revisionMap),
+        ...buildProjectsStateSnapshot(state, projects),
         reportingData: {
           ...state.reportingData,
           projects: data || [],
-          revisionCycles: Array.isArray(revisionData) ? revisionData : [],
           lastSync: new Date().toISOString(),
           isOnline: true,
         }
@@ -1585,15 +849,9 @@ const useStore = create((set, get) => ({
         .from('efficiency_metrics_view')
         .select('*');
 
-      // 3. Fetch de eventos crudos para cálculos ad-hoc
-      const { data: rawEvents } = await supabaseClient
-        .from('revision_cycle_events')
-        .select('*');
-
       const reportingData = {
         projects: projectsView || get().reportingData.projects,
         efficiency: efficiencyData || [],
-        cycleEvents: rawEvents || [],
         lastSync: new Date().toISOString(),
         isOnline: true,
       };

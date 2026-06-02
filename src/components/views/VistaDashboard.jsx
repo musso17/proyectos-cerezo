@@ -21,7 +21,6 @@ const VistaDashboard = () => {
   const {
     totals,
     carbonoProjectsThisMonth,
-    revisionMetrics,
     clientsData,
     recordingsByWeek,
     editingAverageByType,
@@ -133,7 +132,6 @@ const VistaDashboard = () => {
         <DashboardMetrics
           totals={totals}
           carbonoProjectsThisMonth={carbonoProjectsThisMonth}
-          revisionMetrics={revisionMetrics}
         />
 
         <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">

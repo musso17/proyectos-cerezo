@@ -2,7 +2,7 @@ import React from 'react';
 import { Activity, Video, PenSquare, CheckCircle2, Briefcase } from 'lucide-react';
 import MetricCard from '../shared/MetricCard';
 
-const DashboardMetrics = ({ totals, carbonoProjectsThisMonth, revisionMetrics }) => {
+const DashboardMetrics = ({ totals, carbonoProjectsThisMonth }) => {
   return (
     <div className="space-y-6">
       {/* KPIs Principales */}

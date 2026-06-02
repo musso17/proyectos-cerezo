@@ -8,7 +8,6 @@ import {
   FolderOpen,
   Images,
   Layers,
-  RefreshCcw,
 } from 'lucide-react';
 import useStore from '../hooks/useStore';
 

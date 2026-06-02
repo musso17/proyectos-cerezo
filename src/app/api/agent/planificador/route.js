@@ -85,7 +85,6 @@ export async function POST(req) {
       .from("team_members")
       .select("id,name,role,capacityPerWeekHrs")
       .limit(200);
-    const { data: revisionCyclesData } = await supabase.from("revision_cycles").select("project_id");
 
     const projects = Array.isArray(projectsData) && projectsData.length > 0 ? projectsData : fallbackProjects;
     const retainers = Array.isArray(retainersData) && retainersData.length > 0 ? retainersData : fallbackRetainers;
@@ -107,7 +106,6 @@ export async function POST(req) {
       now: new Date().toISOString().slice(0, 10),
       projects: (projects || []).map((p) => {
         const isCarbono = p.client?.toLowerCase() === "carbono";
-        const cycleCount = (revisionCyclesData || []).filter((c) => c.project_id === p.id).length;
 
         return {
           project_id: p.id,
@@ -116,7 +114,6 @@ export async function POST(req) {
           state: p.status?.toLowerCase() || p.stage?.toLowerCase() || "desconocido",
           recording_date: p.properties?.fechaGrabacion || p.startDate,
           editing_deadline_estimated_hours: isCarbono ? 48 : 72, // Ejemplo
-          cycle_count: cycleCount,
           assigned_to: p.manager || (Array.isArray(p.managers) ? p.managers.join(", ") : "N/A"),
           client_type: isCarbono ? "carbono" : "variable",
           last_updated: p.updated_at,

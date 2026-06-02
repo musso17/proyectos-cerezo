@@ -6,19 +6,17 @@ import { buildDashboardData, calculateEfficiencyMetrics, extractProjectInfo } fr
 
 const selectDashboardState = (state) => ({
   projects: state.projects,
-  revisionCycles: state.revisionCycles,
   selectedDashboardDate: state.selectedDashboardDate,
   reportingData: state.reportingData,
   fetchReportingData: state.fetchReportingData,
 });
 
 export const useDashboardData = () => {
-  const { 
-    projects, 
-    revisionCycles, 
-    selectedDashboardDate, 
+  const {
+    projects,
+    selectedDashboardDate,
     reportingData,
-    fetchReportingData 
+    fetchReportingData
   } = useStore(useShallow(selectDashboardState));
 
   useEffect(() => {
@@ -26,8 +24,8 @@ export const useDashboardData = () => {
   }, [fetchReportingData]);
 
   const dashboardMetrics = useMemo(
-    () => buildDashboardData(projects || [], revisionCycles || {}, selectedDashboardDate),
-    [projects, revisionCycles, selectedDashboardDate]
+    () => buildDashboardData(projects || [], selectedDashboardDate),
+    [projects, selectedDashboardDate]
   );
 
   const { carbonoProjectsThisMonth, variableProjectsCount } = useMemo(() => {

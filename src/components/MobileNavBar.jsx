@@ -2,7 +2,7 @@
 
 import React from 'react';
 import useStore from '../hooks/useStore';
-import { LayoutDashboard, List, Calendar, LayoutGrid, RefreshCcw } from 'lucide-react';
+import { LayoutDashboard, List, Calendar, LayoutGrid } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 
 const selectNavState = (state) => ({
@@ -18,7 +18,6 @@ const MobileNavBar = () => {
     { id: 'Dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'Table', icon: List, label: 'Proyectos' },
     { id: 'Calendar', icon: Calendar, label: 'Calendario' },
-    { id: 'Ciclos', icon: RefreshCcw, label: 'Ciclos' },
     { id: 'Gallery', icon: LayoutGrid, label: 'Galería' },
   ];
 
