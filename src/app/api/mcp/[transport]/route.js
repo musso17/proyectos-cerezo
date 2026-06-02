@@ -171,7 +171,56 @@ const handler = createMcpHandler(
       }
     );
 
-    // 5) Resumen de la semana
+    // 5) Actualizar fechas del proyecto
+    server.tool(
+      'actualizar_fechas_proyecto',
+      'Actualiza las fechas de un proyecto: entrega (deadline), inicio y/o grabación. Indica al menos una.',
+      {
+        project_id: z.string().describe('ID del proyecto.'),
+        fecha_entrega: z.string().optional().describe('Nueva fecha de entrega/deadline (YYYY-MM-DD).'),
+        fecha_inicio: z.string().optional().describe('Nueva fecha de inicio (YYYY-MM-DD).'),
+        fecha_grabacion: z.string().optional().describe('Nueva fecha de grabación (YYYY-MM-DD).'),
+      },
+      async ({ project_id, fecha_entrega, fecha_inicio, fecha_grabacion }) => {
+        try {
+          requireDb();
+          const dates = { fecha_entrega, fecha_inicio, fecha_grabacion };
+          for (const [k, v] of Object.entries(dates)) {
+            if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+              return fail(`La ${k.replace('_', ' ')} debe estar en formato YYYY-MM-DD.`);
+            }
+          }
+          if (!fecha_entrega && !fecha_inicio && !fecha_grabacion) {
+            return fail('Indica al menos una fecha a actualizar.');
+          }
+
+          const { data: project, error: e1 } = await supabase
+            .from('projects').select('id,name,deadline,startDate,properties').eq('id', project_id).single();
+          if (e1 || !project) return fail('No se encontró el proyecto con ese ID.');
+
+          const patch = {};
+          const changes = [];
+          if (fecha_entrega) { patch.deadline = fecha_entrega; changes.push(`entrega → ${fecha_entrega}`); }
+          if (fecha_inicio) { patch.startDate = fecha_inicio; changes.push(`inicio → ${fecha_inicio}`); }
+
+          const nextProperties = { ...(project.properties || {}) };
+          if (fecha_entrega) { nextProperties.deadline = fecha_entrega; nextProperties.fecha_entrega = fecha_entrega; }
+          if (fecha_grabacion) {
+            nextProperties.fechaGrabacion = fecha_grabacion;
+            changes.push(`grabación → ${fecha_grabacion}`);
+          }
+          patch.properties = nextProperties;
+
+          const { error } = await supabase.from('projects').update(patch).eq('id', project_id);
+          if (error) throw error;
+          return ok(`✅ "${project.name}": ${changes.join(', ')}.`);
+        } catch (e) {
+          return fail(e.message);
+        }
+      }
+    );
+
+    // 6) Resumen de la semana
     server.tool(
       'resumen_semana',
       'Devuelve un resumen del estado actual: conteos por estado, grabaciones próximas y entregas pendientes.',
