@@ -181,7 +181,7 @@ const TopNav = () => {
 
   return (
     <>
-      <header className="glass-panel sticky top-0 z-40 animate-fade-up rounded-lg px-3 py-3 sm:px-4">
+      <header className="glass-panel sticky top-0 z-40 animate-fade-up rounded-lg px-4 py-3.5 sm:px-6">
         <div className="flex items-center gap-3">
           {/* Brand */}
           <div className="flex shrink-0 items-center gap-3 pr-1">
@@ -227,26 +227,6 @@ const TopNav = () => {
               <LogOut size={18} />
             </button>
 
-            {!isFranciscoUser(currentUser) && (
-              <a
-                href="https://cotizacionescr.netlify.app/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hidden items-center rounded-lg border border-slate-200 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-secondary transition-all hover:bg-slate-50 lg:inline-flex dark:border-white/10 dark:text-white/70 dark:hover:bg-white/5"
-              >
-                Cotización
-              </a>
-            )}
-
-            <button
-              onClick={handleAddNew}
-              type="button"
-              className="hidden items-center gap-2 rounded-lg bg-dark-bg px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-white shadow-lg transition-all hover:-translate-y-0.5 sm:inline-flex dark:bg-accent"
-            >
-              <Plus size={18} strokeWidth={3} />
-              <span className="hidden md:inline">Nuevo</span>
-            </button>
-
             {/* Mobile menu toggle */}
             <button
               type="button"
@@ -269,17 +249,39 @@ const TopNav = () => {
                 type="button"
                 onClick={() => handleNavigate(item.id)}
                 className={clsx(
-                  'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all',
+                  'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all lg:px-4',
                   isActive
                     ? 'bg-accent text-white shadow-[0_6px_20px_rgba(255,75,42,0.25)]'
                     : 'text-secondary hover:bg-slate-100 dark:text-white/55 dark:hover:bg-white/5'
                 )}
               >
                 <item.icon size={16} />
-                <span>{item.label}</span>
+                <span className="hidden lg:inline">{item.label}</span>
               </button>
             );
           })}
+
+          {/* Cotización + Nuevo a la derecha */}
+          <div className="ml-auto flex items-center gap-2">
+            {!isFranciscoUser(currentUser) && (
+              <a
+                href="https://cotizacionescr.netlify.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-secondary transition-all hover:bg-slate-50 dark:border-white/10 dark:text-white/70 dark:hover:bg-white/5"
+              >
+                Cotización
+              </a>
+            )}
+            <button
+              onClick={handleAddNew}
+              type="button"
+              className="inline-flex items-center gap-2 rounded-lg bg-dark-bg px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-lg transition-all hover:-translate-y-0.5 dark:bg-accent"
+            >
+              <Plus size={18} strokeWidth={3} />
+              <span>Nuevo</span>
+            </button>
+          </div>
         </nav>
 
         {/* Mobile dropdown */}
