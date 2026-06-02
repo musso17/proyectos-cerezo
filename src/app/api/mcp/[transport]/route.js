@@ -6,13 +6,13 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 // ─── Supabase (service role, solo servidor) ────────────────────────────────────
-const supabase =
-  process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
-    ? createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
-      )
-    : null;
+// La URL tiene fallback (igual que config/supabase.js); solo es obligatorio
+// configurar SUPABASE_SERVICE_ROLE_KEY en el entorno del servidor (Vercel).
+const SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  'https://yoszuiotyyckvirlbleh.supabase.co';
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabase = SERVICE_KEY ? createClient(SUPABASE_URL, SERVICE_KEY) : null;
 
 const ALLOWED_STATUSES = ['Programado', 'En progreso', 'En revisión', 'Completado', 'Stuck'];
 const TEAM = ['Marcelo', 'Mauricio', 'Edson', 'Luis'];
@@ -21,7 +21,7 @@ const ok = (text) => ({ content: [{ type: 'text', text }] });
 const fail = (text) => ({ content: [{ type: 'text', text: `⚠️ ${text}` }], isError: true });
 
 const requireDb = () => {
-  if (!supabase) throw new Error('Supabase no está configurado en el servidor (faltan envs).');
+  if (!supabase) throw new Error('Falta SUPABASE_SERVICE_ROLE_KEY en las variables de entorno de Vercel. Agrégala y haz Redeploy.');
 };
 
 const fmtProject = (p) => {
