@@ -801,13 +801,23 @@ export default function VistaVoiceRoom() {
   const setIsVoiceRoomMinimized = useStore((state) => state.setIsVoiceRoomMinimized);
 
   const [token, setToken] = useState('');
+  const [connError, setConnError] = useState(null);
+  const [retryKey, setRetryKey] = useState(0);
   const username = currentUser?.email || 'Guest';
   const displayName = currentUser?.user_metadata?.display_name || username.split('@')[0];
   const avatarColor = currentUser?.user_metadata?.avatar_color || null;
 
+  const handleRoomError = (e) => {
+    console.error('LiveKit error:', e);
+    const msg = e?.message || 'Error desconocido';
+    setConnError(msg);
+    toast.error(`Sala de voz: ${msg}`);
+  };
+
   useEffect(() => {
     if (!roomName) return;
     setToken('');
+    setConnError(null);
     (async () => {
       try {
         const resp = await fetch(
@@ -825,7 +835,7 @@ export default function VistaVoiceRoom() {
         toast.error('Error de conexión');
       }
     })();
-  }, [roomName, username, displayName]);
+  }, [roomName, username, displayName, retryKey]);
 
   if (!roomName) return null;
 
@@ -866,10 +876,12 @@ export default function VistaVoiceRoom() {
         ) : (
           <LiveKitRoom
             video={false}
-            audio={true}
+            audio={getDefaultMic()}
             token={token}
             serverUrl={serverUrl}
+            connect={true}
             style={{ height: '100%', width: '100%' }}
+            onError={handleRoomError}
             onDisconnected={() => setActiveVoiceRoom(null)}
           >
             <AudioRoomInterior
@@ -911,7 +923,24 @@ export default function VistaVoiceRoom() {
             <Minimize2 size={15} />
           </button>
 
-          {!token ? (
+          {connError ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center">
+                <MicOff size={20} className="text-red-400" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-red-400">No se pudo conectar a la sala</p>
+                <p className="text-xs text-slate-500 mt-1 max-w-xs break-words">{connError}</p>
+                <p className="text-[11px] text-slate-600 mt-2">Revisa el permiso del micrófono del navegador.</p>
+              </div>
+              <button
+                onClick={() => { setConnError(null); setToken(''); setRetryKey((k) => k + 1); }}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium transition-all"
+              >
+                Reintentar
+              </button>
+            </div>
+          ) : !token ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-4 text-slate-500">
               <div className="relative w-14 h-14">
                 <div className="absolute inset-0 rounded-full border-2 border-slate-700" />
@@ -925,10 +954,12 @@ export default function VistaVoiceRoom() {
           ) : (
             <LiveKitRoom
               video={false}
-              audio={true}
+              audio={getDefaultMic()}
               token={token}
               serverUrl={serverUrl}
+              connect={true}
               style={{ height: '100%', width: '100%' }}
+              onError={handleRoomError}
               onDisconnected={() => setActiveVoiceRoom(null)}
             >
               <AudioRoomInterior
