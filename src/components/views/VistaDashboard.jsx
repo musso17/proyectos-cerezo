@@ -3,7 +3,7 @@
 import { addMonths } from 'date-fns';
 import { AlertTriangle } from 'lucide-react';
 import useDashboardData from '../../hooks/useDashboardData';
-import DashboardMetrics from '../dashboard/DashboardMetrics';
+import DashboardHero from '../dashboard/DashboardHero';
 import ClientProjectsChart from '../dashboard/ClientProjectsChart';
 import WeeklyRecordingsChart from '../dashboard/WeeklyRecordingsChart';
 import EditingAvgChart from '../dashboard/EditingAvgChart';
@@ -57,47 +57,12 @@ const VistaDashboard = () => {
         </div>
       </div>
 
-      {/* Tablero Personal (Cerezo Hub Journey Fase 1) */}
-      <div className="glass-panel rounded-xl p-6 bg-gradient-to-br from-white/60 to-white/30 dark:from-white/10 dark:to-transparent border border-white/40 dark:border-white/5">
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">
-          Hola {currentUser?.user_metadata?.display_name?.split(' ')[0] || currentUser?.user_metadata?.full_name?.split(' ')[0] || currentUser?.email?.split('@')[0] || 'Equipo'}, hoy es {new Intl.DateTimeFormat('es-ES', { weekday: 'long' }).format(new Date())}.
-        </h2>
-        <p className="text-slate-500 dark:text-slate-400 mb-6 font-medium">Tus prioridades de hoy son...</p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {projects
-            .filter(p => {
-               const u = useStore.getState().currentUser;
-               if (!u) return false;
-               const term = (u.user_metadata?.display_name || u.user_metadata?.full_name || u.email || '').toLowerCase();
-               const m = (p.managers || []).join(' ').toLowerCase() + ' ' + (p.manager || '').toLowerCase();
-               return m.includes(term.split('@')[0]) || m.includes(term.split(' ')[0]);
-            })
-            .slice(0, 3) // show top 3 priorities
-            .map((project, idx) => {
-               const statusColor = project.status === 'En progreso' || project.status === 'En Proceso' ? 'bg-yellow-500' : 'bg-slate-500';
-               return (
-                 <div key={project.id || idx} className="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm border border-slate-100 dark:border-slate-700 cursor-pointer hover:shadow-md transition-all" onClick={() => openModal(project)}>
-                   <div className="flex items-center gap-2 mb-3">
-                     <div className={`w-3 h-3 rounded-full ${statusColor}`}></div>
-                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{project.status}</span>
-                   </div>
-                   <h3 className="font-semibold text-slate-800 dark:text-white line-clamp-1">{project.name || 'Proyecto sin nombre'}</h3>
-                   <p className="text-sm text-slate-500 mt-1">{project.client}</p>
-                 </div>
-               );
-          })}
-          {projects.filter(p => {
-               const u = useStore.getState().currentUser;
-               if (!u) return false;
-               const term = (u.user_metadata?.display_name || u.user_metadata?.full_name || u.email || '').toLowerCase();
-               const m = (p.managers || []).join(' ').toLowerCase() + ' ' + (p.manager || '').toLowerCase();
-               return m.includes(term.split('@')[0]) || m.includes(term.split(' ')[0]);
-          }).length === 0 && (
-            <div className="col-span-3 text-center py-6 text-slate-400">No tienes proyectos asignados para hoy. ¡Disfruta el día!</div>
-          )}
-        </div>
-      </div>
+      {/* Hero en 2 columnas: prioridades + métricas/contexto */}
+      <DashboardHero
+        projects={projects}
+        totals={totals}
+        carbonoProjectsThisMonth={carbonoProjectsThisMonth}
+      />
 
       <div className="flex flex-col gap-6">
         {!isOnline && (
@@ -127,11 +92,6 @@ const VistaDashboard = () => {
         <UnclassifiedProjectsPanel
           projects={projects}
           onAssign={(p) => openModal(p)}
-        />
-
-        <DashboardMetrics
-          totals={totals}
-          carbonoProjectsThisMonth={carbonoProjectsThisMonth}
         />
 
         <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
