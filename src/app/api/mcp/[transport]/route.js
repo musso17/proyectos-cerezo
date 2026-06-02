@@ -80,17 +80,17 @@ const handler = createMcpHandler(
         cliente: z.string().describe('Cliente.'),
         fecha: z.string().describe('Fecha de grabación en formato YYYY-MM-DD.'),
         hora: z.string().optional().describe('Hora, ej. "10:00".'),
-        encargado: z.enum(TEAM).optional().describe('Encargado responsable.'),
+        encargados: z.array(z.enum(TEAM)).optional().describe('Uno o más encargados responsables (ej. ["Marcelo","Edson"]).'),
         ubicacion: z.string().optional().describe('Ubicación de la grabación.'),
         descripcion: z.string().optional().describe('Detalle o notas.'),
       },
-      async ({ nombre, cliente, fecha, hora, encargado, ubicacion, descripcion }) => {
+      async ({ nombre, cliente, fecha, hora, encargados, ubicacion, descripcion }) => {
         try {
           requireDb();
           if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
             return fail('La fecha debe estar en formato YYYY-MM-DD.');
           }
-          const managers = encargado ? [encargado] : [];
+          const managers = Array.from(new Set(encargados || []));
           const payload = {
             id: randomUUID(),
             name: nombre,
@@ -112,7 +112,35 @@ const handler = createMcpHandler(
           };
           const { data, error } = await supabase.from('projects').insert([payload]).select().single();
           if (error) throw error;
-          return ok(`✅ Grabación agendada: "${nombre}" para ${cliente} el ${fecha}${hora ? ` a las ${hora}` : ''}${encargado ? ` con ${encargado}` : ''}. (id: ${data.id})`);
+          return ok(`✅ Grabación agendada: "${nombre}" para ${cliente} el ${fecha}${hora ? ` a las ${hora}` : ''}${managers.length ? ` con ${managers.join(', ')}` : ''}. (id: ${data.id})`);
+        } catch (e) {
+          return fail(e.message);
+        }
+      }
+    );
+
+    // 2b) Asignar encargados a un proyecto existente
+    server.tool(
+      'asignar_encargados',
+      'Define los encargados de un proyecto existente (reemplaza la lista actual). Soporta múltiples.',
+      {
+        project_id: z.string().describe('ID del proyecto.'),
+        encargados: z.array(z.enum(TEAM)).describe('Lista de encargados, ej. ["Marcelo","Mauricio"].'),
+      },
+      async ({ project_id, encargados }) => {
+        try {
+          requireDb();
+          const { data: project, error: e1 } = await supabase
+            .from('projects').select('id,name,properties').eq('id', project_id).single();
+          if (e1 || !project) return fail('No se encontró el proyecto con ese ID.');
+          const managers = Array.from(new Set(encargados || []));
+          const nextProperties = { ...(project.properties || {}), managers };
+          const { error } = await supabase
+            .from('projects')
+            .update({ manager: managers.join(', '), properties: nextProperties })
+            .eq('id', project_id);
+          if (error) throw error;
+          return ok(`✅ "${project.name}": encargados → ${managers.length ? managers.join(', ') : 'sin asignar'}.`);
         } catch (e) {
           return fail(e.message);
         }
