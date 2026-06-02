@@ -26,7 +26,7 @@ const EmptyState = ({ message }) => (
 );
 
 const WeeklyRecordingsChart = ({ data }) => (
-  <div className="glass-panel col-span-1 flex flex-col gap-3 p-6 sm:p-8 rounded-xl transition-all hover:shadow-2xl xl:col-span-2">
+  <div className="glass-panel col-span-1 flex flex-col gap-3 p-6 sm:p-8 rounded-xl transition-all hover:shadow-2xl xl:col-span-1">
     <Header title="Actividad Semanal" subtitle="Tendencia de grabaciones" />
     <ChartContainer>
       {data.length > 0 ? (
