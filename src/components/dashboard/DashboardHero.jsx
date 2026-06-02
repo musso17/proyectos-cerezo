@@ -56,40 +56,41 @@ const PriorityCard = ({ project, onClick }) => {
     <button
       type="button"
       onClick={onClick}
-      className="group flex w-full flex-col gap-3 rounded-lg border border-slate-100 bg-white p-4 text-left transition-all hover:border-accent/30 hover:shadow-md dark:border-white/5 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]"
+      className="group flex w-full items-center gap-4 rounded-lg border border-slate-100 bg-white p-4 text-left transition-all hover:border-accent/30 hover:shadow-md dark:border-white/5 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]"
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className={`h-2 w-2 rounded-full ${dot}`} />
+      {/* status rail */}
+      <span className={`h-10 w-1 shrink-0 rounded-full ${dot}`} />
+
+      {/* main */}
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex items-center gap-2">
           <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-secondary/50 dark:text-white/40">
             {project.status}
           </span>
         </div>
-        <ArrowUpRight size={14} className="text-secondary/30 transition-all group-hover:text-accent group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-      </div>
-
-      <div>
         <h4 className="line-clamp-1 font-semibold text-primary dark:text-white">{project.name || 'Sin nombre'}</h4>
         <p className="mt-0.5 text-xs text-secondary/60 dark:text-white/40">{project.client || '—'}</p>
-      </div>
-
-      {/* progress + avatars */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
+        {/* progress */}
+        <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
           <div className={`h-full rounded-full ${dot} transition-all`} style={{ width: `${progress}%` }} />
         </div>
-        <div className="flex -space-x-1.5">
+      </div>
+
+      {/* avatars + arrow */}
+      <div className="flex shrink-0 flex-col items-end gap-2">
+        <ArrowUpRight size={15} className="text-secondary/30 transition-all group-hover:text-accent group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        <div className="flex -space-x-2">
           {managers.slice(0, 3).map((m, i) => (
             <div
               key={i}
               title={m}
-              className={`flex h-6 w-6 items-center justify-center rounded-full border-2 border-white text-[9px] font-bold text-white dark:border-[#16171D] ${teamColor(m)}`}
+              className={`flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-[10px] font-bold text-white shadow-sm dark:border-[#16171D] ${teamColor(m)}`}
             >
               {initials(m)}
             </div>
           ))}
           {managers.length === 0 && (
-            <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-slate-300 text-[9px] font-bold text-white dark:border-[#16171D] dark:bg-slate-600">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-300 text-[10px] font-bold text-white dark:border-[#16171D] dark:bg-slate-600">
               ?
             </div>
           )}
@@ -135,10 +136,10 @@ const DashboardHero = ({ projects, totals, carbonoProjectsThisMonth }) => {
   const carbonoPct = Math.min((carbonoProjectsThisMonth / 6) * 100, 100);
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
       {/* LEFT — prioridades */}
       <div className="lg:col-span-7 xl:col-span-8">
-        <div className="glass-panel h-full rounded-xl p-6">
+        <div className="glass-panel rounded-xl p-6">
           <h2 className="text-xl font-bold text-primary dark:text-white">
             Hola {firstName}, hoy es {today}.
           </h2>
@@ -147,7 +148,7 @@ const DashboardHero = ({ projects, totals, carbonoProjectsThisMonth }) => {
           </p>
 
           {myPriorities.length > 0 ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-3">
               {myPriorities.map((p) => (
                 <PriorityCard key={p.id} project={p} onClick={() => openModal(p)} />
               ))}

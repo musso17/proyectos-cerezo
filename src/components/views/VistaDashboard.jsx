@@ -37,7 +37,7 @@ const VistaDashboard = () => {
   const handleNextMonth = () => setSelectedDashboardDate(addMonths(selectedDashboardDate, 1));
 
   return (
-    <div className="flex h-full flex-col gap-12 p-4 md:p-6 animate-fade-up overflow-y-auto soft-scroll">
+    <div className="flex h-full flex-col gap-8 p-4 md:p-6 animate-fade-up overflow-y-auto soft-scroll">
       <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-4xl font-semibold text-primary tracking-tight dark:text-white leading-tight">Panel Ejecutivo</h1>
@@ -64,31 +64,33 @@ const VistaDashboard = () => {
         carbonoProjectsThisMonth={carbonoProjectsThisMonth}
       />
 
-      <div className="flex flex-col gap-6">
-        {!isOnline && (
-          <div className="glass-panel bg-amber-500/5 border-amber-500/20 text-amber-600 dark:text-amber-200 p-6 rounded-xl flex items-center gap-4">
-            <div className="rounded-lg bg-amber-500/10 p-3">
-              <AlertTriangle size={20} />
+      {(!isOnline || carbonoProjectsThisMonth > 6) && (
+        <div className="flex flex-col gap-4">
+          {!isOnline && (
+            <div className="glass-panel bg-amber-500/5 border-amber-500/20 text-amber-600 dark:text-amber-200 p-4 rounded-xl flex items-center gap-4">
+              <div className="rounded-lg bg-amber-500/10 p-3">
+                <AlertTriangle size={20} />
+              </div>
+              <span className="text-xs font-medium uppercase tracking-wide">
+                <strong>Modo Offline:</strong> Datos locales activos
+              </span>
             </div>
-            <span className="text-xs font-medium uppercase tracking-wide">
-              <strong>Modo Offline:</strong> Datos locales activos
-            </span>
-          </div>
-        )}
+          )}
 
-        {carbonoProjectsThisMonth > 6 && (
-          <div className="glass-panel bg-red-500/5 border-red-500/20 text-red-500 dark:text-red-200 p-6 rounded-xl flex items-center gap-4">
-            <div className="rounded-lg bg-red-500/10 p-3">
-              <AlertTriangle size={20} />
+          {carbonoProjectsThisMonth > 6 && (
+            <div className="glass-panel bg-red-500/5 border-red-500/20 text-red-500 dark:text-red-200 p-4 rounded-xl flex items-center gap-4">
+              <div className="rounded-lg bg-red-500/10 p-3">
+                <AlertTriangle size={20} />
+              </div>
+              <span className="text-xs font-medium uppercase tracking-wide">
+                <strong>Alerta:</strong> Saturación de proyectos Carbono
+              </span>
             </div>
-            <span className="text-xs font-medium uppercase tracking-wide">
-              <strong>Alerta:</strong> Saturación de proyectos Carbono
-            </span>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
-      <div className="flex flex-col gap-12">
+      <div className="flex flex-col gap-8">
         <UnclassifiedProjectsPanel
           projects={projects}
           onAssign={(p) => openModal(p)}
