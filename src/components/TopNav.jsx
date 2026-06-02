@@ -191,31 +191,8 @@ const TopNav = () => {
             </div>
           </div>
 
-          {/* Nav links — desktop */}
-          <nav className="hidden md:flex items-center gap-1">
-            {navItems.map((item) => {
-              const isActive = currentView === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleNavigate(item.id)}
-                  className={clsx(
-                    'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all',
-                    isActive
-                      ? 'bg-accent text-white shadow-[0_6px_20px_rgba(255,75,42,0.25)]'
-                      : 'text-secondary hover:bg-slate-100 dark:text-white/55 dark:hover:bg-white/5'
-                  )}
-                >
-                  <item.icon size={16} />
-                  <span className="hidden lg:inline">{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-
           {/* Search */}
-          <div className="relative ml-auto hidden min-w-0 flex-1 items-center sm:flex sm:max-w-xs">
+          <div className="relative ml-auto hidden min-w-0 flex-1 items-center sm:flex sm:max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-white/30" size={16} />
             <input
               type="text"
@@ -281,6 +258,29 @@ const TopNav = () => {
             </button>
           </div>
         </div>
+
+        {/* Row 2 — barra de navegación (desktop) */}
+        <nav className="mt-3 hidden items-center gap-1 border-t border-slate-200/70 pt-3 md:flex dark:border-white/5">
+          {navItems.map((item) => {
+            const isActive = currentView === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleNavigate(item.id)}
+                className={clsx(
+                  'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all',
+                  isActive
+                    ? 'bg-accent text-white shadow-[0_6px_20px_rgba(255,75,42,0.25)]'
+                    : 'text-secondary hover:bg-slate-100 dark:text-white/55 dark:hover:bg-white/5'
+                )}
+              >
+                <item.icon size={16} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
 
         {/* Mobile dropdown */}
         {mobileOpen && (
