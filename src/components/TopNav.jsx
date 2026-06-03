@@ -38,8 +38,88 @@ const VOICE_ROOMS = [
   { id: 'Carbono', emoji: '🚗' },
 ];
 
+const AVAILABILITY = [
+  { value: 'Activo - Editando', label: 'Activo', dot: 'bg-green-500', emoji: '🟢' },
+  { value: 'Ocupado', label: 'Ocupado', dot: 'bg-amber-500', emoji: '🟡' },
+  { value: 'Fuera de la oficina', label: 'Fuera', dot: 'bg-slate-400', emoji: '⚪' },
+];
+
 const isFranciscoUser = (user) =>
   user?.email?.toString().trim().toLowerCase() === 'francisco@carbonomkt.com';
+
+// ─── Presencia / disponibilidad del usuario (avatar + popover) ─────────────────
+const PresenceButton = () => {
+  const currentUser = useStore((state) => state.currentUser);
+  const userAvailability = useStore((state) => state.userAvailability);
+  const setUserAvailability = useStore((state) => state.setUserAvailability);
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const current = AVAILABILITY.find((a) => a.value === userAvailability) || AVAILABILITY[0];
+  const email = currentUser?.email?.toString().trim() || '';
+  const initial = (email.charAt(0) || '?').toUpperCase();
+  const name = email ? email.split('@')[0] : 'Tú';
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white pl-1.5 pr-2 text-sm font-medium text-secondary transition-all hover:bg-slate-50 dark:border-white/5 dark:bg-[#1E1F23] dark:text-white/70 dark:hover:bg-white/10"
+        title={`Tu estado: ${current.label}`}
+        aria-label={`Tu estado: ${current.label}`}
+      >
+        <span className="relative inline-flex">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/10 text-xs font-bold uppercase text-accent">
+            {initial}
+          </span>
+          <span className={clsx('absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-[#1E1F23]', current.dot)} />
+        </span>
+        <span className="hidden text-xs xl:inline">{current.label}</span>
+        <ChevronDown size={13} className="hidden opacity-60 xl:inline" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-white/10 dark:bg-[#16171D]">
+          <div className="flex items-center gap-2 px-2 pb-2 pt-1">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/10 text-xs font-bold uppercase text-accent">{initial}</span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-primary dark:text-white">{name}</p>
+              <p className="text-[11px] text-secondary/70 dark:text-white/40">Tu disponibilidad</p>
+            </div>
+          </div>
+          <div className="h-px bg-slate-100 dark:bg-white/5" />
+          {AVAILABILITY.map(({ value, label, dot }) => {
+            const isActive = userAvailability === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => { setUserAvailability(value); setOpen(false); }}
+                className={clsx(
+                  'mt-1 flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm transition-all',
+                  isActive
+                    ? 'bg-slate-100 font-medium text-primary dark:bg-white/10 dark:text-white'
+                    : 'text-secondary hover:bg-slate-50 dark:text-white/60 dark:hover:bg-white/5'
+                )}
+              >
+                <span className={clsx('h-2.5 w-2.5 rounded-full', dot)} />
+                <span className="flex-1 text-left">{label}</span>
+                {isActive && <span className="text-[10px] font-semibold uppercase text-secondary/60 dark:text-white/30">Actual</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ─── Salas de voz (popover) ───────────────────────────────────────────────────
 const VoiceRoomsButton = () => {
@@ -65,10 +145,11 @@ const VoiceRoomsButton = () => {
             ? 'border-green-500/30 bg-green-500/10 text-green-600 dark:text-green-400'
             : 'border-slate-200 bg-white text-secondary hover:bg-slate-50 dark:border-white/5 dark:bg-[#1E1F23] dark:text-white/70 dark:hover:bg-white/10'
         )}
+        title={activeVoiceRoom ? `En vivo: ${activeVoiceRoom}` : 'Salas de voz'}
         aria-label="Salas de voz"
       >
         <Radio size={16} className={activeVoiceRoom ? 'animate-pulse' : ''} />
-        <span className="hidden lg:inline">{activeVoiceRoom || 'Salas'}</span>
+        <span className="hidden lg:inline">{activeVoiceRoom || 'Salas de voz'}</span>
         <ChevronDown size={13} className="opacity-60" />
       </button>
 
@@ -116,13 +197,12 @@ const TopNav = () => {
   const currentView = useStore((state) => state.currentView);
   const setCurrentView = useStore((state) => state.setCurrentView);
   const allowedViews = useStore((state) => state.allowedViews);
-  const userAvailability = useStore((state) => state.userAvailability);
-  const setUserAvailability = useStore((state) => state.setUserAvailability);
 
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const searchRef = useRef(null);
 
   const navItems = NAV_ITEMS.filter((item) => allowedViews.includes(item.id));
 
@@ -132,6 +212,22 @@ const TopNav = () => {
     setCurrentView(view);
     setMobileOpen(false);
   };
+
+  // ⌘K / Ctrl+K / "/" enfocan la búsqueda (sin robar el foco de otros inputs)
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const el = document.activeElement;
+      const typing = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+      const cmdK = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k';
+      const slash = e.key === '/' && !typing;
+      if (cmdK || slash) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -184,46 +280,47 @@ const TopNav = () => {
       <header className="glass-panel sticky top-0 z-40 animate-fade-up rounded-lg px-4 py-3.5 sm:px-6">
         <div className="flex items-center gap-3">
           {/* Brand */}
-          <div className="flex shrink-0 items-center gap-3 pr-1">
-            <div className="flex flex-col leading-none">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.35em] text-accent">Cerezo</span>
-              <span className="text-sm font-semibold text-primary dark:text-white">Studio Planner</span>
-            </div>
+          <div className="flex shrink-0 flex-col leading-none pr-1">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.35em] text-accent">Cerezo</span>
+            <span className="text-[15px] font-bold tracking-tight text-primary dark:text-white">Studio Planner</span>
           </div>
 
-          {/* Search */}
-          <div className="relative ml-auto hidden min-w-0 flex-1 items-center sm:flex sm:max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-white/30" size={16} />
+          {/* Search — compacta, se expande al enfocar (⌘K / "/") */}
+          <div className="relative hidden shrink-0 items-center sm:flex">
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-white/30" size={16} />
             <input
+              ref={searchRef}
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar..."
-              className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm font-medium text-primary placeholder:text-secondary/50 focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white dark:placeholder:text-white/20"
+              className="w-44 rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-12 text-sm font-medium text-primary transition-[width] duration-300 ease-[var(--ease-ios-out)] placeholder:text-secondary/50 focus:w-72 focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 lg:w-52 lg:focus:w-80 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white dark:placeholder:text-white/20"
             />
+            {!searchTerm && (
+              <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 select-none items-center gap-0.5 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-secondary/60 lg:flex dark:border-white/10 dark:bg-white/5 dark:text-white/30">
+                ⌘K
+              </kbd>
+            )}
           </div>
 
           {/* Right cluster — desktop */}
-          <div className="ml-auto flex items-center gap-2 sm:ml-0">
-            <select
-              value={userAvailability}
-              onChange={(e) => setUserAvailability(e.target.value)}
-              className="hidden h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 focus:border-accent focus:outline-none xl:block dark:border-white/5 dark:bg-[#1E1F23] dark:text-white/80"
-            >
-              <option value="Activo - Editando">🟢 Activo</option>
-              <option value="Ocupado">🟡 Ocupado</option>
-              <option value="Fuera de la oficina">⚪ Fuera</option>
-            </select>
+          <div className="ml-auto flex items-center gap-2">
+            {/* Presencia + colaboración en vivo */}
+            <div className="hidden items-center gap-2 sm:flex">
+              <PresenceButton />
+              <VoiceRoomsButton />
+            </div>
 
-            <div className="hidden sm:block"><VoiceRoomsButton /></div>
+            {/* Separador entre presencia y utilidades */}
+            <div className="hidden h-6 w-px bg-slate-200 sm:block dark:bg-white/10" />
 
-            <button type="button" onClick={toggleTheme} className={clsx(iconBtn, 'hidden sm:flex')} aria-label="Tema">
+            <button type="button" onClick={toggleTheme} className={clsx(iconBtn, 'hidden sm:flex')} title={theme === 'dark' ? 'Tema claro' : 'Tema oscuro'} aria-label="Cambiar tema">
               {theme === 'dark' ? <Sun size={18} className="text-accent" /> : <Moon size={18} />}
             </button>
-            <button type="button" onClick={() => setShowSettings(true)} className={clsx(iconBtn, 'hidden sm:flex')} aria-label="Ajustes">
+            <button type="button" onClick={() => setShowSettings(true)} className={clsx(iconBtn, 'hidden sm:flex')} title="Ajustes" aria-label="Ajustes">
               <Settings size={18} />
             </button>
-            <button type="button" onClick={handleSignOut} disabled={signingOut} className={clsx(iconBtn, 'hidden sm:flex disabled:opacity-60')} aria-label="Cerrar sesión">
+            <button type="button" onClick={handleSignOut} disabled={signingOut} className={clsx(iconBtn, 'hidden sm:flex disabled:opacity-60')} title="Cerrar sesión" aria-label="Cerrar sesión">
               <LogOut size={18} />
             </button>
 
@@ -239,36 +336,38 @@ const TopNav = () => {
           </div>
         </div>
 
-        {/* Row 2 — barra de navegación (desktop) */}
-        <nav className="mt-3 hidden items-center gap-1 border-t border-slate-200/70 pt-3 md:flex dark:border-white/5">
-          {navItems.map((item) => {
-            const isActive = currentView === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleNavigate(item.id)}
-                className={clsx(
-                  'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all lg:px-4',
-                  isActive
-                    ? 'bg-accent text-white shadow-[0_6px_20px_rgba(255,75,42,0.25)]'
-                    : 'text-secondary hover:bg-slate-100 dark:text-white/55 dark:hover:bg-white/5'
-                )}
-              >
-                <item.icon size={16} />
-                <span className="hidden lg:inline">{item.label}</span>
-              </button>
-            );
-          })}
+        {/* Row 2 — navegación de la app (track segmentado, separado de los controles de sesión) */}
+        <nav className="mt-3 hidden items-center gap-3 border-t border-slate-200/70 pt-3 md:flex dark:border-white/5">
+          <div className="flex items-center gap-1 rounded-xl bg-slate-100/70 p-1 dark:bg-white/5">
+            {navItems.map((item) => {
+              const isActive = currentView === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleNavigate(item.id)}
+                  className={clsx(
+                    'flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-all lg:px-4',
+                    isActive
+                      ? 'bg-white font-semibold text-primary shadow-sm dark:bg-white/10 dark:text-white'
+                      : 'font-medium text-secondary hover:text-primary dark:text-white/55 dark:hover:text-white/80'
+                  )}
+                >
+                  <item.icon size={16} className={isActive ? 'text-accent' : ''} />
+                  <span className="hidden lg:inline">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
-          {/* Cotización + Nuevo a la derecha */}
-          <div className="ml-auto flex items-center gap-2">
+          {/* Cotización (secundario, discreto) + Nuevo (CTA primario) */}
+          <div className="ml-auto flex items-center gap-1">
             {!isFranciscoUser(currentUser) && (
               <a
                 href="https://cotizacionescr.netlify.app/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-secondary transition-all hover:bg-slate-50 dark:border-white/10 dark:text-white/70 dark:hover:bg-white/5"
+                className="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium text-secondary transition-all hover:bg-slate-100 dark:text-white/60 dark:hover:bg-white/5"
               >
                 Cotización
               </a>
@@ -306,19 +405,22 @@ const TopNav = () => {
                   onClick={() => handleNavigate(item.id)}
                   className={clsx(
                     'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
-                    isActive ? 'bg-accent text-white' : 'text-secondary dark:text-white/60'
+                    isActive ? 'bg-slate-100 font-semibold text-primary dark:bg-white/10 dark:text-white' : 'text-secondary dark:text-white/60'
                   )}
                 >
-                  <item.icon size={17} />
+                  <item.icon size={17} className={isActive ? 'text-accent' : ''} />
                   {item.label}
                 </button>
               );
             })}
-            <VoiceRoomsButton />
+            <div className="flex flex-col gap-2 pt-1">
+              <PresenceButton />
+              <VoiceRoomsButton />
+            </div>
             <div className="flex items-center gap-2 pt-1">
-              <button onClick={toggleTheme} className={iconBtn}>{theme === 'dark' ? <Sun size={18} className="text-accent" /> : <Moon size={18} />}</button>
-              <button onClick={() => { setShowSettings(true); setMobileOpen(false); }} className={iconBtn}><Settings size={18} /></button>
-              <button onClick={handleSignOut} disabled={signingOut} className={clsx(iconBtn, 'disabled:opacity-60')}><LogOut size={18} /></button>
+              <button onClick={toggleTheme} className={iconBtn} title="Cambiar tema">{theme === 'dark' ? <Sun size={18} className="text-accent" /> : <Moon size={18} />}</button>
+              <button onClick={() => { setShowSettings(true); setMobileOpen(false); }} className={iconBtn} title="Ajustes"><Settings size={18} /></button>
+              <button onClick={handleSignOut} disabled={signingOut} className={clsx(iconBtn, 'disabled:opacity-60')} title="Cerrar sesión"><LogOut size={18} /></button>
               {!isFranciscoUser(currentUser) && (
                 <a href="https://cotizacionescr.netlify.app/" target="_blank" rel="noopener noreferrer" className="ml-auto rounded-lg border border-slate-200 px-4 py-2.5 text-xs font-semibold uppercase text-secondary dark:border-white/10 dark:text-white/70">Cotización</a>
               )}
