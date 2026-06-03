@@ -1,5 +1,5 @@
 import React from 'react';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
 
 const Header = ({ title, subtitle }) => (
   <div>
@@ -31,11 +31,11 @@ const WeeklyRecordingsChart = ({ data }) => (
     <ChartContainer>
       {data.length > 0 ? (
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} barCategoryGap="25%">
             <defs>
               <linearGradient id="colorRecording" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#FF4B2A" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#FF4B2A" stopOpacity={0} />
+                <stop offset="0%" stopColor="#FF6B4A" />
+                <stop offset="100%" stopColor="#FF4B2A" />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="0" stroke="rgba(255,75,42,0.05)" vertical={false} />
@@ -64,16 +64,14 @@ const WeeklyRecordingsChart = ({ data }) => (
               itemStyle={{ color: '#FF4B2A', fontWeight: '900', textTransform: 'uppercase' }}
               labelStyle={{ color: 'rgba(255,255,255,0.4)', fontWeight: '700', marginBottom: '4px' }}
             />
-            <Area
-              type="monotone"
+            <Bar
               dataKey="total"
-              stroke="#FF4B2A"
-              strokeWidth={4}
-              fillOpacity={1}
               fill="url(#colorRecording)"
-              animationDuration={1500}
+              radius={[4, 4, 0, 0]}
+              maxBarSize={48}
+              animationDuration={900}
             />
-          </AreaChart>
+          </BarChart>
         </ResponsiveContainer>
       ) : (
         <EmptyState message="Aún no hay grabaciones registradas" />

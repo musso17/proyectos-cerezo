@@ -62,9 +62,10 @@ const VistaDashboard = () => {
         projects={projects}
         totals={totals}
         carbonoProjectsThisMonth={carbonoProjectsThisMonth}
+        managerLoad={managerLoad}
       />
 
-      {(!isOnline || carbonoProjectsThisMonth > 6) && (
+      {(!isOnline || carbonoProjectsThisMonth >= 5) && (
         <div className="flex flex-col gap-4">
           {!isOnline && (
             <div className="glass-panel bg-amber-500/5 border-amber-500/20 text-amber-600 dark:text-amber-200 p-4 rounded-xl flex items-center gap-4">
@@ -77,13 +78,13 @@ const VistaDashboard = () => {
             </div>
           )}
 
-          {carbonoProjectsThisMonth > 6 && (
+          {carbonoProjectsThisMonth >= 5 && (
             <div className="glass-panel bg-red-500/5 border-red-500/20 text-red-500 dark:text-red-200 p-4 rounded-xl flex items-center gap-4">
               <div className="rounded-lg bg-red-500/10 p-3">
                 <AlertTriangle size={20} />
               </div>
               <span className="text-xs font-medium uppercase tracking-wide">
-                <strong>Alerta:</strong> Saturación de proyectos Carbono
+                <strong>Alerta:</strong> Cuota mensual de Carbono alcanzada (límite 5)
               </span>
             </div>
           )}
