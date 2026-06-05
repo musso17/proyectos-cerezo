@@ -1,4 +1,5 @@
 import React from 'react';
+import clsx from 'clsx';
 import { format, isSameMonth, isSameDay, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -29,14 +30,21 @@ const CalendarGrid = ({
       ))}
       {calendarDays.map((day) => {
         const key = startOfDay(day).toISOString();
-        const dayItems = (calendarItemsByDay.get(key) || []).sort(
-          (a, b) => a.range.start.getTime() - b.range.start.getTime()
+        // Orden estable por tramo (runStartTime) para que un mismo rodaje quede
+        // en el mismo carril vertical en todos sus días → barra continua.
+        const dayItems = (calendarItemsByDay.get(key) || []).slice().sort(
+          (a, b) =>
+            (a.runStartTime ?? a.range.start.getTime()) - (b.runStartTime ?? b.range.start.getTime()) ||
+            String(a.project?.id || a.project?.name || '').localeCompare(
+              String(b.project?.id || b.project?.name || '')
+            )
         );
         const visibleItems = dayItems.slice(0, MAX_ITEMS_PER_DAY);
         const extraItems = dayItems.length - visibleItems.length;
         const isCurrentMonth = isSameMonth(day, currentMonth);
         const isToday = isSameDay(day, today);
         const isSelected = selectedDayKey === key;
+        const weekday = day.getDay(); // 0 = Dom, 6 = Sáb
 
         return (
           <div
@@ -64,6 +72,13 @@ const CalendarGrid = ({
                 if (item.type === 'recording_event') {
                   const { project } = item;
                   const title = project?.name || 'Grabación';
+                  const isMulti = item.totalDays > 1;
+                  // Extiende la barra hacia el día contiguo (sin romper en el
+                  // borde de la semana) para que se vea como un bloque continuo.
+                  const extendLeft = item.continuesPrev && weekday !== 0;
+                  const extendRight = item.continuesNext && weekday !== 6;
+                  // Muestra el título al inicio del tramo o al comenzar una semana.
+                  const showTitle = !item.continuesPrev || weekday === 0;
                   return (
                     <button
                       key={`recording-${project?.id || title}-${day.toISOString()}`}
@@ -72,14 +87,27 @@ const CalendarGrid = ({
                         event.stopPropagation();
                         if (project) openModal(project);
                       }}
-                      className={`group rounded-md border px-2 py-1 text-left text-xs shadow-sm transition-all duration-200 ease-[var(--ease-ios-out)] hover:shadow-lg hover:-translate-y-0.5 ${RECORDING_PILL}`}
+                      title={isMulti ? `${title} · grabación día ${item.dayIndex} de ${item.totalDays}` : title}
+                      className={clsx(
+                        'group border px-2 py-1 text-left text-xs shadow-sm transition-all duration-200 ease-[var(--ease-ios-out)] hover:z-10 hover:shadow-lg',
+                        RECORDING_PILL,
+                        extendLeft ? '-ml-2 border-l-0' : 'rounded-l-md',
+                        extendRight ? '-mr-2 border-r-0' : 'rounded-r-md'
+                      )}
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="truncate font-semibold">{title}</span>
-                        <span className="whitespace-nowrap text-[10px] opacity-75">
-                          {format(item.range.start, 'dd/MM')}
-                        </span>
-                      </div>
+                      {showTitle ? (
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate font-semibold">{title}</span>
+                          <span className="whitespace-nowrap text-[10px] opacity-75">
+                            {isMulti ? `${item.dayIndex}/${item.totalDays}` : format(item.range.start, 'dd/MM')}
+                          </span>
+                        </div>
+                      ) : (
+                        // Celda de continuación: sin texto, solo la barra (mantiene altura).
+                        <div className="flex items-center justify-end">
+                          <span className="text-[10px] opacity-50">{item.dayIndex}/{item.totalDays}</span>
+                        </div>
+                      )}
                     </button>
                   );
                 }

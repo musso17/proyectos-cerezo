@@ -3,23 +3,24 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
 import {
+  addDays,
   addMonths,
   addWeeks,
   eachDayOfInterval,
   endOfMonth,
   endOfWeek,
   format,
-  isWithinInterval,
   parseISO,
   startOfDay,
   startOfMonth,
   startOfWeek,
 } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import useStore from '../../hooks/useStore';
-import { ensureMemberName, TEAM_STYLES } from '../../constants/team';
+import { ensureMemberName } from '../../constants/team';
 import { filterProjects } from '../../utils/filterProjects';
+import { getProjectManagers, getProjectRecordingDates } from '../../utils/dashboardHelpers';
 import { getUIPreference, setUIPreference } from '../../utils/uiPreferences';
 
 const STAGE_STYLES = {
@@ -89,32 +90,42 @@ const VistaTimeline = () => {
     });
   }, [displayedProjects, searchTerm]);
 
-  const processedAssignments = useMemo(() => {
+  // Ocupación por proyecto: TODOS sus responsables y TODOS sus días reales.
+  // Grabación → días de recordingDates (pueden ser salteados); edición → rango startDate→deadline.
+  const occupancy = useMemo(() => {
     return filteredProjects
       .map((project) => {
-        const start = parseDate(project.startDate);
-        const end = parseDate(project.deadline);
-        if (!start && !end) return null;
-        const rangeStart = start || end;
-        const rangeEnd = end || start;
-        if (!rangeStart || !rangeEnd) return null;
-        return {
-          project,
-          stage: getProjectStage(project),
-          manager: ensureMemberName(project.manager),
-          range: { start: rangeStart, end: rangeEnd },
-        };
+        const stage = getProjectStage(project);
+        const managers = getProjectManagers(project)
+          .map((m) => ensureMemberName(m))
+          .filter(Boolean);
+
+        let days = [];
+        if (stage === 'grabacion' || stage === 'fotografia') {
+          days = getProjectRecordingDates(project);
+          if (days.length === 0) {
+            const single = parseDate(project.startDate);
+            if (single) days = [single];
+          }
+        } else {
+          const start = parseDate(project.startDate);
+          const end = parseDate(project.deadline) || start;
+          if (start && end) days = eachDayOfInterval({ start, end });
+        }
+
+        const daySet = new Set(days.map((d) => format(d, 'yyyy-MM-dd')));
+        return { project, stage, managers, days, daySet };
       })
-      .filter(Boolean);
+      .filter((o) => o.managers.length > 0 && o.days.length > 0);
   }, [filteredProjects]);
 
   const memberOrder = useMemo(() => {
     const predefined = teamMembers || [];
-    const dynamic = processedAssignments
-      .map((item) => item.manager)
+    const dynamic = occupancy
+      .flatMap((o) => o.managers)
       .filter((manager) => manager && !predefined.includes(manager));
     return Array.from(new Set([...predefined, ...dynamic]));
-  }, [teamMembers, processedAssignments]);
+  }, [teamMembers, occupancy]);
 
   const visibleInterval = useMemo(() => {
     if (viewMode === 'week') {
@@ -134,37 +145,40 @@ const VistaTimeline = () => {
     [visibleInterval]
   );
 
-  const assignmentsByManager = useMemo(() => {
+  const rows = useMemo(() => {
     const dateKeys = visibleDates.map((date) => format(date, 'yyyy-MM-dd'));
-    const map = memberOrder.map((manager) => ({
-      manager,
-      dates: dateKeys.map((key) => ({ key, items: [] })),
-    }));
-
-    const indices = Object.fromEntries(map.map((row, index) => [row.manager, index]));
-
-    processedAssignments.forEach((assignment) => {
-      const managerIndex = indices[assignment.manager];
-      if (managerIndex === undefined) return;
-
-      if (assignment.range.end < visibleInterval.start || assignment.range.start > visibleInterval.end) {
-        return;
-      }
-
-      map[managerIndex].dates.forEach((cell, cellIndex) => {
-        const date = visibleDates[cellIndex];
-        if (isWithinInterval(date, assignment.range)) {
-          cell.items.push({
-            project: assignment.project,
-            stage: assignment.stage,
-            isaMeta: assignment.isaMeta,
-          });
-        }
+    return memberOrder.map((manager) => {
+      const cells = visibleDates.map((date, index) => {
+        const key = dateKeys[index];
+        const items = occupancy
+          .filter((o) => o.managers.includes(manager) && o.daySet.has(key))
+          .map((o) => ({
+            project: o.project,
+            stage: o.stage,
+            // ¿el día contiguo también está ocupado por el mismo proyecto? → barra continua
+            continuesPrev: o.daySet.has(format(addDays(date, -1), 'yyyy-MM-dd')),
+            continuesNext: o.daySet.has(format(addDays(date, 1), 'yyyy-MM-dd')),
+            runStartTime: o.days[0].getTime(),
+          }))
+          .sort(
+            (a, b) =>
+              a.runStartTime - b.runStartTime ||
+              String(a.project?.id || a.project?.name || '').localeCompare(
+                String(b.project?.id || b.project?.name || '')
+              )
+          );
+        return { key, date, index, items };
       });
-    });
 
-    return map;
-  }, [memberOrder, processedAssignments, visibleDates, visibleInterval]);
+      // Métrica de carga en la ventana visible
+      const occupiedDays = cells.filter((c) => c.items.length > 0).length;
+      const projectIds = new Set();
+      cells.forEach((c) => c.items.forEach((it) => projectIds.add(it.project?.id || it.project?.name)));
+      const loadPct = visibleDates.length ? Math.round((occupiedDays / visibleDates.length) * 100) : 0;
+
+      return { manager, cells, occupiedDays, projectCount: projectIds.size, loadPct };
+    });
+  }, [memberOrder, occupancy, visibleDates]);
 
   const handlePrevious = () => {
     setCurrentDate((prev) => (viewMode === 'week' ? addWeeks(prev, -1) : addMonths(prev, -1)));
@@ -261,10 +275,28 @@ const VistaTimeline = () => {
         </div>
 
         <div className="glass-panel p-4 rounded-xl">
-          <div className="flex items-center justify-center mb-6">
+          <div className="mb-6 flex flex-col items-center gap-3">
             <span className="text-sm font-semibold uppercase tracking-[0.4em] text-primary dark:text-accent">
               {timelineTitle}
             </span>
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[10px] font-medium text-secondary/60 dark:text-white/40">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-3.5 rounded-sm bg-[#4C8EF7]" /> Grabación
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-3.5 rounded-sm bg-accent" /> Edición
+              </span>
+              <span className="hidden h-3 w-px bg-border/60 sm:block" />
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-3.5 rounded-full bg-emerald-400" /> Libre
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-3.5 rounded-full bg-amber-400" /> Carga media
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-3.5 rounded-full bg-accent" /> Carga alta
+              </span>
+            </div>
           </div>
 
           {visibleDates.length === 0 || memberOrder.length === 0 ? (
@@ -293,38 +325,69 @@ const VistaTimeline = () => {
                     </div>
                   ))}
 
-                  {assignmentsByManager.map((row) => {
+                  {rows.map((row) => {
                     return (
                       <React.Fragment key={row.manager}>
                         <div
-                          className="sticky left-0 z-20 border-b border-border/40 bg-white dark:bg-dark-surface px-6 py-4 text-xs font-semibold text-primary tracking-tight dark:text-white/80"
+                          className="sticky left-0 z-20 flex flex-col justify-center gap-1 border-b border-border/40 bg-white dark:bg-dark-surface px-6 py-4"
                         >
-                          {row.manager || 'Sin responsable'}
-                        </div>
-                        {row.dates.map((cell) => (
-                          <div
-                            key={cell.key}
-                            className="border-b border-l border-border/40 px-1 py-2 dark:bg-white/[0.02]"
-                          >
-                            <div className="flex flex-col gap-1.5">
-                              {cell.items.map(({ project, stage }) => {
-                                const style = STAGE_STYLES[stage] || 'bg-slate-700/70 text-slate-100';
-                                const title = project.name || 'Proyecto';
-                                return (
-                                  <button
-                                    key={`${project.id || title}-${cell.key}-${stage}`}
-                                    type="button"
-                                    onClick={() => openModal(project)}
-                                    className={`group relative line-clamp-1 rounded-xl px-3 py-1.5 text-[10px] font-semibold uppercase tracking-tight transition-all hover:scale-[1.05] hover:z-10 hover:shadow-2xl ${style}`}
-                                    title={title}
-                                  >
-                                    <span className="block truncate">{title}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
+                          <span className="text-xs font-semibold normal-case text-primary tracking-tight dark:text-white/80">
+                            {row.manager || 'Sin responsable'}
+                          </span>
+                          <span className="text-[10px] font-medium normal-case tracking-normal text-secondary/60 dark:text-white/40">
+                            {row.occupiedDays > 0
+                              ? `${row.occupiedDays} ${row.occupiedDays === 1 ? 'día' : 'días'} · ${row.projectCount} ${row.projectCount === 1 ? 'proyecto' : 'proyectos'}`
+                              : 'Disponible'}
+                          </span>
+                          <div className="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-slate-200/70 dark:bg-white/10">
+                            <div
+                              className={clsx(
+                                'h-full rounded-full transition-all',
+                                row.loadPct >= 80 ? 'bg-accent' : row.loadPct >= 40 ? 'bg-amber-400' : 'bg-emerald-400'
+                              )}
+                              style={{ width: `${row.loadPct}%` }}
+                            />
                           </div>
-                        ))}
+                        </div>
+                        {row.cells.map((cell) => {
+                          const weekday = cell.date.getDay();
+                          return (
+                            <div
+                              key={cell.key}
+                              className={clsx(
+                                'border-b border-l border-border/40 px-1 py-2 dark:bg-white/[0.02]',
+                                (weekday === 0 || weekday === 6) && 'bg-slate-100/50 dark:bg-white/[0.04]'
+                              )}
+                            >
+                              <div className="flex flex-col gap-1.5">
+                                {cell.items.map((item) => {
+                                  const { project, stage } = item;
+                                  const style = STAGE_STYLES[stage] || 'bg-slate-700/70 text-slate-100';
+                                  const title = project.name || 'Proyecto';
+                                  const extendLeft = item.continuesPrev && cell.index > 0;
+                                  const extendRight = item.continuesNext && cell.index < row.cells.length - 1;
+                                  const showTitle = !item.continuesPrev || cell.index === 0;
+                                  return (
+                                    <button
+                                      key={`${project.id || title}-${cell.key}-${stage}`}
+                                      type="button"
+                                      onClick={() => openModal(project)}
+                                      className={clsx(
+                                        'group relative flex h-7 items-center px-3 text-[10px] font-semibold uppercase tracking-tight transition-all hover:z-10 hover:shadow-2xl',
+                                        style,
+                                        extendLeft ? '-ml-1 border-l-0' : 'rounded-l-xl',
+                                        extendRight ? '-mr-1 border-r-0' : 'rounded-r-xl'
+                                      )}
+                                      title={title}
+                                    >
+                                      <span className="block truncate">{showTitle ? title : ''}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </React.Fragment>
                     );
                   })}

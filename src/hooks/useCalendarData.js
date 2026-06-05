@@ -50,19 +50,32 @@ export const useCalendarData = ({ projects, searchTerm, selectedMember, currentM
 
   const recordingItems = useMemo(() => {
     // Un proyecto puede tener varios días de grabación (rodajes de varios días).
-    // Emitimos un evento por cada día para que el calendario los pinte todos.
+    // Emitimos un evento por cada día para que el calendario los pinte todos,
+    // adjuntando metadata de "tramo" para dibujar los días consecutivos como
+    // una barra continua (ver CalendarGrid).
     return visibleProjects.flatMap(({ project, memberName }) => {
       const dates = getProjectRecordingDates(project);
       if (!dates.length) return [];
       const totalDays = dates.length;
-      return dates.map((recordingDate, idx) => ({
-        type: 'recording_event',
-        project,
-        memberName,
-        range: { start: recordingDate, end: recordingDate },
-        dayIndex: idx + 1,
-        totalDays,
-      }));
+      const daySet = new Set(dates.map((d) => format(d, 'yyyy-MM-dd')));
+      const runStartTime = dates[0].getTime();
+      return dates.map((recordingDate, idx) => {
+        const prevKey = format(addDays(recordingDate, -1), 'yyyy-MM-dd');
+        const nextKey = format(addDays(recordingDate, 1), 'yyyy-MM-dd');
+        return {
+          type: 'recording_event',
+          project,
+          memberName,
+          range: { start: recordingDate, end: recordingDate },
+          dayIndex: idx + 1,
+          totalDays,
+          // ¿el día anterior / siguiente también es día de grabación del mismo proyecto?
+          continuesPrev: daySet.has(prevKey),
+          continuesNext: daySet.has(nextKey),
+          // clave estable para mantener el mismo "carril" vertical a lo largo del tramo
+          runStartTime,
+        };
+      });
     });
   }, [visibleProjects]);
 
