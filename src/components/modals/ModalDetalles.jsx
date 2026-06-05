@@ -3,7 +3,10 @@
 import React, { Fragment, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { X, Plus, Trash2, Calendar, ChevronDown } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 import useStore from '../../hooks/useStore';
+import { sanitizeRecordingDates } from '../../utils/dashboardHelpers';
 import { generarLinkGoogleCalendar } from '../../utils/calendar';
 import VideoReviewPlayer from '../ui/VideoReviewPlayer';
 import { toast } from 'react-hot-toast';
@@ -20,6 +23,15 @@ const STAGES = {
   GRABACION: 'grabacion',
   EDICION: 'edicion',
   FOTOGRAFIA: 'fotografia',
+};
+
+// Etiqueta legible para un chip de fecha, ej. "mar 9 jun"
+const formatRecordingChip = (isoDate) => {
+  try {
+    return format(parseISO(`${isoDate}T00:00:00`), "EEE d MMM", { locale: es });
+  } catch {
+    return isoDate;
+  }
 };
 
 const ModalDetalles = () => {
@@ -117,11 +129,15 @@ const ModalDetalles = () => {
           properties.client ||
           properties.cliente ||
           '').toString().trim();
-      const recordingDate =
+      const recordingDatesInit = sanitizeRecordingDates(
+        selectedProject.recordingDates ||
+        properties.recordingDates ||
         selectedProject.recordingDate ||
         selectedProject.fechaGrabacion ||
         properties.fechaGrabacion ||
-        '';
+        ''
+      );
+      const recordingDate = recordingDatesInit[0] || '';
       const recordingTime = selectedProject.recordingTime || properties.recordingTime || '';
       const recordingLocation =
         selectedProject.recordingLocation || properties.recordingLocation || '';
@@ -148,6 +164,7 @@ const ModalDetalles = () => {
         registrationType,
         stage,
         recordingDate: recordingDate || '',
+        recordingDates: recordingDatesInit,
         recordingTime,
         recordingLocation,
         recordingDescription,
@@ -165,6 +182,7 @@ const ModalDetalles = () => {
           recordingLocation,
           recordingDescription,
           fechaGrabacion: recordingDate || properties.fechaGrabacion || '',
+          recordingDates: recordingDatesInit,
           deliverableLink,
           client: projectClient,
         },
@@ -322,15 +340,30 @@ const ModalDetalles = () => {
     });
   };
 
-  const handleRecordingDateChange = (event) => {
+  // Rodajes de varios días: agregar / quitar días sueltos.
+  const handleAddRecordingDate = (event) => {
     const value = event.target.value;
+    if (!value) return;
     setEditedProject((prev) => {
-      const next = {
+      const list = sanitizeRecordingDates([...(prev.recordingDates || []), value]);
+      return {
         ...prev,
-        recordingDate: value,
-        properties: { ...prev.properties, fechaGrabacion: value },
+        recordingDates: list,
+        recordingDate: list[0] || '',
+        properties: { ...prev.properties, recordingDates: list, fechaGrabacion: list[0] || '' },
       };
-      return next;
+    });
+  };
+
+  const handleRemoveRecordingDate = (date) => {
+    setEditedProject((prev) => {
+      const list = (prev.recordingDates || []).filter((d) => d !== date);
+      return {
+        ...prev,
+        recordingDates: list,
+        recordingDate: list[0] || '',
+        properties: { ...prev.properties, recordingDates: list, fechaGrabacion: list[0] || '' },
+      };
     });
   };
 
@@ -385,16 +418,17 @@ const ModalDetalles = () => {
   };
 
   const handleOpenRecordingCalendar = () => {
-    const { name, client, recordingDate, recordingTime, recordingLocation, recordingDescription, team, managers } = editedProject;
-    if (!recordingDate) return;
+    const { name, client, recordingTime, recordingLocation, recordingDescription, team, managers } = editedProject;
+    const dates = sanitizeRecordingDates(editedProject.recordingDates || editedProject.recordingDate);
+    if (dates.length === 0) return;
     const managerNames = Array.isArray(managers) && managers.length > 0 ? managers.join(', ') : editedProject.manager;
     const link = generarLinkGoogleCalendar({
       contenido: name,
       cliente: client,
       detalle: recordingDescription || editedProject.description || '',
       encargado: managerNames,
-      fechaInicio: recordingDate,
-      fechaFin: recordingDate,
+      fechaInicio: dates[0],
+      fechaFin: dates[dates.length - 1],
       horaInicio: recordingTime,
       horaFin: calculateEndTime(recordingTime),
       lugar: recordingLocation,
@@ -443,7 +477,10 @@ const ModalDetalles = () => {
     const resources = editedProject.resources || [];
     const stage = (editedProject.stage || STAGES.GRABACION).toLowerCase();
     const registrationType = editedProject.registrationType || editedProject.type || '';
-    const recordingDate = editedProject.recordingDate || '';
+    const recordingDates = sanitizeRecordingDates(
+      editedProject.recordingDates || editedProject.recordingDate
+    );
+    const recordingDate = recordingDates[0] || '';
     const recordingTime = editedProject.recordingTime || '';
     const recordingLocation = editedProject.recordingLocation || '';
     const recordingDescription = editedProject.recordingDescription || '';
@@ -457,8 +494,8 @@ const ModalDetalles = () => {
         : [];
     const managerString = managers.join(', ');
 
-    if ((stage === STAGES.GRABACION || stage === STAGES.FOTOGRAFIA) && !recordingDate) {
-      window.alert('Ingresa la fecha de grabación para continuar.');
+    if ((stage === STAGES.GRABACION || stage === STAGES.FOTOGRAFIA) && recordingDates.length === 0) {
+      window.alert('Agrega al menos un día de grabación para continuar.');
       return;
     }
 
@@ -487,6 +524,12 @@ const ModalDetalles = () => {
       delete updatedProperties.fechaGrabacion;
     }
 
+    if (recordingDates.length > 0) {
+      updatedProperties.recordingDates = recordingDates;
+    } else {
+      delete updatedProperties.recordingDates;
+    }
+
     if (!registrationType) delete updatedProperties.registrationType;
     if (!recordingTime) delete updatedProperties.recordingTime;
     if (!recordingLocation) delete updatedProperties.recordingLocation;
@@ -505,6 +548,7 @@ const ModalDetalles = () => {
       stage,
       fechaGrabacion: recordingDate || null,
       recordingDate,
+      recordingDates,
       recordingTime,
       recordingLocation,
       recordingDescription,
@@ -878,7 +922,7 @@ const ModalDetalles = () => {
                               Detalles de la grabación
                             </h3>
                             <p className="text-xs text-gray-500 dark:text-white/60">
-                              Define fecha, hora, ubicación y contexto para coordinar el rodaje.
+                              Define los días, hora, ubicación y contexto para coordinar el rodaje.
                             </p>
                           </div>
                           <button
@@ -895,14 +939,39 @@ const ModalDetalles = () => {
                           </button>
                         </div>
                         <div className="mt-4 grid gap-4 md:grid-cols-2">
-                          <div>
-                            <label className="text-sm font-medium text-gray-600 dark:text-white/80">Día de grabación</label>
-                            <input
-                              type="date"
-                              value={editedProject?.recordingDate || ''}
-                              onChange={handleRecordingDateChange}
-                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/80"
-                            />
+                          <div className="md:col-span-2">
+                            <label className="text-sm font-medium text-gray-600 dark:text-white/80">Días de grabación</label>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              {(editedProject?.recordingDates || []).map((date) => (
+                                <span
+                                  key={date}
+                                  className="inline-flex items-center gap-1.5 rounded-md bg-[#FF4B2A]/10 px-2.5 py-1 text-xs font-medium text-[#FF4B2A] dark:bg-[#FF4B2A]/15"
+                                >
+                                  <Calendar size={12} />
+                                  {formatRecordingChip(date)}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveRecordingDate(date)}
+                                    className="transition hover:opacity-70"
+                                    aria-label={`Quitar ${formatRecordingChip(date)}`}
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </span>
+                              ))}
+                              <input
+                                type="date"
+                                value=""
+                                onChange={handleAddRecordingDate}
+                                aria-label="Agregar día de grabación"
+                                className="rounded-lg border border-dashed border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-700 focus:border-[#FF4B2A] focus:outline-none focus:ring-1 focus:ring-[#FF4B2A] dark:border-white/15 dark:bg-[#0d0f1a] dark:text-white/70"
+                              />
+                            </div>
+                            <p className="mt-2 text-[11px] text-gray-500 dark:text-white/40">
+                              {(editedProject?.recordingDates || []).length > 0
+                                ? `${editedProject.recordingDates.length} día(s) seleccionado(s). Cada día aparece en el calendario con sus responsables; edición arranca después del último.`
+                                : 'Agrega uno o varios días (podés saltarte fines de semana). Edición arranca después del último día.'}
+                            </p>
                           </div>
                           <div>
                             <label className="text-sm font-medium text-gray-600 dark:text-white/80">Hora</label>
@@ -1037,6 +1106,7 @@ const ModalDetalles = () => {
                                 'recordingLocation',
                                 'recordingDescription',
                                 'fechaGrabacion',
+                                'recordingDates',
                                 'linkedRecordingId',
                               ].includes(key)
                           )

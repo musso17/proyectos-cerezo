@@ -6,6 +6,7 @@ import { TEAM_MEMBERS } from '../constants/team';
 import { generarTareasEdicionDesdeProyectos } from '../utils/editingTasks';
 import { normalizeStatus, ALLOWED_STATUSES } from '../utils/statusHelpers';
 import { notifyManagerAssignment } from '../utils/notifications';
+import { sanitizeRecordingDates, getProjectLastRecordingDate } from '../utils/dashboardHelpers';
 
 const LOCAL_STORAGE_KEY = 'cerezo-projects';
 const RETAINERS_KEY = 'cerezo-retainers';
@@ -142,7 +143,7 @@ const normalizeProject = (project) => {
     project.type ||
     project.tipo ||
     '';
-  const fechaGrabacion =
+  const fechaGrabacionSingle =
     project.fechaGrabacion ||
     project.fecha_grabacion ||
     project.fechaGrabación ||
@@ -151,6 +152,16 @@ const normalizeProject = (project) => {
     project.properties?.fechaGrabacion ||
     project.properties?.fecha_grabacion ||
     null;
+  // Soporte de rodajes de varios días: arreglo de fechas (yyyy-MM-dd) ordenado.
+  // Si no hay arreglo, cae a la fecha única. `fechaGrabacion` queda como el
+  // primer día para mantener compatibilidad con la lógica de un solo día.
+  let recordingDates = sanitizeRecordingDates(
+    project.recordingDates || project.properties?.recordingDates || null
+  );
+  if (recordingDates.length === 0 && fechaGrabacionSingle) {
+    recordingDates = sanitizeRecordingDates(fechaGrabacionSingle);
+  }
+  const fechaGrabacion = recordingDates[0] || fechaGrabacionSingle || null;
   const recordingTime = project.recordingTime || properties.recordingTime || '';
   const recordingLocation = project.recordingLocation || properties.recordingLocation || '';
   const recordingDescription =
@@ -186,6 +197,7 @@ const normalizeProject = (project) => {
     type: registrationType || project.type || project.tipo || '',
     client: project.client || project.cliente || '',
     fechaGrabacion,
+    recordingDates,
     resources,
     registrationType,
     stage: normalizedStage || (fechaGrabacion ? 'grabacion' : properties.stage || ''),
@@ -206,6 +218,7 @@ const normalizeProject = (project) => {
       recordingLocation,
       recordingDescription,
       fechaGrabacion,
+      recordingDates,
       state: normalizedState || properties.state || 'postproduccion',
       current_cycle: currentCycle,
       currentCycle,
@@ -246,13 +259,19 @@ const prepareProjectForSupabase = (project) => {
     project.managers || project.manager || project.encargado || project.properties?.managers
   );
 
-  const recordingDate = normalizeDate(
+  const recordingDateSingle = normalizeDate(
     project.fechaGrabacion ||
     project.fecha_grabacion ||
     project.fechaGrabación ||
     project.recordingDate ||
     project.recording_date
   );
+  // Rodajes de varios días: lista de fechas (yyyy-MM-dd) ordenada y única.
+  const recordingDatesList = sanitizeRecordingDates(
+    project.recordingDates || project.properties?.recordingDates || recordingDateSingle
+  );
+  // El "día principal" (más temprano) alimenta la lógica de un solo día.
+  const recordingDate = recordingDatesList[0] || recordingDateSingle;
   const registrationType =
     (project.registrationType ||
       project.type ||
@@ -306,6 +325,12 @@ const prepareProjectForSupabase = (project) => {
     nextProperties.fechaGrabacion = recordingDate;
   } else if (Object.prototype.hasOwnProperty.call(nextProperties, 'fechaGrabacion')) {
     delete nextProperties.fechaGrabacion;
+  }
+
+  if (recordingDatesList.length > 0) {
+    nextProperties.recordingDates = recordingDatesList;
+  } else if (Object.prototype.hasOwnProperty.call(nextProperties, 'recordingDates')) {
+    delete nextProperties.recordingDates;
   }
 
   if (registrationType) {
@@ -421,6 +446,7 @@ const prepareProjectForSupabase = (project) => {
   delete baseProject.fechaGrabación;
   delete baseProject.recordingDate;
   delete baseProject.recording_date;
+  delete baseProject.recordingDates;
   delete baseProject.stage;
   delete baseProject.registrationType;
   delete baseProject.recordingTime;
@@ -554,7 +580,9 @@ const computeEditingDurationDays = (registrationType) => {
 
 const createEditingProjectFromRecording = (project) => {
   if (!shouldGenerateEditingProject(project)) return null;
-  const recordingDate = parseDateOnly(project.fechaGrabacion || project.startDate);
+  // En rodajes de varios días, edición arranca después del ÚLTIMO día.
+  const recordingDate =
+    getProjectLastRecordingDate(project) || parseDateOnly(project.fechaGrabacion || project.startDate);
   if (!recordingDate) return null;
 
   const registrationType = getRegistrationType(project) || project.type || '';
@@ -882,7 +910,9 @@ const useStore = create((set, get) => ({
 
       if (!isRecordOrPhoto && !isStateRecordOrPhoto) return false;
 
-      const recordingDate = parseDateOnly(p.fechaGrabacion || p.startDate);
+      // Solo avanza a edición cuando pasó el ÚLTIMO día de grabación.
+      const recordingDate =
+        getProjectLastRecordingDate(p) || parseDateOnly(p.fechaGrabacion || p.startDate);
       return recordingDate && recordingDate < today;
     });
 
@@ -891,7 +921,8 @@ const useStore = create((set, get) => ({
     console.log(`[Agent] Found ${projectsToAdvance.length} projects to advance from 'grabacion/fotografia' to 'edicion'.`);
 
     for (const project of projectsToAdvance) {
-      const recordingDate = parseDateOnly(project.fechaGrabacion || project.startDate);
+      const recordingDate =
+        getProjectLastRecordingDate(project) || parseDateOnly(project.fechaGrabacion || project.startDate);
       const registrationType = getRegistrationType(project);
       const durationDays = computeEditingDurationDays(registrationType);
 

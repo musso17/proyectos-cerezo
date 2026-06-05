@@ -84,6 +84,53 @@ export const getProjectRecordingDate = (project) => {
   return null;
 };
 
+// Normaliza una lista (o valor suelto) de fechas de grabación a strings
+// "yyyy-MM-dd" únicos y ordenados ascendentemente. Acepta arreglos, strings
+// separados por coma o un único valor.
+export const sanitizeRecordingDates = (value) => {
+  let raw = [];
+  if (Array.isArray(value)) raw = value;
+  else if (typeof value === 'string') raw = value.split(',');
+  else if (value != null) raw = [value];
+
+  const seen = new Set();
+  raw.forEach((item) => {
+    if (item == null) return;
+    const text = item.toString().trim();
+    if (!text) return;
+    const dayPart = /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text;
+    const parsed = parseProjectDate(dayPart);
+    if (parsed && isValid(parsed)) {
+      seen.add(format(parsed, 'yyyy-MM-dd'));
+    }
+  });
+  return Array.from(seen).sort();
+};
+
+// Devuelve TODOS los días de grabación de un proyecto como Date[] (ordenados).
+// Si no hay arreglo `recordingDates`, cae a la fecha única `fechaGrabacion`.
+export const getProjectRecordingDates = (project) => {
+  if (!project) return [];
+  const candidates =
+    project.recordingDates ||
+    project.properties?.recordingDates ||
+    project.fechaGrabacionDias ||
+    project.properties?.fechaGrabacionDias ||
+    null;
+  let dates = sanitizeRecordingDates(candidates);
+  if (dates.length === 0) {
+    const single = getProjectRecordingDate(project);
+    if (single) dates = [format(single, 'yyyy-MM-dd')];
+  }
+  return dates.map((d) => parseProjectDate(d)).filter(Boolean);
+};
+
+// Última (más tardía) fecha de grabación: base para edición y auto-avance.
+export const getProjectLastRecordingDate = (project) => {
+  const dates = getProjectRecordingDates(project);
+  return dates.length ? dates[dates.length - 1] : null;
+};
+
 export const extractProjectInfo = (project) => {
   const id = project.id || project.uuid || project._id || project.slug || String(Math.random());
   const statusLabel = buildLabel(project.status, 'Programado');

@@ -3,7 +3,7 @@ import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, startOfDay, 
 import { es } from 'date-fns/locale';
 import { ensureMemberName } from '../constants/team';
 import { filterProjects } from '../utils/filterProjects';
-import { getProjectRecordingDate } from '../utils/dashboardHelpers';
+import { getProjectRecordingDates } from '../utils/dashboardHelpers';
 
 const RECORDING_PILL = 'border border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7] dark:border-blue-500/60 dark:bg-blue-500/15 dark:text-blue-300';
 
@@ -49,18 +49,21 @@ export const useCalendarData = ({ projects, searchTerm, selectedMember, currentM
   );
 
   const recordingItems = useMemo(() => {
-    return visibleProjects
-      .map(({ project, memberName }) => {
-        const recordingDate = getProjectRecordingDate(project);
-        if (!recordingDate) return null;
-        return {
-          type: 'recording_event',
-          project,
-          memberName,
-          range: { start: recordingDate, end: recordingDate },
-        };
-      })
-      .filter(Boolean);
+    // Un proyecto puede tener varios días de grabación (rodajes de varios días).
+    // Emitimos un evento por cada día para que el calendario los pinte todos.
+    return visibleProjects.flatMap(({ project, memberName }) => {
+      const dates = getProjectRecordingDates(project);
+      if (!dates.length) return [];
+      const totalDays = dates.length;
+      return dates.map((recordingDate, idx) => ({
+        type: 'recording_event',
+        project,
+        memberName,
+        range: { start: recordingDate, end: recordingDate },
+        dayIndex: idx + 1,
+        totalDays,
+      }));
+    });
   }, [visibleProjects]);
 
   const scheduledItems = useMemo(
@@ -89,24 +92,26 @@ export const useCalendarData = ({ projects, searchTerm, selectedMember, currentM
     if (!dayDate) return null;
 
     if (item.type === 'recording_event') {
-      const { project, memberName, range } = item;
+      const { project, memberName, range, dayIndex, totalDays } = item;
       const managersLabel = project?.managers?.length
         ? project.managers.join(', ')
         : memberName;
+      const isMultiDay = totalDays > 1;
+      const dayLabel = isMultiDay ? `Grabación · día ${dayIndex}/${totalDays}` : 'Grabación';
       return {
         id: `recording-${project?.id || project?.name || range.start.toISOString()}-${dayDate.toISOString()}`,
         sortTime: range.start.getTime(),
         type: 'recording_event',
         title: project?.name || 'Grabación',
         description: project?.description || '',
-        eventLabel: 'Grabación',
+        eventLabel: dayLabel,
         timeLabel: format(range.start, "EEEE d 'de' MMMM", { locale: es }),
         manager: managersLabel,
         colorClass: RECORDING_PILL,
         project,
         client: project?.client || '',
         status: project?.status || '',
-        typeMeta: { label: 'Grabación', className: RECORDING_PILL },
+        typeMeta: { label: dayLabel, className: RECORDING_PILL },
         date: dayDate,
       };
     }

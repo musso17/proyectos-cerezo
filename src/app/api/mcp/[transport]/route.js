@@ -29,8 +29,10 @@ const fmtProject = (p) => {
   const managers = Array.isArray(p.properties?.managers)
     ? p.properties.managers.join(', ')
     : p.manager || 'Sin asignar';
+  const dias = Array.isArray(p.properties?.recordingDates) ? p.properties.recordingDates : [];
   const fecha = p.properties?.fechaGrabacion || p.startDate || '—';
-  return `• ${p.name} [${p.status || '—'}] — cliente: ${p.client || '—'} — encargado: ${managers} — fecha: ${fecha} (id: ${p.id})`;
+  const fechaTxt = dias.length > 1 ? `${fecha} (+${dias.length - 1} días)` : fecha;
+  return `• ${p.name} [${p.status || '—'}] — cliente: ${p.client || '—'} — encargado: ${managers} — fecha: ${fechaTxt} (id: ${p.id})`;
 };
 
 // ─── Handler MCP ────────────────────────────────────────────────────────────────
@@ -74,22 +76,27 @@ const handler = createMcpHandler(
     // 2) Agendar grabación (crea proyecto en fase grabación)
     server.tool(
       'agendar_grabacion',
-      'Crea un proyecto nuevo en fase de grabación con fecha agendada.',
+      'Crea un proyecto nuevo en fase de grabación con uno o varios días agendados (rodajes de varios días).',
       {
         nombre: z.string().describe('Nombre del proyecto/grabación.'),
         cliente: z.string().describe('Cliente.'),
-        fecha: z.string().describe('Fecha de grabación en formato YYYY-MM-DD.'),
+        fecha: z.string().describe('Día principal de grabación en formato YYYY-MM-DD.'),
+        fechas: z.array(z.string()).optional().describe('Días adicionales de grabación (YYYY-MM-DD) para rodajes de varios días. Pueden saltarse fines de semana.'),
         hora: z.string().optional().describe('Hora, ej. "10:00".'),
         encargados: z.array(z.enum(TEAM)).optional().describe('Uno o más encargados responsables (ej. ["Marcelo","Edson"]).'),
         ubicacion: z.string().optional().describe('Ubicación de la grabación.'),
         descripcion: z.string().optional().describe('Detalle o notas.'),
       },
-      async ({ nombre, cliente, fecha, hora, encargados, ubicacion, descripcion }) => {
+      async ({ nombre, cliente, fecha, fechas, hora, encargados, ubicacion, descripcion }) => {
         try {
           requireDb();
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
-            return fail('La fecha debe estar en formato YYYY-MM-DD.');
+          const allDates = Array.from(new Set([fecha, ...(fechas || [])].filter(Boolean)));
+          const invalid = allDates.find((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d));
+          if (allDates.length === 0 || invalid) {
+            return fail('Cada fecha debe estar en formato YYYY-MM-DD.');
           }
+          const recordingDates = allDates.sort();
+          const primary = recordingDates[0];
           const managers = Array.from(new Set(encargados || []));
           const payload = {
             id: randomUUID(),
@@ -98,13 +105,14 @@ const handler = createMcpHandler(
             manager: managers.join(', '),
             status: 'Programado',
             type: 'grabacion',
-            startDate: fecha,
+            startDate: primary,
             state: 'grabacion',
             properties: {
               stage: 'grabacion',
               state: 'grabacion',
               managers,
-              fechaGrabacion: fecha,
+              fechaGrabacion: primary,
+              recordingDates,
               recordingTime: hora || '',
               recordingLocation: ubicacion || '',
               recordingDescription: descripcion || '',
@@ -112,7 +120,10 @@ const handler = createMcpHandler(
           };
           const { data, error } = await supabase.from('projects').insert([payload]).select().single();
           if (error) throw error;
-          return ok(`✅ Grabación agendada: "${nombre}" para ${cliente} el ${fecha}${hora ? ` a las ${hora}` : ''}${managers.length ? ` con ${managers.join(', ')}` : ''}. (id: ${data.id})`);
+          const diasTxt = recordingDates.length > 1
+            ? `${recordingDates.length} días (${recordingDates[0]} → ${recordingDates[recordingDates.length - 1]})`
+            : `el ${primary}`;
+          return ok(`✅ Grabación agendada: "${nombre}" para ${cliente} en ${diasTxt}${hora ? ` a las ${hora}` : ''}${managers.length ? ` con ${managers.join(', ')}` : ''}. (id: ${data.id})`);
         } catch (e) {
           return fail(e.message);
         }
