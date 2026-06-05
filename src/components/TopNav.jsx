@@ -62,9 +62,11 @@ const PresenceButton = () => {
   }, []);
 
   const current = AVAILABILITY.find((a) => a.value === userAvailability) || AVAILABILITY[0];
-  const email = currentUser?.email?.toString().trim() || '';
-  const initial = (email.charAt(0) || '?').toUpperCase();
-  const name = email ? email.split('@')[0] : 'Tú';
+  // Preferir el nombre de usuario (display_name) sobre el email para el avatar/inicial.
+  const meta = currentUser?.user_metadata || {};
+  const emailLocal = currentUser?.email ? currentUser.email.toString().trim().split('@')[0] : '';
+  const name = (meta.display_name || meta.full_name || meta.name || emailLocal || 'Tú').toString().trim();
+  const initial = (name.charAt(0) || '?').toUpperCase();
 
   return (
     <div className="relative" ref={ref}>
