@@ -345,7 +345,7 @@ const ChatPanel = ({ messages, onSend, localIdentity }) => {
 
 // ─── Room interior (requires LiveKitRoom context) ──────────────────────────────
 
-const AudioRoomInterior = ({ roomName, onLeave, onExpand, isMinimized, localAvatarColor }) => {
+const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimized, localAvatarColor }) => {
   const allRaw = useParticipants();
   const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
   const room = useRoomContext();
@@ -396,7 +396,7 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, isMinimized, localAvat
   // ── Minimized pill ──────────────────────────────────────────────────────────
   if (isMinimized) {
     return (
-      <div className="flex items-center justify-between w-full h-full px-3 gap-2">
+      <div className="flex items-center justify-between w-full h-full px-3 gap-2 bg-slate-900/95 backdrop-blur-md border border-slate-700/60 rounded-lg shadow-2xl overflow-hidden">
         <RoomAudioRenderer />
 
         {/* Room name + participants */}
@@ -463,9 +463,34 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, isMinimized, localAvat
 
   // ── Expanded layout ─────────────────────────────────────────────────────────
   return (
-    <div className="flex h-full min-h-0">
-      <div className="flex flex-col flex-1 min-w-0 min-h-0">
-      <RoomAudioRenderer />
+    <div className="fixed inset-0 z-[100] flex items-stretch bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative flex w-full h-full bg-slate-950 overflow-hidden shadow-2xl">
+        {/* Background gradients */}
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-950 to-black pointer-events-none" />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-600/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-60 w-96 h-96 bg-purple-600/5 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Sidebar — projects/notes */}
+        <div className="relative z-10 shrink-0 overflow-hidden">
+          <ProjectTaskSidebar />
+        </div>
+
+        {/* Main room */}
+        <div className="relative flex-1 flex flex-col min-h-0 min-w-0 z-10">
+          {/* Minimize */}
+          {onMinimize && (
+            <button
+              onClick={onMinimize}
+              className="absolute top-4 right-4 z-20 p-2 rounded-xl bg-slate-800/70 hover:bg-slate-700/80 border border-slate-700/50 text-slate-400 hover:text-white transition-all backdrop-blur-sm shadow-md"
+              title="Minimizar"
+            >
+              <Minimize2 size={15} />
+            </button>
+          )}
+
+          <div className="flex h-full min-h-0">
+            <div className="flex flex-col flex-1 min-w-0 min-h-0">
+            <RoomAudioRenderer />
 
       {/* Header */}
       <div className="flex items-center justify-between px-6 pt-4 pb-3 border-b border-slate-800/60 shrink-0">
@@ -633,6 +658,9 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, isMinimized, localAvat
           localIdentity={localParticipant?.identity}
         />
       )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -882,114 +910,96 @@ export default function VistaVoiceRoom() {
     );
   }
 
-  // ── Minimized floating pill ──
-  if (isVoiceRoomMinimized) {
-    return (
-      <div className="w-full h-full bg-slate-900/95 backdrop-blur-md border border-slate-700/60 rounded-lg shadow-2xl overflow-hidden">
-        {!token ? (
-          <div className="flex items-center justify-center w-full h-full gap-2 text-slate-500">
-            <div className="w-4 h-4 rounded-full border-2 border-t-blue-500 border-slate-700 animate-spin" />
-            <span className="text-xs">Conectando…</span>
-          </div>
-        ) : (
-          <LiveKitRoom
-            video={false}
-            audio={getDefaultMic()}
-            token={token}
-            serverUrl={serverUrl}
-            connect={true}
-            style={{ height: '100%', width: '100%' }}
-            onError={handleRoomError}
-            onDisconnected={() => setActiveVoiceRoom(null)}
-          >
-            <AudioRoomInterior
-              roomName={roomName}
-              onLeave={() => setActiveVoiceRoom(null)}
-              onExpand={() => setIsVoiceRoomMinimized(false)}
-              isMinimized={true}
-              localAvatarColor={avatarColor}
-            />
-          </LiveKitRoom>
-        )}
+  // Vistas previas a la conexión (aún sin contexto de sala).
+  const renderConnecting = () =>
+    isVoiceRoomMinimized ? (
+      <div className="flex items-center justify-center w-full h-full gap-2 text-slate-500 bg-slate-900/95 backdrop-blur-md border border-slate-700/60 rounded-lg shadow-2xl overflow-hidden">
+        <div className="w-4 h-4 rounded-full border-2 border-t-blue-500 border-slate-700 animate-spin" />
+        <span className="text-xs">Conectando…</span>
+      </div>
+    ) : (
+      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-black/80 backdrop-blur-md text-slate-500">
+        <div className="relative w-14 h-14">
+          <div className="absolute inset-0 rounded-full border-2 border-slate-700" />
+          <div className="absolute inset-0 rounded-full border-2 border-t-blue-500 animate-spin" />
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-medium text-slate-400">Conectando a <span className="text-white">{roomName}</span></p>
+          <p className="text-xs text-slate-600 mt-1">Estableciendo conexión segura…</p>
+        </div>
       </div>
     );
-  }
 
-  // ── Expanded full-screen overlay ──
-  return (
-    <div className="fixed inset-0 z-[100] flex items-stretch bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
-      {/* Glassmorphism card that fills most of the screen */}
-      <div className="relative flex w-full h-full bg-slate-950 overflow-hidden shadow-2xl">
-        {/* Background gradients */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-950 to-black pointer-events-none" />
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-600/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-60 w-96 h-96 bg-purple-600/5 rounded-full blur-3xl pointer-events-none" />
-
-        {/* Sidebar — projects/notes */}
-        <div className="relative z-10 shrink-0 overflow-hidden">
-          <ProjectTaskSidebar />
-        </div>
-
-        {/* Main room */}
-        <div className="relative flex-1 flex flex-col min-h-0 min-w-0 z-10">
-          {/* Minimize */}
+  const renderError = () =>
+    isVoiceRoomMinimized ? (
+      <div className="flex items-center justify-between w-full h-full px-3 gap-2 bg-slate-900/95 backdrop-blur-md border border-slate-700/60 rounded-lg shadow-2xl overflow-hidden">
+        <span className="text-xs text-red-400 truncate">No se pudo conectar</span>
+        <div className="flex items-center gap-1 shrink-0">
           <button
-            onClick={() => setIsVoiceRoomMinimized(true)}
-            className="absolute top-4 right-4 z-20 p-2 rounded-xl bg-slate-800/70 hover:bg-slate-700/80 border border-slate-700/50 text-slate-400 hover:text-white transition-all backdrop-blur-sm shadow-md"
-            title="Minimizar"
+            onClick={() => { setConnError(null); setToken(''); setRetryKey((k) => k + 1); }}
+            className="px-2 py-1 rounded-full bg-slate-700 hover:bg-slate-600 text-white text-[11px] transition-all"
           >
-            <Minimize2 size={15} />
+            Reintentar
           </button>
-
-          {connError ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 text-center">
-              <div className="w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center">
-                <MicOff size={20} className="text-red-400" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-red-400">No se pudo conectar a la sala</p>
-                <p className="text-xs text-slate-500 mt-1 max-w-xs break-words">{connError}</p>
-                <p className="text-[11px] text-slate-600 mt-2">Revisa el permiso del micrófono del navegador.</p>
-              </div>
-              <button
-                onClick={() => { setConnError(null); setToken(''); setRetryKey((k) => k + 1); }}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium transition-all"
-              >
-                Reintentar
-              </button>
-            </div>
-          ) : !token ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-4 text-slate-500">
-              <div className="relative w-14 h-14">
-                <div className="absolute inset-0 rounded-full border-2 border-slate-700" />
-                <div className="absolute inset-0 rounded-full border-2 border-t-blue-500 animate-spin" />
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-medium text-slate-400">Conectando a <span className="text-white">{roomName}</span></p>
-                <p className="text-xs text-slate-600 mt-1">Estableciendo conexión segura…</p>
-              </div>
-            </div>
-          ) : (
-            <LiveKitRoom
-              video={false}
-              audio={getDefaultMic()}
-              token={token}
-              serverUrl={serverUrl}
-              connect={true}
-              style={{ height: '100%', width: '100%' }}
-              onError={handleRoomError}
-              onDisconnected={() => setActiveVoiceRoom(null)}
-            >
-              <AudioRoomInterior
-                roomName={roomName}
-                onLeave={() => setActiveVoiceRoom(null)}
-                isMinimized={false}
-                localAvatarColor={avatarColor}
-              />
-            </LiveKitRoom>
-          )}
+          <button
+            onClick={() => setActiveVoiceRoom(null)}
+            title="Salir"
+            className="p-1.5 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-all"
+          >
+            <LogOut size={13} />
+          </button>
         </div>
       </div>
+    ) : (
+      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 p-6 text-center bg-black/80 backdrop-blur-md">
+        <div className="w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center">
+          <MicOff size={20} className="text-red-400" />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-red-400">No se pudo conectar a la sala</p>
+          <p className="text-xs text-slate-500 mt-1 max-w-xs break-words">{connError}</p>
+          <p className="text-[11px] text-slate-600 mt-2">Revisa el permiso del micrófono del navegador.</p>
+        </div>
+        <button
+          onClick={() => { setConnError(null); setToken(''); setRetryKey((k) => k + 1); }}
+          className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium transition-all"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+
+  // ── UN SOLO LiveKitRoom ──
+  // Mientras haya token y sin error, el <LiveKitRoom> se mantiene montado tanto en
+  // minimizado como expandido (solo cambia el layout interno de AudioRoomInterior).
+  // Así, minimizar/expandir ya NO desconecta ni reconecta → el screen share no se corta.
+  return (
+    <div className="w-full h-full">
+      {connError ? (
+        renderError()
+      ) : !token ? (
+        renderConnecting()
+      ) : (
+        <LiveKitRoom
+          video={false}
+          audio={getDefaultMic()}
+          token={token}
+          serverUrl={serverUrl}
+          connect={true}
+          style={{ height: '100%', width: '100%' }}
+          onError={handleRoomError}
+          onDisconnected={() => setActiveVoiceRoom(null)}
+        >
+          <AudioRoomInterior
+            roomName={roomName}
+            onLeave={() => setActiveVoiceRoom(null)}
+            onExpand={() => setIsVoiceRoomMinimized(false)}
+            onMinimize={() => setIsVoiceRoomMinimized(true)}
+            isMinimized={isVoiceRoomMinimized}
+            localAvatarColor={avatarColor}
+          />
+        </LiveKitRoom>
+      )}
     </div>
   );
 }
