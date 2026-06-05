@@ -8,7 +8,7 @@ import {
   RoomAudioRenderer,
   useParticipants,
   useLocalParticipant,
-  useIsSpeaking,
+  useTrackVolume,
   useRoomContext,
   useTrackToggle,
   useTracks,
@@ -83,32 +83,54 @@ const colorProps = (style) => style.bgHex
 // ─── Participant card ──────────────────────────────────────────────────────────
 
 const ParticipantCard = ({ participant, isLocal = false, index = 0, localAvatarColor = null }) => {
-  const isSpeaking = useIsSpeaking(participant);
+  // Volumen continuo real (0..1) vía Web Audio — se actualiza por frame, sin el
+  // debounce de useIsSpeaking (que causaba el lag, sobre todo al dejar de hablar).
+  const micPub = participant.getTrackPublication?.(Track.Source.Microphone);
+  const audioTrack = micPub?.audioTrack;
+  const rawVolume = useTrackVolume(audioTrack);
+
   const avatarHex = isLocal ? localAvatarColor : null;
   const style = getTeamStyle(participant.identity, index, avatarHex);
   const initials = getInitials(participant.identity, participant.name);
   const displayName = getDisplayName(participant.identity, participant.name);
   const isMuted = !participant.isMicrophoneEnabled;
 
+  // Nivel con algo de ganancia; silenciado = 0.
+  const level = isMuted ? 0 : Math.min(1, rawVolume * 1.6);
+  const speaking = level > 0.05;
+
+  const colorStyle = style.bgHex ? { backgroundColor: style.bgHex } : undefined;
+  const colorClass = style.bgHex ? '' : (style.bgClass || '');
+  // Transición corta: ataque rápido, caída suave, sin sentirse desfasado.
+  const ease = 'transform 130ms ease-out, opacity 160ms ease-out';
+
   return (
     <div className="flex flex-col items-center gap-3 select-none">
-      <div className="relative">
-        {/* Ping ring when speaking */}
-        {isSpeaking && (
-          <div
-            className={`absolute -inset-3 rounded-full opacity-30 animate-ping ${style.bgClass || ''}`}
-            style={style.bgHex ? { backgroundColor: style.bgHex } : {}}
-          />
-        )}
-        {/* Static border when speaking */}
-        <div className={`absolute -inset-1.5 rounded-full border-2 transition-all duration-200 ${
-          isSpeaking ? 'border-green-400 opacity-100' : 'border-transparent opacity-0'
-        }`} />
+      {/* Orbe — el contenedor mide exactamente el avatar; las capas escalan desde el centro */}
+      <div className="relative h-20 w-20">
+        {/* Glow exterior */}
+        <div
+          aria-hidden
+          className={`pointer-events-none absolute inset-0 rounded-full blur-2xl ${colorClass}`}
+          style={{ ...colorStyle, transform: `scale(${1 + level * 1.35})`, opacity: 0.12 + level * 0.6, transition: ease }}
+        />
+        {/* Glow medio */}
+        <div
+          aria-hidden
+          className={`pointer-events-none absolute inset-0 rounded-full blur-lg ${colorClass}`}
+          style={{ ...colorStyle, transform: `scale(${1 + level * 0.55})`, opacity: 0.18 + level * 0.5, transition: ease }}
+        />
+        {/* Anillo reactivo */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-full border-2 border-white/70"
+          style={{ transform: `scale(${1.04 + level * 0.5})`, opacity: level * 0.85, transition: ease }}
+        />
 
         {/* Avatar */}
         <div
-          className={`relative w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-xl transition-transform duration-200 ${isSpeaking ? 'scale-110' : 'scale-100'} ${style.bgClass || ''}`}
-          style={style.bgHex ? { backgroundColor: style.bgHex } : {}}
+          className={`absolute inset-0 z-10 flex items-center justify-center rounded-full text-2xl font-bold text-white shadow-xl ${colorClass}`}
+          style={{ ...colorStyle, transform: `scale(${1 + level * 0.14})`, transition: ease }}
         >
           {initials}
           {/* Subtle inner shine */}
@@ -117,7 +139,7 @@ const ParticipantCard = ({ participant, isLocal = false, index = 0, localAvatarC
 
         {/* Muted badge */}
         {isMuted && (
-          <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center shadow-md">
+          <div className="absolute -bottom-1 -right-1 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 border border-slate-700 shadow-md">
             <MicOff size={11} className="text-red-400" />
           </div>
         )}
@@ -129,19 +151,16 @@ const ParticipantCard = ({ participant, isLocal = false, index = 0, localAvatarC
           {displayName}
           {isLocal && <span className="text-slate-500 font-normal text-xs ml-1">(tú)</span>}
         </p>
-        {isSpeaking ? (
-          <div className="flex items-center justify-center gap-[3px] mt-1.5">
-            {[1, 2, 3, 2, 1].map((h, i) => (
-              <div
-                key={i}
-                className="w-[3px] bg-green-400 rounded-full animate-bounce"
-                style={{
-                  height: `${h * 4}px`,
-                  animationDelay: `${i * 80}ms`,
-                  animationDuration: '500ms',
-                }}
-              />
-            ))}
+        {!isMuted ? (
+          <div className="mt-1.5 h-1 w-14 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-green-400"
+              style={{
+                width: `${Math.round(level * 100)}%`,
+                opacity: speaking ? 1 : 0.35,
+                transition: 'width 120ms ease-out, opacity 200ms ease-out',
+              }}
+            />
           </div>
         ) : (
           <p className="text-[11px] text-slate-600 mt-1">
@@ -489,7 +508,6 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, isMinimized, localAvat
             {/* Participant strip (right side) */}
             <div className="w-28 shrink-0 flex flex-col gap-3 items-center py-4 px-2 border-l border-slate-800/60 overflow-y-auto soft-scroll">
               {allParticipants.map(({ participant, isLocal }, i) => {
-                const isSpeaking = false; // can't call hook inside map — handled in ParticipantCard
                 const { bgClass } = getTeamStyle(participant.identity, i);
                 const initials = getInitials(participant.identity);
                 const name = getDisplayName(participant.identity);
