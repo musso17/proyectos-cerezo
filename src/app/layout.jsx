@@ -19,8 +19,11 @@ export const metadata = {
   },
   formatDetection: { telephone: false },
   icons: {
-    icon: '/favicon.svg',
-    apple: '/favicon.svg',
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: '/apple-touch-icon.png',
   },
   // Soporte genérico (Android/Chrome) además del apple-mobile-web-app-capable.
   other: {

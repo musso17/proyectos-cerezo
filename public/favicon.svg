@@ -1,18 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#38bdf8" />
-      <stop offset="100%" stop-color="#0ea5e9" />
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="14" fill="url(#grad)" />
-  <path
-    d="M20 44c0-8 4.5-14 12-14s12 6 12 14"
-    fill="none"
-    stroke="#f8fafc"
-    stroke-width="4"
-    stroke-linecap="round"
-  />
-  <circle cx="32" cy="24" r="9" fill="#f8fafc" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="112" fill="#000000"/>
+  <path d="M262 158 C 305 120, 360 126, 386 150 C 350 176, 300 176, 262 158 Z" fill="#FF4B2A"/>
+  <path d="M260 156 C 232 214, 206 252, 190 300" fill="none" stroke="#FF4B2A" stroke-width="15" stroke-linecap="round"/>
+  <path d="M260 156 C 290 210, 318 250, 334 300" fill="none" stroke="#FF4B2A" stroke-width="15" stroke-linecap="round"/>
+  <circle cx="188" cy="346" r="58" fill="#FF4B2A"/>
+  <circle cx="336" cy="346" r="58" fill="#FF4B2A"/>
+  <circle cx="170" cy="328" r="14" fill="#ffffff" opacity="0.85"/>
+  <circle cx="318" cy="328" r="14" fill="#ffffff" opacity="0.85"/>
 </svg>
-
