@@ -1,41 +1,50 @@
-'use client';
-import { useEffect } from 'react';
-import useStore from '../hooks/useStore';
 import './globals.css';
 import { Inter } from 'next/font/google';
+import ThemeManager from '../components/ThemeManager';
 
 const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
 });
 
-// Metadata is now exported from page.jsx or specific layouts, not here in a client component.
+export const metadata = {
+  title: 'Cerezo Studio Planner',
+  applicationName: 'Cerezo',
+  description: 'Planificador de producción audiovisual de Cerezo',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    title: 'Cerezo',
+    statusBarStyle: 'black-translucent',
+  },
+  formatDetection: { telephone: false },
+  icons: {
+    icon: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
+  // Soporte genérico (Android/Chrome) además del apple-mobile-web-app-capable.
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
+};
+
+export const viewport = {
+  themeColor: '#000000',
+  width: 'device-width',
+  initialScale: 1,
+  // Necesario para que el contenido use toda la pantalla y funcionen los safe-area insets.
+  viewportFit: 'cover',
+};
 
 export default function RootLayout({ children }) {
-  const initializeTheme = useStore((state) => state.initializeTheme);
-  const theme = useStore((state) => state.theme);
-
-
-
-  useEffect(() => {
-    initializeTheme();
-  }, [initializeTheme]);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const root = document.documentElement;
-    root.dataset.theme = theme;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-  }, [theme]);
-
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <body className={`${inter.className} bg-background text-primary antialiased transition-colors duration-300`}>
-        <div className="relative flex min-h-screen flex-col">{children}</div>
+        <ThemeManager>
+          {/* safe-area-inset-top: con la barra de estado translúcida (standalone),
+              evita que el header quede debajo del notch / barra de estado. */}
+          <div className="relative flex min-h-screen flex-col pt-[env(safe-area-inset-top)]">{children}</div>
+        </ThemeManager>
       </body>
     </html>
   );
