@@ -98,6 +98,17 @@ const VistaCalendario = ({ projects: projectsProp }) => {
 
           {/* Versión Móvil: Grid + Lista (iOS Style) */}
           <div className="sm:hidden -mx-3">
+            <div className="flex items-center justify-between px-4 pb-2">
+              <button
+                onClick={handleGoToToday}
+                className="text-sm font-semibold text-accent active:opacity-50 transition-opacity"
+              >
+                Hoy
+              </button>
+              <span className="text-xs text-secondary/60 dark:text-white/40">
+                {selectedDayDetails.length} evento{selectedDayDetails.length !== 1 ? 's' : ''}
+              </span>
+            </div>
             <div className="border-t border-b border-gray-100 dark:border-white/5">
               <MobileCalendarGrid
                 calendarDays={calendarDays}
@@ -116,21 +127,6 @@ const VistaCalendario = ({ projects: projectsProp }) => {
               />
             </div>
             
-            {/* Barra Inferior Estilo iOS */}
-            <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-white/80 dark:bg-[#1E1F23]/80 backdrop-blur-xl border-t border-gray-200 dark:border-white/10 px-6 py-4 flex items-center justify-between">
-              <button
-                onClick={handleGoToToday}
-                className="text-red-500 text-lg font-medium active:opacity-50 transition-opacity"
-              >
-                Hoy
-              </button>
-              
-              <div className="flex gap-4">
-                <span className="text-gray-400 dark:text-gray-500 text-sm">
-                  {selectedDayDetails.length} eventos
-                </span>
-              </div>
-            </div>
           </div>
 
           {/* Versión Desktop: Grid Clásico */}

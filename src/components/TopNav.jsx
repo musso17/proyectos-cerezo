@@ -398,23 +398,6 @@ const TopNav = () => {
                 className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-primary focus:border-accent focus:outline-none dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
               />
             </div>
-            {navItems.map((item) => {
-              const isActive = currentView === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleNavigate(item.id)}
-                  className={clsx(
-                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
-                    isActive ? 'bg-slate-100 font-semibold text-primary dark:bg-white/10 dark:text-white' : 'text-secondary dark:text-white/60'
-                  )}
-                >
-                  <item.icon size={17} className={isActive ? 'text-accent' : ''} />
-                  {item.label}
-                </button>
-              );
-            })}
             <div className="flex flex-col gap-2 pt-1">
               <PresenceButton />
               <VoiceRoomsButton />
@@ -430,16 +413,6 @@ const TopNav = () => {
           </div>
         )}
       </header>
-
-      {/* Floating "+" on mobile */}
-      <button
-        type="button"
-        onClick={handleAddNew}
-        aria-label="Crear nuevo proyecto"
-        className="fixed bottom-6 right-6 z-40 flex h-16 w-16 items-center justify-center rounded-full bg-dark-bg text-white shadow-2xl transition-all hover:-translate-y-2 hover:scale-110 active:scale-95 sm:hidden dark:bg-accent"
-      >
-        <Plus size={28} strokeWidth={3} />
-      </button>
 
       {showSettings && <UserSettingsPanel onClose={() => setShowSettings(false)} />}
     </>

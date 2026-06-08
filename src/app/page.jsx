@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import TopNav from '../components/TopNav';
+import MobileNavBar from '../components/MobileNavBar';
 import ModalDetalles from '../components/modals/ModalDetalles';
 import useStore from '../hooks/useStore';
 import ViewRenderer from '../components/ViewRenderer';
@@ -34,7 +35,7 @@ const HomeContent = ({ session }) => {
   }, [session, fetchProjects, checkAndAdvanceProjectStates]);
 
   return (
-    <main className="relative flex min-h-screen flex-col gap-4 px-3 pb-20 pt-4 sm:px-4 md:px-6 lg:gap-6 lg:pb-12 lg:pt-6">
+    <main className="relative flex min-h-screen flex-col gap-4 px-3 pb-28 pt-4 sm:px-4 md:px-6 md:pb-8 lg:gap-6 lg:pb-12 lg:pt-6">
       <Toaster position="top-right" toastOptions={{ className: 'bg-slate-900 text-slate-50 border border-slate-700/60' }} />
 
       <section className="relative flex w-full flex-1 flex-col gap-4 overflow-hidden lg:gap-6">
@@ -57,6 +58,7 @@ const HomeContent = ({ session }) => {
       </section>
 
       <ModalDetalles />
+      <MobileNavBar />
     </main>
   );
 };

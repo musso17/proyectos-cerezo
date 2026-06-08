@@ -359,7 +359,7 @@ const VistaTabla = ({ projects: projectsProp }) => {
 
   return (
     <div className="flex h-full flex-col gap-6 p-4 md:p-6 animate-fade-up">
-      <div className="glass-panel grid items-end gap-6 p-8 rounded-xl text-xs text-secondary sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
+      <div className="glass-panel grid items-end gap-4 p-4 rounded-xl text-xs text-secondary sm:grid-cols-2 sm:gap-6 sm:p-6 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] lg:p-8">
         <div className="flex flex-col gap-2">
           <label className="mb-1 font-semibold uppercase tracking-[0.2em] text-secondary/40">Tipo</label>
           <select
@@ -429,7 +429,59 @@ const VistaTabla = ({ projects: projectsProp }) => {
         </button>
       </div>
 
-      <div className="glass-panel overflow-hidden rounded-xl border border-border shadow-2xl">
+      {/* ── Mobile: tarjetas apiladas (en vez de la tabla con scroll horizontal) ── */}
+      <div className="flex flex-col gap-3 md:hidden">
+        {searchFilteredProjects.length === 0 ? (
+          <div className="glass-panel rounded-xl border border-border p-8 text-center dark:border-white/5">
+            <p className="text-xs font-medium uppercase tracking-wide text-secondary/50">No se encontraron proyectos</p>
+          </div>
+        ) : (
+          searchFilteredProjects.map((project, index) => {
+            const stage = (project.stage || project.properties?.stage || 'edicion').toLowerCase();
+            const managers = getProjectManagers(project);
+            return (
+              <div
+                key={project.id || index}
+                role="button"
+                tabIndex={0}
+                onClick={() => openModal(project)}
+                className="glass-panel rounded-xl border border-border p-4 transition-transform active:scale-[0.99] dark:border-white/5"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 h-10 w-1 shrink-0 rounded-full" style={{ backgroundColor: TYPE_COLORS[stage] || '#5F6468' }} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-[15px] font-semibold tracking-tight text-primary dark:text-white">{project.name || 'Sin título'}</p>
+                        <p className="mt-0.5 font-mono text-[9px] uppercase tracking-wider text-secondary/40">{getProjectTypeBadge(project).label}</p>
+                      </div>
+                      <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                        <StatusSelector project={project} />
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {managers.length > 0 ? (
+                        managers.map((m, i) => <Avatar key={i} name={m} />)
+                      ) : (
+                        <span className="text-xs italic text-secondary/30">Sin asignar</span>
+                      )}
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/40 pt-3 text-[11px] font-medium text-secondary/70 dark:border-white/5 dark:text-white/50">
+                      <span>{formatDate(project.startDate) || '—'} – {formatDate(project.deadline) || '—'}</span>
+                      <span className="truncate font-semibold text-primary dark:text-white/80">{project.client || 'Sin cliente'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* ── Desktop: tabla ── */}
+      <div className="hidden glass-panel overflow-hidden rounded-xl border border-border shadow-2xl md:block">
         <div className="overflow-x-auto soft-scroll">
           <table className="w-full border-collapse text-sm text-secondary">
             <thead>
