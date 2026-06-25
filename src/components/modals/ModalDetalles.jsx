@@ -25,6 +25,15 @@ const STAGES = {
   FOTOGRAFIA: 'fotografia',
 };
 
+// Metadata interna del sistema: NO debe exponerse como "propiedad personalizada".
+const INTERNAL_PROPERTY_KEYS = new Set([
+  'resources', 'registrationType', 'stage', 'recordingTime', 'recordingLocation',
+  'recordingDescription', 'fechaGrabacion', 'fecha_grabacion', 'recordingDates',
+  'linkedRecordingId', 'state', 'status', 'managers', 'manager', 'tasks',
+  'client', 'cliente', 'currentCycle', 'current_cycle', 'deadline', 'fecha_entrega',
+  'deliverableLink', 'deliverable_link', 'tag', 'income', 'notes',
+]);
+
 // Etiqueta legible para un chip de fecha, ej. "mar 9 jun"
 const formatRecordingChip = (isoDate) => {
   try {
@@ -118,7 +127,6 @@ const ModalDetalles = () => {
             .filter(Boolean)
           : [];
 
-      const defaultManager = teamMembers?.[0] || '';
       const rawStage = selectedProject.stage || properties.stage || '';
       const stage = rawStage ? rawStage.toString().trim().toLowerCase() : STAGES.GRABACION;
       const registrationType =
@@ -144,7 +152,9 @@ const ModalDetalles = () => {
       const recordingDescription =
         selectedProject.recordingDescription || properties.recordingDescription || '';
 
-      const managers = normalizedManagers.length > 0 ? normalizedManagers : defaultManager ? [defaultManager] : [];
+      // No pre-rellenar el responsable en proyectos nuevos (evita asignar al
+      // usuario activo por defecto). Solo se conservan los responsables existentes.
+      const managers = normalizedManagers;
 
       const deliverableLink =
         (selectedProject.deliverableLink ||
@@ -254,6 +264,15 @@ const ModalDetalles = () => {
   }, []);
 
   if (!editedProject) return null;
+
+  // Solo propiedades realmente "personalizadas": ni metadata interna ni valores
+  // no primitivos (arrays/objetos como tasks/managers, que mostraban [object Object]).
+  const customPropertyEntries = Object.entries(editedProject.properties || {}).filter(
+    ([key, value]) =>
+      !INTERNAL_PROPERTY_KEYS.has(key) &&
+      (typeof value === 'string' || typeof value === 'number') &&
+      String(value).trim().length > 0
+  );
 
   const selectedManagers = Array.isArray(editedProject.managers) ? editedProject.managers : [];
   const availableManagers = Array.isArray(teamMembers)
@@ -1089,27 +1108,13 @@ const ModalDetalles = () => {
                     </div>
                   </div>
 
-                  {editedProject.id && (
+                  {editedProject.id && customPropertyEntries.length > 0 && (
                     <div className="md:col-span-2">
                       <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-600">
                         Propiedades personalizadas
                       </h3>
                       <div className="mt-3 space-y-4">
-                        {Object.entries(editedProject.properties)
-                          .filter(
-                            ([key]) =>
-                              ![
-                                'resources',
-                                'registrationType',
-                                'stage',
-                                'recordingTime',
-                                'recordingLocation',
-                                'recordingDescription',
-                                'fechaGrabacion',
-                                'recordingDates',
-                                'linkedRecordingId',
-                              ].includes(key)
-                          )
+                        {customPropertyEntries
                           .map(([key, value]) => (
                             <div
                               key={key}

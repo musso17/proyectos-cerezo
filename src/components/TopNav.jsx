@@ -18,6 +18,7 @@ import {
   Layers,
   Radio,
   ChevronDown,
+  ExternalLink,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
@@ -369,9 +370,11 @@ const TopNav = () => {
                 href="https://cotizacionescr.netlify.app/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium text-secondary transition-all hover:bg-slate-100 dark:text-white/60 dark:hover:bg-white/5"
+                title="Abre Cotizaciones en una nueva pestaña (app externa)"
+                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-secondary transition-all hover:bg-slate-100 dark:text-white/60 dark:hover:bg-white/5"
               >
                 Cotización
+                <ExternalLink size={13} className="opacity-60" />
               </a>
             )}
             <button
@@ -407,7 +410,7 @@ const TopNav = () => {
               <button onClick={() => { setShowSettings(true); setMobileOpen(false); }} className={iconBtn} title="Ajustes"><Settings size={18} /></button>
               <button onClick={handleSignOut} disabled={signingOut} className={clsx(iconBtn, 'disabled:opacity-60')} title="Cerrar sesión"><LogOut size={18} /></button>
               {!isFranciscoUser(currentUser) && (
-                <a href="https://cotizacionescr.netlify.app/" target="_blank" rel="noopener noreferrer" className="ml-auto rounded-lg border border-slate-200 px-4 py-2.5 text-xs font-semibold uppercase text-secondary dark:border-white/10 dark:text-white/70">Cotización</a>
+                <a href="https://cotizacionescr.netlify.app/" target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2.5 text-xs font-semibold uppercase text-secondary dark:border-white/10 dark:text-white/70">Cotización <ExternalLink size={12} className="opacity-60" /></a>
               )}
             </div>
           </div>

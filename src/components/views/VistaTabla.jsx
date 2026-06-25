@@ -39,6 +39,20 @@ const formatDate = (value) => {
   }
 };
 
+// Proyecto vencido: tiene fecha de entrega pasada y no está completado.
+const isOverdue = (project) => {
+  const d = project?.deadline;
+  if (!d) return false;
+  const status = (project?.status || '').toString().trim().toLowerCase();
+  if (status === 'completado') return false;
+  const str = d.toString().trim();
+  const date = new Date(str.length <= 10 ? `${str}T12:00:00` : str);
+  if (Number.isNaN(date.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date < today;
+};
+
 
 const TYPE_COLORS = {
   grabacion: '#FF4B2A',
@@ -469,7 +483,17 @@ const VistaTabla = ({ projects: projectsProp }) => {
                     </div>
 
                     <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/40 pt-3 text-[11px] font-medium text-secondary/70 dark:border-white/5 dark:text-white/50">
-                      <span>{formatDate(project.startDate) || '—'} – {formatDate(project.deadline) || '—'}</span>
+                      <span className="inline-flex items-center gap-1.5">
+                        {formatDate(project.startDate)}
+                        <span className="opacity-40">→</span>
+                        {!project.deadline ? (
+                          <span className="italic text-secondary/40">A confirmar</span>
+                        ) : isOverdue(project) ? (
+                          <span className="font-semibold text-red-500 dark:text-red-400">⚠️ {formatDate(project.deadline)}</span>
+                        ) : (
+                          <span>{formatDate(project.deadline)}</span>
+                        )}
+                      </span>
                       <span className="truncate font-semibold text-primary dark:text-white/80">{project.client || 'Sin cliente'}</span>
                     </div>
                   </div>
@@ -550,8 +574,16 @@ const VistaTabla = ({ projects: projectsProp }) => {
                       <td className="px-8 py-10 text-xs font-medium text-secondary/70 dark:text-white/50">
                         {formatDate(project.startDate)}
                       </td>
-                      <td className="px-8 py-10 text-xs font-medium text-secondary/70 dark:text-white/50">
-                        {formatDate(project.deadline)}
+                      <td className="px-8 py-10 text-xs font-medium">
+                        {!project.deadline ? (
+                          <span className="italic text-secondary/40">A confirmar</span>
+                        ) : isOverdue(project) ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 px-2.5 py-1 font-semibold text-red-500 dark:text-red-400">
+                            ⚠️ {formatDate(project.deadline)}
+                          </span>
+                        ) : (
+                          <span className="text-secondary/70 dark:text-white/50">{formatDate(project.deadline)}</span>
+                        )}
                       </td>
                       <td className="px-8 py-10">
                         {(() => {
@@ -560,7 +592,7 @@ const VistaTabla = ({ projects: projectsProp }) => {
                         })()}
                       </td>
                       <td className="px-8 py-10 last:pr-12">
-                        <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-3 opacity-60 transition-opacity group-hover:opacity-100">
                           <button
                             type="button"
                             onClick={(event) => handleEdit(project, event)}
