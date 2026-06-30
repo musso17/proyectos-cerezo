@@ -35,6 +35,16 @@ const STATUS_TEXT = {
 // 2-letter abbreviations to disambiguate similar names (Marcelo vs Mauricio)
 const ABBREV = { Marcelo: 'Ma', Mauricio: 'Mu', Edson: 'Ed', Luis: 'Lu' };
 
+// Mismos niveles que ManagerLoadTable (total de proyectos activos asignados),
+// con la nomenclatura pedida: Libre / Carga media / Saturado.
+const LOAD_LABEL = { 'Carga alta': 'Saturado', 'Carga media': 'Carga media', 'Carga controlada': 'Libre' };
+const LOAD_DOT = { 'Carga alta': 'bg-red-500', 'Carga media': 'bg-amber-400', 'Carga controlada': 'bg-emerald-500' };
+const LOAD_TEXT = {
+  'Carga alta': 'text-red-500',
+  'Carga media': 'text-amber-500',
+  'Carga controlada': 'text-emerald-500',
+};
+
 const getManagers = (p) => {
   if (Array.isArray(p.managers) && p.managers.length) return p.managers;
   if (Array.isArray(p.properties?.managers) && p.properties.managers.length) return p.properties.managers;
@@ -231,6 +241,35 @@ const DashboardHero = ({ projects, totals, carbonoProjectsThisMonth, managerLoad
             <MiniKpi label="Entregados" value={totals.delivered} icon={CheckCircle2} />
           </div>
         </div>
+
+        {/* Carga del equipo — vista rápida, sin tener que bajar a la tabla de Capacidad */}
+        {managerLoad.length > 0 && (
+          <div className="glass-panel rounded-xl p-5">
+            <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-secondary/40 dark:text-white/30">
+              Carga del equipo
+            </p>
+            <div className="flex flex-col gap-2.5">
+              {managerLoad.map(({ manager, total, level }) => (
+                <div key={manager} className="flex items-center gap-2.5">
+                  <div
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-white text-[10px] font-bold text-white shadow-sm dark:border-[#16171D] ${teamColor(manager)}`}
+                  >
+                    {avatarLabel(manager)}
+                  </div>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-primary dark:text-white/80">
+                    {manager}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    <span className={`h-1.5 w-1.5 rounded-full ${LOAD_DOT[level] || 'bg-slate-400'}`} />
+                    <span className={`text-[10px] font-semibold uppercase tracking-wide ${LOAD_TEXT[level] || 'text-secondary/50'}`}>
+                      {LOAD_LABEL[level] || level}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Salas de voz */}
         <div className="glass-panel rounded-xl p-5">

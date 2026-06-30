@@ -53,6 +53,14 @@ const isOverdue = (project) => {
   return date < today;
 };
 
+// Inicio y entrega caen el mismo día (trabajo de un solo día, no falta de margen).
+const isSameDayProject = (project) => {
+  const start = project?.startDate;
+  const end = project?.deadline;
+  if (!start || !end) return false;
+  return start.toString().trim().slice(0, 10) === end.toString().trim().slice(0, 10);
+};
+
 
 const TYPE_COLORS = {
   grabacion: '#FF4B2A',
@@ -493,6 +501,11 @@ const VistaTabla = ({ projects: projectsProp }) => {
                         ) : (
                           <span>{formatDate(project.deadline)}</span>
                         )}
+                        {isSameDayProject(project) && (
+                          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-secondary/60 dark:bg-white/10 dark:text-white/40">
+                            1 día
+                          </span>
+                        )}
                       </span>
                       <span className="truncate font-semibold text-primary dark:text-white/80">{project.client || 'Sin cliente'}</span>
                     </div>
@@ -582,7 +595,14 @@ const VistaTabla = ({ projects: projectsProp }) => {
                             ⚠️ {formatDate(project.deadline)}
                           </span>
                         ) : (
-                          <span className="text-secondary/70 dark:text-white/50">{formatDate(project.deadline)}</span>
+                          <span className="inline-flex items-center gap-1.5 text-secondary/70 dark:text-white/50">
+                            {formatDate(project.deadline)}
+                            {isSameDayProject(project) && (
+                              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-secondary/60 dark:bg-white/10 dark:text-white/40">
+                                1 día
+                              </span>
+                            )}
+                          </span>
                         )}
                       </td>
                       <td className="px-8 py-10">
