@@ -205,6 +205,7 @@ const TopNav = () => {
   const [signingOut, setSigningOut] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
   const searchRef = useRef(null);
 
   const navItems = NAV_ITEMS.filter((item) => allowedViews.includes(item.id));
@@ -296,6 +297,8 @@ const TopNav = () => {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
               placeholder="Buscar..."
               className="w-44 rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-12 text-sm font-medium text-primary transition-[width] duration-300 ease-[var(--ease-ios-out)] placeholder:text-secondary/50 focus:w-72 focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 lg:w-52 lg:focus:w-80 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white dark:placeholder:text-white/20"
             />
@@ -303,6 +306,21 @@ const TopNav = () => {
               <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 select-none items-center gap-0.5 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-secondary/60 lg:flex dark:border-white/10 dark:bg-white/5 dark:text-white/30">
                 ⌘K
               </kbd>
+            )}
+
+            {/* Hint de filtros rápidos — solo al enfocar con el campo vacío */}
+            {searchFocused && !searchTerm && (
+              <div className="absolute right-0 top-full z-50 mt-2 w-60 rounded-lg border border-slate-200 bg-white p-3 shadow-xl dark:border-white/10 dark:bg-[#16171D]">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-secondary/50 dark:text-white/30">
+                  Filtros rápidos
+                </p>
+                <ul className="space-y-1.5 text-xs text-secondary/70 dark:text-white/50">
+                  <li><code className="font-semibold text-accent">cliente:</code> Carbono</li>
+                  <li><code className="font-semibold text-accent">estado:</code> vencido</li>
+                  <li><code className="font-semibold text-accent">tipo:</code> spot</li>
+                  <li><code className="font-semibold text-accent">responsable:</code> Marcelo</li>
+                </ul>
+              </div>
             )}
           </div>
 
