@@ -43,6 +43,24 @@ const getDefaultMic = () => {
   return v === null ? true : v === 'true';
 };
 
+// Distingue "mic ocupado por otra app" (NotReadableError / "Device in use")
+// de otros errores (permisos, sin dispositivo) para dar un mensaje accionable
+// en vez del genérico "Client initiated disconnect" que da LiveKit.
+const describeMicError = (e) => {
+  const name = e?.name || '';
+  const message = (e?.message || '').toLowerCase();
+  if (name === 'NotReadableError' || message.includes('device in use') || message.includes('could not start')) {
+    return 'Tu micrófono está siendo usado por otra app (Meet, Zoom, Teams, etc.). Ciérrala e inténtalo de nuevo.';
+  }
+  if (name === 'NotAllowedError' || message.includes('permission')) {
+    return 'Permiso de micrófono denegado. Revisa los permisos del navegador para este sitio.';
+  }
+  if (name === 'NotFoundError') {
+    return 'No se encontró ningún micrófono conectado.';
+  }
+  return e?.message || 'No se pudo activar el micrófono.';
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // Use participant.name (set from LiveKit token) when available, else parse identity
@@ -350,6 +368,23 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
   const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
   const room = useRoomContext();
 
+  // Activa el micrófono DESPUÉS de conectar (no durante), así si está ocupado
+  // por otra app la conexión a la sala no se cae entera: el usuario queda
+  // adentro, silenciado, con un aviso claro, y puede reintentar desde el botón.
+  const autoMicAttempted = useRef(false);
+  useEffect(() => {
+    if (autoMicAttempted.current || !room || !getDefaultMic()) return;
+    autoMicAttempted.current = true;
+    (async () => {
+      try {
+        await room.localParticipant.setMicrophoneEnabled(true);
+      } catch (e) {
+        console.error('No se pudo activar el micrófono al conectar:', e);
+        toast.error(describeMicError(e));
+      }
+    })();
+  }, [room]);
+
   // Screen share
   const { toggle: toggleScreenShare, enabled: isScreenSharing } = useTrackToggle({
     source: Track.Source.ScreenShare,
@@ -390,7 +425,14 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
     localInList ? allRaw : localParticipant ? [localParticipant, ...allRaw] : allRaw
   ).map((p) => ({ participant: p, isLocal: p.identity === localParticipant?.identity }));
 
-  const toggleMic = () => room?.localParticipant?.setMicrophoneEnabled(!isMicrophoneEnabled);
+  const toggleMic = async () => {
+    try {
+      await room?.localParticipant?.setMicrophoneEnabled(!isMicrophoneEnabled);
+    } catch (e) {
+      console.error('toggleMic failed:', e);
+      toast.error(describeMicError(e));
+    }
+  };
   const handleLeave = () => { room?.disconnect(); onLeave(); };
 
   // ── Minimized pill ──────────────────────────────────────────────────────────
@@ -855,7 +897,7 @@ export default function VistaVoiceRoom() {
 
   const handleRoomError = (e) => {
     console.error('LiveKit error:', e);
-    const msg = e?.message || 'Error desconocido';
+    const msg = describeMicError(e);
     setConnError(msg);
     toast.error(`Sala de voz: ${msg}`);
   };
@@ -982,7 +1024,10 @@ export default function VistaVoiceRoom() {
       ) : (
         <LiveKitRoom
           video={false}
-          audio={getDefaultMic()}
+          // No pedimos el mic acá: si está ocupado por otra app, antes tumbaba
+          // toda la conexión a la sala. AudioRoomInterior lo activa después de
+          // conectar, sin que una falla del mic te deje afuera de la sala.
+          audio={false}
           token={token}
           serverUrl={serverUrl}
           connect={true}
