@@ -70,7 +70,13 @@ const VOICE_ROOMS = [
 // ─── priority card ────────────────────────────────────────────────────────────
 const PriorityCard = ({ project, onClick }) => {
   const managers = getManagers(project);
-  const progress = STATUS_PROGRESS[project.status] ?? 20;
+  // Progreso manual (editable en el modal de detalle) tiene prioridad sobre
+  // el valor automático derivado del estado.
+  const manualProgress = project.properties?.progress;
+  const hasManualProgress = manualProgress !== '' && manualProgress !== null && manualProgress !== undefined;
+  const progress = hasManualProgress
+    ? Math.min(100, Math.max(0, Number(manualProgress)))
+    : STATUS_PROGRESS[project.status] ?? 20;
   const dot = STATUS_COLOR[project.status] || 'bg-slate-400';
   const statusText = STATUS_TEXT[project.status] || 'text-slate-400';
 
@@ -91,8 +97,13 @@ const PriorityCard = ({ project, onClick }) => {
         </div>
         <h4 className="line-clamp-1 font-semibold text-primary dark:text-white">{project.name || 'Sin nombre'}</h4>
         <p className="mt-0.5 text-xs text-secondary/60 dark:text-white/40">{project.client || '—'}</p>
-        <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
-          <div className={`h-full rounded-full ${dot} transition-all`} style={{ width: `${progress}%` }} />
+        <div className="mt-2.5 flex items-center gap-2">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
+            <div className={`h-full rounded-full ${dot} transition-all`} style={{ width: `${progress}%` }} />
+          </div>
+          <span className="shrink-0 text-[10px] font-semibold tabular-nums text-secondary/50 dark:text-white/30">
+            {progress}%
+          </span>
         </div>
       </div>
 

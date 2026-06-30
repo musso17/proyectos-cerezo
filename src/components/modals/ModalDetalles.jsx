@@ -31,8 +31,18 @@ const INTERNAL_PROPERTY_KEYS = new Set([
   'recordingDescription', 'fechaGrabacion', 'fecha_grabacion', 'recordingDates',
   'linkedRecordingId', 'state', 'status', 'managers', 'manager', 'tasks',
   'client', 'cliente', 'currentCycle', 'current_cycle', 'deadline', 'fecha_entrega',
-  'deliverableLink', 'deliverable_link', 'tag', 'income', 'notes',
+  'deliverableLink', 'deliverable_link', 'tag', 'income', 'notes', 'progress',
 ]);
+
+// Mismo mapeo que STATUS_PROGRESS en components/dashboard/DashboardHero.jsx —
+// usado solo para mostrar dónde caería el slider en modo "automático".
+const AUTO_PROGRESS_BY_STATUS = {
+  Programado: 15,
+  'En progreso': 55,
+  'En revisión': 85,
+  Completado: 100,
+  Stuck: 40,
+};
 
 // Etiqueta legible para un chip de fecha, ej. "mar 9 jun"
 const formatRecordingChip = (isoDate) => {
@@ -281,6 +291,12 @@ const ModalDetalles = () => {
 
   const currentStage = (editedProject.stage || '').toLowerCase();
   const isRecordingStage = currentStage === STAGES.GRABACION || currentStage === STAGES.FOTOGRAFIA;
+
+  // Mismo mapeo que STATUS_PROGRESS en DashboardHero — solo para mostrar dónde
+  // quedaría el slider en "automático" cuando no hay progreso manual.
+  const rawProgress = editedProject?.properties?.progress;
+  const hasManualProgress = rawProgress !== '' && rawProgress !== null && rawProgress !== undefined;
+  const autoProgress = AUTO_PROGRESS_BY_STATUS[editedProject?.status] ?? 20;
 
   const calculateEndTime = (time) => {
     if (!time) return '';
@@ -543,6 +559,20 @@ const ModalDetalles = () => {
       delete updatedProperties.fechaGrabacion;
     }
 
+    // Progreso manual (%): vacío = automático según estado (ver STATUS_PROGRESS
+    // en DashboardHero). Si hay valor, se clampea a 0–100.
+    const rawProgress = editedProject.properties?.progress;
+    if (rawProgress === '' || rawProgress === null || rawProgress === undefined) {
+      delete updatedProperties.progress;
+    } else {
+      const parsedProgress = Number.parseInt(rawProgress, 10);
+      if (Number.isNaN(parsedProgress)) {
+        delete updatedProperties.progress;
+      } else {
+        updatedProperties.progress = Math.min(100, Math.max(0, parsedProgress));
+      }
+    }
+
     if (recordingDates.length > 0) {
       updatedProperties.recordingDates = recordingDates;
     } else {
@@ -779,6 +809,42 @@ const ModalDetalles = () => {
                         <option value="En revisión">En revisión</option>
                         <option value="Completado">Completado</option>
                       </select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Progreso manual (%)</label>
+                      <div className="mt-2 flex items-center gap-3">
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="5"
+                          value={hasManualProgress ? Number(rawProgress) : autoProgress}
+                          onChange={(e) => handlePropertyChange('progress', e.target.value)}
+                          className="h-2 w-full cursor-pointer accent-[#FF4B2A]"
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={hasManualProgress ? rawProgress : ''}
+                          onChange={(e) => handlePropertyChange('progress', e.target.value)}
+                          placeholder={`${autoProgress}`}
+                          className="w-20 shrink-0 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-center text-sm text-gray-800 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
+                        />
+                        {hasManualProgress && (
+                          <button
+                            type="button"
+                            onClick={() => handlePropertyChange('progress', '')}
+                            className="shrink-0 text-xs font-medium text-secondary/50 underline-offset-2 hover:text-secondary hover:underline"
+                          >
+                            Auto
+                          </button>
+                        )}
+                      </div>
+                      <p className="mt-1 text-[11px] text-gray-500">
+                        Vacío = automático según el estado ({autoProgress}%). Se ve en &quot;Tus prioridades&quot; del Panel Ejecutivo.
+                      </p>
                     </div>
 
                     <div>
