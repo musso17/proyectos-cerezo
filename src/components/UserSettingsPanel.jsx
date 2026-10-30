@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, User, Mic, MicOff, Check, Loader2 } from 'lucide-react';
+import { X, User, Check, Loader2, MessageCircle } from 'lucide-react';
 import useStore from '../hooks/useStore';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
-import { AVAILABILITY_OPTIONS } from '../utils/availability';
+import { MANUAL_STATUS_OPTIONS, STATUS_KINDS } from '../lib/office/status';
+import { useMyMember, useMyStatus } from '../hooks/useOffice';
+import { isTeamUser } from '../constants/team';
 
 // ─── Color palette ─────────────────────────────────────────────────────────────
 export const AVATAR_COLORS = [
@@ -23,8 +25,6 @@ export const AVATAR_COLORS = [
   { id: 'slate',   label: 'Gris',     hex: '#64748b' },
 ];
 
-const MIC_KEY = 'cerezo-default-mic';
-
 const getInitialsFromName = (name = '') =>
   name.trim().split(/\s+/).slice(0, 2).map((n) => n[0]?.toUpperCase() || '').join('') || '?';
 
@@ -33,8 +33,10 @@ const getInitialsFromName = (name = '') =>
 export default function UserSettingsPanel({ onClose }) {
   const currentUser = useStore((s) => s.currentUser);
   const setCurrentUser = useStore((s) => s.setCurrentUser);
-  const userAvailability = useStore((s) => s.userAvailability);
-  const setUserAvailability = useStore((s) => s.setUserAvailability);
+  const setManualStatus = useStore((s) => s.setManualStatus);
+  const myStatus = useMyStatus();
+  const me = useMyMember();
+  const isTeam = isTeamUser(currentUser);
 
   const meta = currentUser?.user_metadata || {};
 
@@ -42,12 +44,20 @@ export default function UserSettingsPanel({ onClose }) {
   const [avatarColor, setAvatarColor] = useState(
     meta.avatar_color || AVATAR_COLORS[0].hex
   );
-  const [defaultMic, setDefaultMic] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    const stored = window.localStorage.getItem(MIC_KEY);
-    return stored === null ? true : stored === 'true';
-  });
+  // WhatsApp para que el equipo te pueda llamar desde la oficina.
+  const [whatsapp, setWhatsapp] = useState('');
+  const [savedWhatsapp, setSavedWhatsapp] = useState('');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!supabase || !isTeam || !me) return;
+    supabase.rpc('office_directory').then(({ data, error }) => {
+      if (error) return;
+      const mine = (data || []).find((row) => row.member === me)?.whatsapp || '';
+      setWhatsapp(mine);
+      setSavedWhatsapp(mine);
+    });
+  }, [isTeam, me]);
 
   const initials = getInitialsFromName(displayName) ||
     getInitialsFromName(currentUser?.email?.split('@')[0] || '');
@@ -55,9 +65,6 @@ export default function UserSettingsPanel({ onClose }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Persist mic preference in localStorage
-      localStorage.setItem(MIC_KEY, String(defaultMic));
-
       // Persist name + color in Supabase user metadata
       if (supabase) {
         const { data, error } = await supabase.auth.updateUser({
@@ -67,6 +74,12 @@ export default function UserSettingsPanel({ onClose }) {
           },
         });
         if (error) throw error;
+
+        if (isTeam && whatsapp.trim() !== savedWhatsapp) {
+          const { error: phoneError } = await supabase.rpc('set_my_whatsapp', { phone: whatsapp.trim() });
+          if (phoneError) throw phoneError;
+          setSavedWhatsapp(whatsapp.trim());
+        }
 
         // Force-refresh the JWT so user_metadata is up to date
         const { data: sessionData } = await supabase.auth.refreshSession();
@@ -131,7 +144,7 @@ export default function UserSettingsPanel({ onClose }) {
               <p className="font-semibold text-slate-900 dark:text-white">
                 {displayName || currentUser?.email?.split('@')[0] || 'Sin nombre'}
               </p>
-              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{userAvailability}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{myStatus.line}</p>
             </div>
           </div>
 
@@ -186,61 +199,57 @@ export default function UserSettingsPanel({ onClose }) {
               Estado
             </label>
             <p className="text-xs text-slate-600 dark:text-slate-400">
-              Se ajusta solo con tu agenda (rodaje hoy → En grabación, ausencia → Fuera). Si eliges uno, se respeta hasta que recargues.
+              En automático sale de tu agenda y se actualiza solo (rodaje en curso → En grabación, ausencia → Fuera). Lo que elijas a mano vale hasta el final del día.
             </p>
             <div className="flex flex-col gap-2">
-              {AVAILABILITY_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setUserAvailability(opt.value)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-left transition-all border ${
-                    userAvailability === opt.value
-                      ? 'border-accent/40 bg-accent/5 text-accent dark:text-[#FF4B2A]'
-                      : 'border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8'
-                  }`}
-                >
-                  <span className={`h-2.5 w-2.5 rounded-full ${opt.dot}`} />
-                  <span>{opt.value}</span>
-                  {userAvailability === opt.value && (
-                    <Check size={14} className="ml-auto shrink-0" strokeWidth={3} />
-                  )}
-                </button>
-              ))}
+              {[null, ...MANUAL_STATUS_OPTIONS].map((value) => {
+                const isActive = value === null ? !myStatus.manual : myStatus.manual && myStatus.kind === value;
+                const label = value === null ? 'Automático (agenda)' : STATUS_KINDS[value].label;
+                const dot = value === null ? 'bg-gradient-to-br from-green-400 to-sky-500' : STATUS_KINDS[value].dot;
+                return (
+                  <button
+                    key={value || 'auto'}
+                    onClick={() => setManualStatus(value)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-left transition-all border ${
+                      isActive
+                        ? 'border-accent/40 bg-accent/5 text-accent dark:text-[#FF4B2A]'
+                        : 'border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8'
+                    }`}
+                  >
+                    <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
+                    <span>{label}</span>
+                    {isActive && <Check size={14} className="ml-auto shrink-0" strokeWidth={3} />}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* ── Sala de voz ── */}
-          <div className="space-y-3">
-            <label className="text-xs font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-400">
-              Sala de voz
-            </label>
-            <button
-              onClick={() => setDefaultMic((v) => !v)}
-              className={`w-full flex items-center gap-4 px-4 py-4 rounded-lg border transition-all ${
-                defaultMic
-                  ? 'border-emerald-200 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/5'
-                  : 'border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/5'
-              }`}
-            >
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                defaultMic ? 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-500/15 text-red-500'
-              }`}>
-                {defaultMic ? <Mic size={18} /> : <MicOff size={18} />}
-              </div>
-              <div className="text-left">
-                <p className={`text-sm font-medium ${defaultMic ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-600 dark:text-red-400'}`}>
-                  {defaultMic ? 'Micrófono activado al entrar' : 'Entrar silenciado'}
-                </p>
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">Click para cambiar</p>
-              </div>
-              {/* Toggle pill */}
-              <div className={`ml-auto w-11 h-6 rounded-full transition-all shrink-0 ${defaultMic ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
-                <div className={`w-5 h-5 rounded-full bg-white shadow-md transition-all mt-0.5 ${defaultMic ? 'translate-x-5.5 ml-0.5' : 'ml-0.5'}`}
-                  style={{ transform: defaultMic ? 'translateX(20px)' : 'translateX(0px)', margin: '2px' }}
-                />
-              </div>
-            </button>
-          </div>
+          {/* ── Oficina ── */}
+          {isTeam && (
+            <div className="space-y-2">
+              <label htmlFor="settings-whatsapp" className="text-xs font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                <MessageCircle size={12} />
+                WhatsApp
+              </label>
+              <input
+                id="settings-whatsapp"
+                type="tel"
+                inputMode="tel"
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                placeholder="51 999 888 777"
+                maxLength={20}
+                className="w-full rounded-lg border border-slate-200 dark:border-white/8 bg-white dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+              />
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                Con código de país. Cuando alguien te llama desde la oficina, el aviso te llega por WhatsApp. Solo lo ve el equipo.
+              </p>
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                En las salas siempre entras silenciado, y el micrófono se apaga solo tras 5 minutos sin hablar.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

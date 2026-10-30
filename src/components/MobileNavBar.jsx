@@ -10,12 +10,14 @@ import {
   Images,
   Layers,
   Plus,
+  Coffee,
 } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 
 // Mismos ítems/íconos que la nav de escritorio (TopNav) para consistencia.
 const NAV_ITEMS = [
   { id: 'Dashboard', icon: Activity, label: 'Inicio' },
+  { id: 'Office', icon: Coffee, label: 'Oficina' },
   { id: 'Table', icon: FolderOpen, label: 'Proyectos' },
   { id: 'Calendar', icon: CalendarIcon, label: 'Calendario' },
   { id: 'Gallery', icon: Images, label: 'Galería' },

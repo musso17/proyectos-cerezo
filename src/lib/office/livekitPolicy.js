@@ -1,8 +1,10 @@
-// Reglas del token de LiveKit (sin dependencias, para poder probarlas en Node).
+// Reglas del token de LiveKit (sin dependencias del navegador, para poder
+// probarlas en Node).
+import { OFFICE_ROOMS, isOfficeRoom } from './rooms';
 
-// Salas permitidas. Cualquier otro nombre se rechaza: antes se podía pedir un
-// token para cualquier sala.
-export const ALLOWED_ROOMS = ['General', 'Carbono'];
+// Salas fijas de la oficina, más las llamadas entre dos integrantes
+// ("Llamada Edson y Marcelo"). Cualquier otro nombre se rechaza.
+export const ALLOWED_ROOMS = OFFICE_ROOMS.map(({ id }) => id);
 
 // Vida corta: limita el daño de un token filtrado. LiveKit renueva el token
 // de las sesiones ya conectadas, así que no corta llamadas en curso.
@@ -13,7 +15,7 @@ export const PUBLISH_SOURCES = ['microphone', 'screen_share', 'screen_share_audi
 
 const DEVICE_ID_PATTERN = /^[A-Za-z0-9_-]{6,64}$/;
 
-export const isAllowedRoom = (room) => ALLOWED_ROOMS.includes(room);
+export const isAllowedRoom = (room) => isOfficeRoom(room);
 
 // identity = <usuario>:<dispositivo>. La misma persona en la laptop y el
 // teléfono no se expulsa a sí misma; dos pestañas del mismo navegador sí

@@ -17,7 +17,7 @@ import { isAbsenceProject, getAbsenceMembersFromName } from '../src/utils/absenc
 import { findProjectConflicts, findUpcomingConflicts } from '../src/utils/scheduleConflicts.js';
 import { normalizeStatus, getStatusLabel, STATUS_OPTIONS } from '../src/utils/statusHelpers.js';
 import { getMemberInitials, getMemberNameForUser } from '../src/constants/team.js';
-import { deriveAvailability } from '../src/utils/availability.js';
+import { getMemberAgenda } from '../src/lib/office/status.js';
 
 console.log('Running QA fixes tests...');
 
@@ -131,7 +131,7 @@ assert.strictEqual(estimateDeliveryDate({ registrationType: 'evento', startDate:
 assert.strictEqual(getMemberInitials('Marcelo'), 'Ma');
 assert.strictEqual(getMemberInitials('mauricio'), 'Mu');
 assert.strictEqual(getMemberNameForUser({ email: 'hola@cerezoperu.com', user_metadata: {} }), 'Marcelo');
-assert.strictEqual(deriveAvailability(agenda, 'Marcelo', new Date(2026, 9, 10)), 'Fuera de la oficina');
-assert.strictEqual(deriveAvailability(agenda.slice(0, 1), 'Marcelo', new Date(2026, 9, 10)), 'En grabación');
+assert.strictEqual(getMemberAgenda(agenda, 'Marcelo', new Date(2026, 9, 10, 10)).kind, 'fuera');
+assert.strictEqual(getMemberAgenda(agenda.slice(0, 1), 'Marcelo', new Date(2026, 9, 10, 10)).kind, 'grabacion');
 
 console.log('All QA fixes tests passed.');

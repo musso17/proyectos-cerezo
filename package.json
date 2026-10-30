@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "test": "node ./tests/status.test.mjs && node --import ./tests/helpers/extensionless.mjs ./tests/qa_fixes.test.mjs && node --import ./tests/helpers/store-loader.mjs ./tests/store_updates.test.mjs && node --import ./tests/helpers/extensionless.mjs ./tests/office_phase0.test.mjs",
+    "test": "node ./tests/status.test.mjs && node --import ./tests/helpers/extensionless.mjs ./tests/qa_fixes.test.mjs && node --import ./tests/helpers/store-loader.mjs ./tests/store_updates.test.mjs && node --import ./tests/helpers/extensionless.mjs ./tests/office_phase0.test.mjs && node --import ./tests/helpers/extensionless.mjs ./tests/office_phase1.test.mjs",
     "start": "next start",
     "lint": "next lint"
   },

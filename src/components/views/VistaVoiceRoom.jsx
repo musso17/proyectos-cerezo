@@ -14,7 +14,7 @@ import {
   useTracks,
   VideoTrack,
 } from '@livekit/components-react';
-import { DisconnectReason, Track } from 'livekit-client';
+import { DisconnectReason, ParticipantEvent, ScreenSharePresets, Track } from 'livekit-client';
 import '@livekit/components-styles';
 import {
   ChevronDown,
@@ -37,11 +37,46 @@ import {
 import { toast } from 'react-hot-toast';
 import { DEFAULT_MEMBER_COLOR, MEMBER_COLORS, ensureMemberName, getTeamMemberByEmail } from '../../constants/team';
 import { authFetch, getDeviceId } from '../../utils/authFetch';
-const MIC_KEY = 'cerezo-default-mic';
-const getDefaultMic = () => {
-  if (typeof window === 'undefined') return true;
-  const v = window.localStorage.getItem(MIC_KEY);
-  return v === null ? true : v === 'true';
+import { useMyStatus } from '../../hooks/useOffice';
+import { STATUS_KINDS, statusMutesMic } from '../../lib/office/status';
+import { parseCallRoom } from '../../lib/office/rooms';
+
+// Se entra silenciado; con el micrófono abierto y sin hablar este tiempo, se
+// silencia solo.
+const AUTO_MUTE_AFTER_MS = 5 * 60 * 1000;
+
+// Pantalla compartida a 1080p y 30 fps (por defecto LiveKit manda 15 fps,
+// poco para revisar cortes). 'motion' prioriza la fluidez sobre la nitidez.
+const SCREEN_SHARE_PRESET = ScreenSharePresets.h1080fps30;
+// En Safari 17 fijar cualquier resolución baja la calidad (bug documentado por
+// LiveKit): ahí se deja la de por defecto.
+const IS_SAFARI = typeof navigator !== 'undefined' && /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+const SCREEN_SHARE_CAPTURE = {
+  audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+  ...(IS_SAFARI ? {} : { resolution: SCREEN_SHARE_PRESET.resolution }),
+  contentHint: 'motion',
+  systemAudio: 'include',
+  selfBrowserSurface: 'exclude',
+};
+const SCREEN_SHARE_PUBLISH = {
+  screenShareEncoding: SCREEN_SHARE_PRESET.encoding,
+  screenShareSimulcastLayers: [],
+};
+// adaptiveStream + dynacast: la pantalla no se envía a quien no la está viendo
+// (sala minimizada), lo que ahorra datos en el plan gratis.
+const ROOM_OPTIONS = { adaptiveStream: true, dynacast: true, publishDefaults: SCREEN_SHARE_PUBLISH };
+
+const getRoomTitle = (roomName) => {
+  const call = parseCallRoom(roomName);
+  return call ? `Llamada · ${call.join(' y ')}` : roomName;
+};
+
+// "Te escuchan: Edson y Luis"
+const describeListeners = (micOn, names) => {
+  if (!micOn) return 'Silenciado: nadie te escucha';
+  if (names.length === 0) return 'Micrófono abierto · no hay nadie más';
+  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}`;
+  return `Te escuchan: ${list}`;
 };
 
 // Distingue "mic ocupado por otra app" (NotReadableError / "Device in use")
@@ -299,7 +334,7 @@ const MessageBubble = ({ msg, isOwn }) => {
   );
 };
 
-const ChatPanel = ({ messages, onSend, localIdentity }) => {
+const ChatPanel = ({ messages, onSend, localIdentity, onClose }) => {
   const [text, setText] = useState('');
   const bottomRef = useRef(null);
 
@@ -316,12 +351,17 @@ const ChatPanel = ({ messages, onSend, localIdentity }) => {
   };
 
   return (
-    <div className="w-72 shrink-0 flex flex-col h-full border-l border-slate-800/60 bg-slate-950/60">
-      <div className="px-4 py-3 border-b border-slate-800/60 shrink-0">
+    <div className="absolute inset-0 z-30 flex h-full w-full flex-col bg-slate-950 md:static md:z-auto md:w-72 md:shrink-0 md:border-l md:border-slate-800/60 md:bg-slate-950/60">
+      <div className="px-4 py-3 border-b border-slate-800/60 shrink-0 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-white flex items-center gap-2">
           <MessageSquare size={14} className="text-slate-400" />
           Chat
         </h3>
+        {onClose && (
+          <button onClick={onClose} className="text-xs text-slate-400 hover:text-white md:hidden">
+            Cerrar
+          </button>
+        )}
       </div>
 
       {/* Messages */}
@@ -373,27 +413,14 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
   const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
   const room = useRoomContext();
 
-  // Activa el micrófono DESPUÉS de conectar (no durante), así si está ocupado
-  // por otra app la conexión a la sala no se cae entera: el usuario queda
-  // adentro, silenciado, con un aviso claro, y puede reintentar desde el botón.
-  const autoMicAttempted = useRef(false);
-  useEffect(() => {
-    if (autoMicAttempted.current || !room || !getDefaultMic()) return;
-    autoMicAttempted.current = true;
-    (async () => {
-      try {
-        await room.localParticipant.setMicrophoneEnabled(true);
-      } catch (e) {
-        console.error('No se pudo activar el micrófono al conectar:', e);
-        toast.error(describeMicError(e));
-      }
-    })();
-  }, [room]);
+  const setVoiceState = useStore((state) => state.setVoiceState);
+  const myStatus = useMyStatus();
 
   // Screen share
   const { toggle: toggleScreenShare, enabled: isScreenSharing } = useTrackToggle({
     source: Track.Source.ScreenShare,
-    captureOptions: { audio: true },
+    captureOptions: SCREEN_SHARE_CAPTURE,
+    publishOptions: SCREEN_SHARE_PUBLISH,
   });
   const screenTracks = useTracks([
     { source: Track.Source.ScreenShare, withPlaceholder: false },
@@ -430,8 +457,10 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
     localInList ? allRaw : localParticipant ? [localParticipant, ...allRaw] : allRaw
   ).map((p) => ({ participant: p, isLocal: p.identity === localParticipant?.identity }));
 
+  const lastSpokeRef = useRef(Date.now());
   const toggleMic = async () => {
     try {
+      if (!isMicrophoneEnabled) lastSpokeRef.current = Date.now();
       await room?.localParticipant?.setMicrophoneEnabled(!isMicrophoneEnabled);
     } catch (e) {
       console.error('toggleMic failed:', e);
@@ -439,6 +468,43 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
     }
   };
   const handleLeave = () => { room?.disconnect(); onLeave(); };
+
+  // La oficina ve en qué sala estás y si tu micrófono está abierto.
+  useEffect(() => {
+    setVoiceState({ room: roomName, mic: isMicrophoneEnabled, sharing: isScreenSharing });
+  }, [roomName, isMicrophoneEnabled, isScreenSharing, setVoiceState]);
+  useEffect(() => () => setVoiceState({ room: null, mic: false, sharing: false }), [setVoiceState]);
+
+  // Micrófono abierto sin hablar durante un rato → se silencia solo.
+  useEffect(() => {
+    if (!localParticipant) return undefined;
+    const onSpeaking = (speaking) => { if (speaking) lastSpokeRef.current = Date.now(); };
+    localParticipant.on(ParticipantEvent.IsSpeakingChanged, onSpeaking);
+    const id = setInterval(async () => {
+      if (!localParticipant.isMicrophoneEnabled) return;
+      if (Date.now() - lastSpokeRef.current < AUTO_MUTE_AFTER_MS) return;
+      await localParticipant.setMicrophoneEnabled(false).catch(() => {});
+      toast('Te silenciamos tras 5 minutos sin hablar.', { icon: '🔇' });
+    }, 15 * 1000);
+    return () => {
+      localParticipant.off(ParticipantEvent.IsSpeakingChanged, onSpeaking);
+      clearInterval(id);
+    };
+  }, [localParticipant]);
+
+  // Pasar a "Ocupado" o "En grabación" (a mano o por la agenda) silencia.
+  const myStatusKind = myStatus.kind;
+  useEffect(() => {
+    if (!statusMutesMic(myStatusKind) || !localParticipant?.isMicrophoneEnabled) return;
+    localParticipant.setMicrophoneEnabled(false).catch(() => {});
+    toast(`Te silenciamos: estás «${STATUS_KINDS[myStatusKind].label}».`, { icon: '🔇' });
+  }, [myStatusKind, localParticipant]);
+
+  const listenerNames = allParticipants
+    .filter(({ isLocal }) => !isLocal)
+    .map(({ participant }) => getDisplayName(participant.identity, participant.name));
+  const listenersText = describeListeners(isMicrophoneEnabled, listenerNames);
+  const roomTitle = getRoomTitle(roomName);
 
   // ── Minimized pill ──────────────────────────────────────────────────────────
   if (isMinimized) {
@@ -449,13 +515,16 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
         {/* Room name + participants */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shrink-0" />
-          <span className="text-sm font-semibold text-white truncate max-w-[100px]">{roomName}</span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-white truncate">{roomTitle}</p>
+            <p className={`text-[10px] truncate ${isMicrophoneEnabled ? 'text-green-400' : 'text-slate-500'}`}>{listenersText}</p>
+          </div>
           {activeScreen && (
             <span className="text-[10px] bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-1.5 py-0.5 rounded-full shrink-0">
               pantalla
             </span>
           )}
-          <div className="flex -space-x-2">
+          <div className="hidden sm:flex -space-x-2 shrink-0">
             {allParticipants.slice(0, 3).map(({ participant }, i) => {
               const { bgHex } = getTeamStyle(participant);
               return (
@@ -519,7 +588,7 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
         <div className="absolute bottom-0 left-60 w-96 h-96 bg-purple-600/5 rounded-full blur-3xl pointer-events-none" />
 
         {/* Sidebar — projects/notes */}
-        <div className="relative z-10 shrink-0 overflow-hidden">
+        <div className="relative z-10 hidden shrink-0 overflow-hidden md:block">
           <ProjectTaskSidebar />
         </div>
 
@@ -541,11 +610,11 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
             <RoomAudioRenderer />
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 pt-4 pb-3 border-b border-slate-800/60 shrink-0">
+      <div className="flex items-center justify-between px-4 pt-4 pb-3 pr-16 border-b border-slate-800/60 shrink-0 sm:px-6">
         <div className="flex items-center gap-3">
           <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
           <div>
-            <h2 className="text-base font-semibold text-white leading-tight">{roomName}</h2>
+            <h2 className="text-base font-semibold text-white leading-tight">{roomTitle}</h2>
             <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
               <Users size={10} />
               {allParticipants.length} participante{allParticipants.length !== 1 ? 's' : ''}
@@ -566,7 +635,7 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
           // ── Screen share mode ──
           <div className="flex flex-1 min-h-0 gap-0">
             {/* Screen share video */}
-            <div className="flex-1 min-w-0 bg-black flex items-center justify-center p-4">
+            <div className="flex-1 min-w-0 bg-black flex items-center justify-center p-1 sm:p-4">
               <div className="w-full h-full rounded-xl overflow-hidden shadow-2xl border border-slate-700/40 relative">
                 <VideoTrack trackRef={activeScreen} className="w-full h-full object-contain" />
                 {/* Presenter label */}
@@ -579,7 +648,7 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
               </div>
             </div>
             {/* Participant strip (right side) */}
-            <div className="w-28 shrink-0 flex flex-col gap-3 items-center py-4 px-2 border-l border-slate-800/60 overflow-y-auto soft-scroll">
+            <div className="hidden w-28 shrink-0 flex-col gap-3 items-center py-4 px-2 border-l border-slate-800/60 overflow-y-auto soft-scroll sm:flex">
               {allParticipants.map(({ participant, isLocal }, i) => {
                 const { bgHex } = getTeamStyle(participant);
                 const initials = getInitials(participant.identity, participant.name);
@@ -609,7 +678,7 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
           </div>
         ) : (
           // ── Audio-only grid ──
-          <div className="flex-1 min-h-0 flex items-center justify-center p-8">
+          <div className="flex-1 min-h-0 flex items-center justify-center p-4 sm:p-8">
             {allParticipants.length === 0 ? (
               <div className="flex flex-col items-center gap-3 text-slate-600">
                 <Volume2 size={28} className="opacity-40" />
@@ -639,11 +708,18 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
       </div>
 
       {/* Controls bar */}
-      <div className="shrink-0 px-6 pb-5 pt-3 border-t border-slate-800/60">
-        <div className="flex items-center justify-center gap-2.5">
+      <div className="shrink-0 px-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-3 border-t border-slate-800/60 sm:px-6">
+        <p
+          className={`mb-2.5 text-center text-xs ${isMicrophoneEnabled ? 'text-green-400' : 'text-slate-500'}`}
+          aria-live="polite"
+        >
+          {listenersText}
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5">
           {/* Mic */}
           <button
             onClick={toggleMic}
+            aria-label={isMicrophoneEnabled ? 'Silenciar' : 'Activar micrófono'}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
               isMicrophoneEnabled
                 ? 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'
@@ -651,12 +727,13 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
             }`}
           >
             {isMicrophoneEnabled ? <Mic size={15} /> : <MicOff size={15} />}
-            {isMicrophoneEnabled ? 'Silenciar' : 'Activar mic'}
+            <span className="hidden sm:inline">{isMicrophoneEnabled ? 'Silenciar' : 'Activar mic'}</span>
           </button>
 
           {/* Screen share */}
           <button
             onClick={() => typeof toggleScreenShare === 'function' && toggleScreenShare()}
+            aria-label={isScreenSharing ? 'Dejar de compartir pantalla' : 'Compartir pantalla'}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
               isScreenSharing
                 ? 'bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 border border-indigo-500/40'
@@ -664,12 +741,13 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
             }`}
           >
             {isScreenSharing ? <MonitorOff size={15} /> : <Monitor size={15} />}
-            {isScreenSharing ? 'Dejar de compartir' : 'Compartir pantalla'}
+            <span className="hidden sm:inline">{isScreenSharing ? 'Dejar de compartir' : 'Compartir pantalla'}</span>
           </button>
 
           {/* Chat toggle */}
           <button
             onClick={handleToggleChat}
+            aria-label="Chat"
             className={`relative flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
               showChat
                 ? 'bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 border border-indigo-500/40'
@@ -677,7 +755,7 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
             }`}
           >
             <MessageSquare size={15} />
-            Chat
+            <span className="hidden sm:inline">Chat</span>
             {unread > 0 && !showChat && (
               <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
                 {unread > 9 ? '9+' : unread}
@@ -703,6 +781,7 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
           messages={messages}
           onSend={handleSend}
           localIdentity={chatIdentity}
+          onClose={handleToggleChat}
         />
       )}
           </div>
@@ -1019,7 +1098,7 @@ export default function VistaVoiceRoom() {
           <div className="absolute inset-0 rounded-full border-2 border-t-blue-500 animate-spin" />
         </div>
         <div className="text-center">
-          <p className="text-sm font-medium text-slate-400">Conectando a <span className="text-white">{roomName}</span></p>
+          <p className="text-sm font-medium text-slate-400">Conectando a <span className="text-white">{getRoomTitle(roomName)}</span></p>
           <p className="text-xs text-slate-600 mt-1">Estableciendo conexión segura…</p>
         </div>
       </div>
@@ -1079,13 +1158,12 @@ export default function VistaVoiceRoom() {
       ) : (
         <LiveKitRoom
           video={false}
-          // No pedimos el mic acá: si está ocupado por otra app, antes tumbaba
-          // toda la conexión a la sala. AudioRoomInterior lo activa después de
-          // conectar, sin que una falla del mic te deje afuera de la sala.
+          // Siempre se entra silenciado; el micrófono se abre con el botón.
           audio={false}
           token={token}
           serverUrl={serverUrl}
           connect={true}
+          options={ROOM_OPTIONS}
           style={{ height: '100%', width: '100%' }}
           onError={handleRoomError}
           onDisconnected={handleDisconnected}
