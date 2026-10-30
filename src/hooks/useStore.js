@@ -325,6 +325,8 @@ const prepareProjectForSupabase = (project) => {
     (project.stage || project.properties?.stage || '').toString().trim().toLowerCase() || null;
   const recordingTime =
     project.recordingTime || project.properties?.recordingTime || '';
+  const recordingEndTime =
+    project.recordingEndTime || project.properties?.recordingEndTime || '';
   const recordingLocation =
     project.recordingLocation || project.properties?.recordingLocation || '';
   const recordingDescription =
@@ -406,6 +408,12 @@ const prepareProjectForSupabase = (project) => {
     nextProperties.recordingTime = recordingTime;
   } else if (Object.prototype.hasOwnProperty.call(nextProperties, 'recordingTime')) {
     delete nextProperties.recordingTime;
+  }
+
+  if (recordingEndTime) {
+    nextProperties.recordingEndTime = recordingEndTime;
+  } else if (Object.prototype.hasOwnProperty.call(nextProperties, 'recordingEndTime')) {
+    delete nextProperties.recordingEndTime;
   }
 
   if (recordingLocation) {
@@ -494,6 +502,8 @@ const prepareProjectForSupabase = (project) => {
   delete baseProject.stage;
   delete baseProject.registrationType;
   delete baseProject.recordingTime;
+  // Va en properties: la tabla projects no tiene esta columna.
+  delete baseProject.recordingEndTime;
   delete baseProject.recordingLocation;
   delete baseProject.recordingDescription;
   delete baseProject.linkedRecordingId;
