@@ -73,5 +73,26 @@ const before2 = calls.filter((c) => c.op === null).length;
 await Promise.all([useStore.getState()._fetchProjects(), useStore.getState()._fetchProjects()]);
 assert.strictEqual(calls.filter((c) => c.op === null).length - before2, 1);
 
+// Solo columnas reales de projects: un campo de más (como recordingEndTime en
+// la fase 1) hace que Supabase rechace todos los guardados.
+const PROJECT_COLUMNS = new Set([
+  'id', 'name', 'client', 'type', 'status', 'manager', 'deadline', 'team', 'description', 'comments',
+  'properties', 'startDate', 'ingreso', 'notes', 'resources', 'costos', 'income', 'state', 'current_cycle',
+  'billing_status',
+]);
+const rodaje = useStore.getState().projects.find((p) => p.id === 'p1');
+await useStore.getState().updateProject({ ...rodaje, recordingTime: '09:00', recordingEndTime: '12:30' });
+await useStore.getState().addProject({ name: 'Nuevo rodaje', client: 'X', managers: ['Luis'], recordingTime: '10:00', recordingEndTime: '11:00', properties: {} }, { skipNotifications: true });
+calls
+  .filter((c) => c.op === 'update' || c.op === 'insert')
+  .forEach((c) => {
+    (Array.isArray(c.payload) ? c.payload : [c.payload]).forEach((payload) => {
+      const unknown = Object.keys(payload).filter((key) => !PROJECT_COLUMNS.has(key));
+      assert.deepStrictEqual(unknown, [], `columnas que no existen en projects (${c.op})`);
+    });
+  });
+const savedUpdate = calls.filter((c) => c.op === 'update').at(-1).payload;
+assert.strictEqual(savedUpdate.properties.recordingEndTime, '12:30', 'la hora de fin se guarda en properties');
+
 console.log('All store update tests passed.');
 process.exit(0);
