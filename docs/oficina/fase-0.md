@@ -22,7 +22,7 @@ Archivos: `src/lib/auth/teamAuth.js`, `src/lib/office/livekitPolicy.js`, `src/ut
      and tablename in ('projects', 'room_messages');
    ```
    Si aparece alguna política para `anon` o con `qual = true`, bórrala (`drop policy "<nombre>" on public.<tabla>;`): las políticas se suman, y una abierta anula a las nuevas.
-2. **Supabase → SQL Editor: ejecutar** `supabase/migrations/20261030120000_fase0_seguridad.sql`. Al final del archivo está cómo deshacerlo.
+2. **Supabase → SQL Editor: ejecutar** `supabase/migrations/20261030120000_fase0_seguridad.sql` (ya aplicada el 30/10) y después `supabase/migrations/20261030130000_fase0_quitar_politicas_abiertas.sql`, que borra las políticas abiertas encontradas en `projects`, `room_messages` y `retainers`. Al final de cada archivo está cómo deshacerlo.
 3. **Supabase → Authentication → Sign In / Providers:** desactivar *Allow new users to sign up* y *Allow anonymous sign-ins*. Los 4 del equipo y Francisco ya tienen cuenta.
 4. **Vercel → Environment Variables** (Production y Preview), y luego *Redeploy*:
    - `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `NEXT_PUBLIC_LIVEKIT_URL`
