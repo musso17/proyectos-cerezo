@@ -8,8 +8,9 @@ export const MEMBER_EMAILS = {
   'edson': 'edsonlom321@gmail.com',
   'edson lopez': 'edsonlom321@gmail.com',
   'luis': 'luis.matallana.30@gmail.com',
-  'marcelo': 'hola@cerezoperu.com',
-  'marcelo musso': 'hola@cerezoperu.com',
+  // Marcelo entra con hola@cerezoperu.com, pero los avisos le llegan al personal.
+  'marcelo': 'mmusso209817@gmail.com',
+  'marcelo musso': 'mmusso209817@gmail.com',
 };
 
 const normalizeTimeValue = (time, fallback = '09:00:00') => {

@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { requireTeamMember } from '../../../../lib/auth/teamAuth';
-import { MEMBER_BY_EMAIL } from '../../../../constants/team';
+import { MEMBER_EMAILS } from '../../../../utils/calendar';
 
 // Solo se avisa al equipo: antes cualquiera podía usar esta ruta para mandar
 // correos a cualquier dirección desde notificaciones@cerezoperu.com.
-const TEAM_EMAILS = new Set(Object.keys(MEMBER_BY_EMAIL));
+// Son los correos de aviso, que pueden no ser los de inicio de sesión.
+const TEAM_EMAILS = new Set(Object.values(MEMBER_EMAILS).map((email) => email.toLowerCase()));
 
 // Los datos del proyecto vienen del cliente: se escapan antes de armar el HTML.
 const escapeHtml = (value) =>

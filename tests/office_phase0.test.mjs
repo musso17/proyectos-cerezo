@@ -93,6 +93,18 @@ process.env.RESEND_API_KEY = 're_test';
 const outsider = await emailRoute.POST(request({ 'x-dev-member': 'Marcelo' }, { to: 'victima@ejemplo.com', subject: 'x' }));
 assert.strictEqual(outsider.status, 403);
 assert.strictEqual((await outsider.json()).code, 'RECIPIENT_NOT_ALLOWED');
+const { MEMBER_EMAILS } = await import('../src/utils/calendar.js');
+assert.strictEqual(MEMBER_EMAILS.marcelo, 'mmusso209817@gmail.com', 'los avisos de Marcelo van a su correo personal');
+const realFetch = globalThis.fetch;
+const resendCalls = [];
+globalThis.fetch = async (url, opts) => {
+  resendCalls.push({ url: String(url), body: opts?.body });
+  return new Response(JSON.stringify({ id: 'email_test' }), { status: 200, headers: { 'content-type': 'application/json' } });
+};
+const marceloRes = await emailRoute.POST(request({ 'x-dev-member': 'Marcelo' }, { to: 'mmusso209817@gmail.com', subject: 'x' }));
+globalThis.fetch = realFetch;
+assert.notStrictEqual(marceloRes.status, 403, 'el correo de avisos de Marcelo está permitido');
+assert.ok(resendCalls.some((c) => String(c.body).includes('mmusso209817@gmail.com')), 'se envía al correo personal');
 const badRoom = await livekitRoute.POST(request({ 'x-dev-member': 'Marcelo' }, { room: 'otra' }));
 assert.strictEqual(badRoom.status, 403, 'sala fuera de la lista');
 process.env.LIVEKIT_API_KEY = 'key';
