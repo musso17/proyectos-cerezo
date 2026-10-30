@@ -25,7 +25,7 @@ import MetricCard from '../shared/MetricCard';
 import { MonthNavigator } from '../calendar/CalendarControls';
 import ProjectDashboardList from '../dashboard/ProjectDashboardList';
 import UnclassifiedProjectsPanel from '../dashboard/UnclassifiedProjectsPanel';
-import { isProjectActiveInMonth, extractProjectInfo } from '../../utils/dashboardHelpers';
+import { isProjectActiveInMonth, isDeliveredInMonth, extractProjectInfo } from '../../utils/dashboardHelpers';
 
 const selectDashboardState = (state) => ({
   projects: state.projects,
@@ -56,14 +56,14 @@ const VistaCarbonoDashboard = () => {
 
     const carbonoProjectsThisMonth = carbonoProjects.filter((p) => {
       const info = extractProjectInfo(p);
-      return info.startDate && isSameMonth(info.startDate, referenceDate);
+      return info.workStart && isSameMonth(info.workStart, referenceDate);
     }).length;
 
     const RETAINER_LIMIT = 6;
 
     carbonoProjects.forEach((p) => {
       const projectInfo = extractProjectInfo(p);
-      const { statusLabel, statusKey, isCompleted, stage, referenceCompletionDate, managers } = projectInfo;
+      const { statusLabel, isCompleted, stage, managers } = projectInfo;
 
       const isActiveInPeriod = isProjectActiveInMonth(projectInfo, referenceDate);
 
@@ -78,8 +78,8 @@ const VistaCarbonoDashboard = () => {
       if (stage === 'grabacion' && !isCompleted && isActiveInPeriod) totals.recording += 1;
       if (stage === 'edicion' && !isCompleted && isActiveInPeriod) totals.editing += 1;
 
-      // Entregados en el mes de referencia
-      if (isCompleted && referenceCompletionDate && isSameMonth(referenceCompletionDate, referenceDate)) {
+      // Entregados en el mes de referencia (fecha de entrega, no la fecha en que se marcó)
+      if (isDeliveredInMonth(projectInfo, referenceDate)) {
         totals.delivered += 1;
       }
     });
@@ -211,7 +211,7 @@ const VistaCarbonoDashboard = () => {
 const Header = ({ title, subtitle }) => (
   <div>
     <h2 className="text-lg font-semibold text-primary">{title}</h2>
-    <p className="text-xs uppercase tracking-[0.32em] text-secondary/60">{subtitle}</p>
+    <p className="text-sm text-secondary dark:text-white/60">{subtitle}</p>
   </div>
 );
 

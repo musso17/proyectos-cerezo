@@ -79,7 +79,7 @@ const DayDetailPanel = ({
                     type="button"
                     onClick={() => openModal(item.project)}
                     className="rounded-full bg-[#F1F5F9] px-4 py-2 text-xs font-semibold text-primary transition hover:bg-accent/10 hover:text-accent dark:bg-white/5 dark:text-white/80 dark:hover:bg-purple-500/15 dark:hover:text-purple-300">
-                    Ver Detalles
+                    Ver detalles
                   </button>
                 )}
               </div>

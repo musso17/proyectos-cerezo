@@ -1,71 +1,89 @@
-import React from 'react';
-import { format, parseISO, isSameMonth } from 'date-fns';
+import React, { useMemo } from 'react';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CheckCircle2, Clock, PlayCircle, AlertCircle } from 'lucide-react';
-import { isProjectActiveInMonth, extractProjectInfo } from '../../utils/dashboardHelpers';
+import useStore from '../../hooks/useStore';
+import { isAbsenceProject } from '../../utils/absences';
+import { extractProjectInfo, isProjectInPeriod } from '../../utils/dashboardHelpers';
+import { getStatusLabel, normalizeStatus } from '../../utils/statusHelpers';
 
-const getStatusDotColor = (status) => {
-  const s = (status || '').toLowerCase();
-  if (s.includes('completado') || s.includes('entregado')) return 'bg-black dark:bg-white';
-  if (s.includes('progreso') || s.includes('edicion')) return 'bg-[#FF4B2A]';
-  if (s.includes('revision')) return 'bg-[#5F6468]';
-  return 'bg-slate-300';
+const STATUS_DOT = {
+  Programado: 'bg-slate-400',
+  'En progreso': 'bg-amber-500',
+  'En revisión': 'bg-blue-500',
+  Completado: 'bg-emerald-500',
+  Stuck: 'bg-red-500',
 };
 
-const ProjectDashboardList = ({ projects, selectedMonth, title = "Proyectos del periodo" }) => {
-  const filteredProjects = projects.filter(p => {
-    const info = extractProjectInfo(p);
-    return isProjectActiveInMonth(info, selectedMonth);
-  }).sort((a, b) => {
-    const dateA = a.startDate ? new Date(a.startDate) : new Date(0);
-    const dateB = b.startDate ? new Date(b.startDate) : new Date(0);
-    return dateB - dateA;
-  });
+const formatDay = (date) => (date ? format(date, 'd MMM', { locale: es }) : 'sin fecha');
+
+// Proyectos del mes con el mismo criterio que los KPIs: abiertos con actividad
+// en el mes + completados entregados en el mes. Sin ausencias.
+const ProjectDashboardList = ({ projects, selectedMonth, title = 'Proyectos del mes' }) => {
+  const openModal = useStore((state) => state.openModal);
+
+  const items = useMemo(() => {
+    const list = (projects || [])
+      .filter((project) => !isAbsenceProject(project))
+      .map((project) => ({ project, info: extractProjectInfo(project) }))
+      .filter(({ info }) => isProjectInPeriod(info, selectedMonth));
+    const open = list
+      .filter(({ info }) => !info.isCompleted)
+      .sort((a, b) => (a.info.workStart?.getTime() ?? Infinity) - (b.info.workStart?.getTime() ?? Infinity));
+    const delivered = list
+      .filter(({ info }) => info.isCompleted)
+      .sort((a, b) => b.info.deliveryDate - a.info.deliveryDate);
+    return { open, delivered };
+  }, [projects, selectedMonth]);
+
+  const renderItem = ({ project, info }) => {
+    const status = normalizeStatus(project.status);
+    return (
+      <li key={project.id}>
+        <button
+          type="button"
+          onClick={() => openModal(project)}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-50 dark:hover:bg-white/[0.03]"
+        >
+          <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_DOT[status]}`} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold text-primary dark:text-white/90">{project.name || 'Sin título'}</span>
+            <span className="block text-xs text-secondary dark:text-white/60">
+              {project.client || 'Sin cliente'} ·{' '}
+              {info.isCompleted ? `entregado ${formatDay(info.deliveryDate)}` : `desde ${formatDay(info.workStart)}`}
+            </span>
+          </span>
+          <span className="shrink-0 text-xs font-medium text-secondary dark:text-white/60">{getStatusLabel(status)}</span>
+        </button>
+      </li>
+    );
+  };
 
   return (
-    <div className="glass-panel flex flex-col gap-6 p-8 rounded-xl transition-all hover:shadow-2xl animate-fade-up">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-primary tracking-tight dark:text-white">{title}</h2>
-        <span className="text-[10px] font-medium text-secondary/40 uppercase tracking-[0.2em] border border-border/40 px-3 py-1 rounded-full">
-          {filteredProjects.length} ítems
-        </span>
+    <section className="glass-panel flex flex-col gap-3 rounded-xl p-5 sm:p-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-lg font-semibold tracking-tight text-primary dark:text-white">{title}</h3>
+        <p className="text-sm text-secondary dark:text-white/60">
+          {items.open.length} en curso · {items.delivered.length} entregados
+        </p>
       </div>
 
-      <div className="soft-scroll overflow-y-auto max-h-[400px] pr-2">
-        {filteredProjects.length > 0 ? (
-          <ul className="flex flex-col gap-4">
-            {filteredProjects.map((project) => (
-              <li key={project.id} className="group relative rounded-lg p-4 transition-all hover:bg-slate-50 dark:hover:bg-white/[0.03]">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 min-w-0 flex-1">
-                    <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${getStatusDotColor(project.status)}`} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-primary group-hover:text-accent transition-colors dark:text-white/80">
-                        {project.name || project.projectName || project.titulo || "Sin título"}
-                      </p>
-                      <div className="mt-1 flex items-center gap-3 text-[10px] font-medium uppercase tracking-wide text-secondary/40">
-                        <span className="font-mono">{project.client}</span>
-                        <div className="h-1 w-1 rounded-full bg-secondary/10" />
-                        <span>{project.startDate ? format(parseISO(project.startDate), 'dd MMM', { locale: es }) : 'S/F'}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 whitespace-nowrap">
-                    <span className="text-[9px] font-medium uppercase tracking-widest text-secondary/40">
-                      {project.status}
-                    </span>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="flex h-32 flex-col items-center justify-center rounded-xl border-2 border-dashed border-border/40 bg-slate-50/50 p-6">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-secondary/30 text-center">No hay proyectos registrados</p>
+      {items.open.length + items.delivered.length === 0 ? (
+        <p className="rounded-lg border-2 border-dashed border-border/60 p-6 text-center text-sm text-secondary dark:text-white/60">
+          No hay proyectos en este mes.
+        </p>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <h4 className="px-3 text-sm font-semibold text-secondary dark:text-white/60">En curso</h4>
+            <ul className="mt-1">{items.open.map(renderItem)}</ul>
           </div>
-        )}
-      </div>
-    </div>
+          <div>
+            <h4 className="px-3 text-sm font-semibold text-secondary dark:text-white/60">Entregados</h4>
+            <ul className="mt-1">{items.delivered.map(renderItem)}</ul>
+          </div>
+        </div>
+      )}
+    </section>
   );
 };
 

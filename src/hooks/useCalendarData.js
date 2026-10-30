@@ -3,9 +3,12 @@ import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, startOfDay, 
 import { es } from 'date-fns/locale';
 import { ensureMemberName } from '../constants/team';
 import { filterProjects } from '../utils/filterProjects';
-import { getProjectRecordingDates } from '../utils/dashboardHelpers';
+import { getProjectBlockingDays, getProjectRecordingDates } from '../utils/dashboardHelpers';
+import { isAbsenceProject } from '../utils/absences';
+import { getStatusLabel } from '../utils/statusHelpers';
 
-const RECORDING_PILL = 'border border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7] dark:border-blue-500/60 dark:bg-blue-500/15 dark:text-blue-300';
+const RECORDING_PILL = 'border border-[#C7DAFF] bg-[#E7F1FF] text-[#1D4ED8] dark:border-blue-500/60 dark:bg-blue-500/15 dark:text-blue-300';
+const ABSENCE_PILL = 'border border-slate-300 bg-slate-100 text-slate-700 dark:border-white/20 dark:bg-white/10 dark:text-white/80';
 
 import { format } from 'date-fns';
 
@@ -54,7 +57,8 @@ export const useCalendarData = ({ projects, searchTerm, selectedMember, currentM
     // adjuntando metadata de "tramo" para dibujar los días consecutivos como
     // una barra continua (ver CalendarGrid).
     return visibleProjects.flatMap(({ project, memberName }) => {
-      const dates = getProjectRecordingDates(project);
+      const isAbsence = isAbsenceProject(project);
+      const dates = isAbsence ? getProjectBlockingDays(project) : getProjectRecordingDates(project);
       if (!dates.length) return [];
       const totalDays = dates.length;
       const daySet = new Set(dates.map((d) => format(d, 'yyyy-MM-dd')));
@@ -64,6 +68,7 @@ export const useCalendarData = ({ projects, searchTerm, selectedMember, currentM
         const nextKey = format(addDays(recordingDate, 1), 'yyyy-MM-dd');
         return {
           type: 'recording_event',
+          isAbsence,
           project,
           memberName,
           range: { start: recordingDate, end: recordingDate },
@@ -105,26 +110,29 @@ export const useCalendarData = ({ projects, searchTerm, selectedMember, currentM
     if (!dayDate) return null;
 
     if (item.type === 'recording_event') {
-      const { project, memberName, range, dayIndex, totalDays } = item;
+      const { project, memberName, range, dayIndex, totalDays, isAbsence } = item;
       const managersLabel = project?.managers?.length
         ? project.managers.join(', ')
         : memberName;
       const isMultiDay = totalDays > 1;
-      const dayLabel = isMultiDay ? `Grabación · día ${dayIndex}/${totalDays}` : 'Grabación';
+      const baseLabel = isAbsence ? 'Ausente' : 'Grabación';
+      const dayLabel = isMultiDay ? `${baseLabel} · día ${dayIndex}/${totalDays}` : baseLabel;
+      const pill = isAbsence ? ABSENCE_PILL : RECORDING_PILL;
       return {
         id: `recording-${project?.id || project?.name || range.start.toISOString()}-${dayDate.toISOString()}`,
         sortTime: range.start.getTime(),
         type: 'recording_event',
-        title: project?.name || 'Grabación',
+        title: isAbsence ? `No está: ${managersLabel}` : project?.name || 'Grabación',
         description: project?.description || '',
         eventLabel: dayLabel,
         timeLabel: format(range.start, "EEEE d 'de' MMMM", { locale: es }),
         manager: managersLabel,
-        colorClass: RECORDING_PILL,
+        colorClass: pill,
+        isAbsence,
         project,
-        client: project?.client || '',
-        status: project?.status || '',
-        typeMeta: { label: dayLabel, className: RECORDING_PILL },
+        client: isAbsence ? '' : project?.client || '',
+        status: isAbsence ? '' : getStatusLabel(project?.status),
+        typeMeta: { label: dayLabel, className: pill },
         date: dayDate,
       };
     }

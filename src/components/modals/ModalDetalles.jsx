@@ -2,16 +2,30 @@
 
 import React, { Fragment, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { X, Plus, Trash2, Calendar, ChevronDown } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { X, Plus, Trash2, Calendar, ChevronDown, AlertTriangle, Sparkles } from 'lucide-react';
+import { format, parseISO, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import useStore from '../../hooks/useStore';
-import { sanitizeRecordingDates } from '../../utils/dashboardHelpers';
+import {
+  sanitizeRecordingDates,
+  computeTurnaroundByFormat,
+  estimateDeliveryDate,
+  parseProjectDate,
+  MIN_PLAUSIBLE_YEAR,
+  MAX_PLAUSIBLE_YEAR,
+} from '../../utils/dashboardHelpers';
+import { buildScheduleIndex, findProjectConflicts, getMemberCommitments } from '../../utils/scheduleConflicts';
+import { ABSENCE_STAGE } from '../../utils/absences';
+import { STATUS_OPTIONS } from '../../utils/statusHelpers';
+import { buildClientLabelMap, getClientKey } from '../../utils/clients';
 import { generarLinkGoogleCalendar } from '../../utils/calendar';
 import VideoReviewPlayer from '../ui/VideoReviewPlayer';
+import MemberAvatar from '../ui/MemberAvatar';
+import { deleteProjectWithUndo } from '../ui/projectActions';
 import { toast } from 'react-hot-toast';
 import confetti from 'canvas-confetti';
 
+// "Formato" del registro (antes "Tipo"): Spot, Evento, Contenido, Lanzamiento.
 const REGISTRATION_TYPES = [
   { value: 'spot', label: 'Spot' },
   { value: 'evento', label: 'Evento' },
@@ -23,7 +37,15 @@ const STAGES = {
   GRABACION: 'grabacion',
   EDICION: 'edicion',
   FOTOGRAFIA: 'fotografia',
+  AUSENCIA: ABSENCE_STAGE,
 };
+
+const STAGE_BUTTONS = [
+  { value: STAGES.GRABACION, label: 'Grabación' },
+  { value: STAGES.FOTOGRAFIA, label: 'Fotografía' },
+  { value: STAGES.EDICION, label: 'Edición' },
+  { value: STAGES.AUSENCIA, label: 'Ausencia' },
+];
 
 // Metadata interna del sistema: NO debe exponerse como "propiedad personalizada".
 const INTERNAL_PROPERTY_KEYS = new Set([
@@ -32,9 +54,10 @@ const INTERNAL_PROPERTY_KEYS = new Set([
   'linkedRecordingId', 'state', 'status', 'managers', 'manager', 'tasks',
   'client', 'cliente', 'currentCycle', 'current_cycle', 'deadline', 'fecha_entrega',
   'deliverableLink', 'deliverable_link', 'tag', 'income', 'notes', 'progress',
+  'completedAt', 'editionPriority', 'isaOverrides',
 ]);
 
-// Mismo mapeo que STATUS_PROGRESS en components/dashboard/DashboardHero.jsx —
+// Mismo mapeo que STATUS_PROGRESS en components/dashboard/MyPriorities.jsx —
 // usado solo para mostrar dónde caería el slider en modo "automático".
 const AUTO_PROGRESS_BY_STATUS = {
   Programado: 15,
@@ -44,222 +67,235 @@ const AUTO_PROGRESS_BY_STATUS = {
   Stuck: 40,
 };
 
-// Etiqueta legible para un chip de fecha, ej. "mar 9 jun"
-const formatRecordingChip = (isoDate) => {
+const inputClass =
+  'mt-2 w-full rounded-lg border bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 dark:bg-[#0d0f1a] dark:text-white/85 dark:placeholder:text-white/40';
+const inputOk = 'border-gray-300 focus:border-accent focus:ring-accent/20 dark:border-white/10';
+const inputError = 'border-red-400 focus:border-red-500 focus:ring-red-500/20 dark:border-red-500/60';
+const labelClass = 'text-sm font-medium text-gray-700 dark:text-white/80';
+
+// Etiqueta de un día, siempre con año: "vie 10 oct 2026".
+const formatDayChip = (isoDate) => {
   try {
-    return format(parseISO(`${isoDate}T00:00:00`), "EEE d MMM", { locale: es });
+    return format(parseISO(`${isoDate}T00:00:00`), 'EEE d MMM yyyy', { locale: es });
   } catch {
     return isoDate;
   }
+};
+
+const formatShortDay = (isoDate) => {
+  try {
+    return format(parseISO(`${isoDate}T00:00:00`), 'EEE d MMM', { locale: es });
+  } catch {
+    return isoDate;
+  }
+};
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const isPlausibleIsoDay = (value) => ISO_DAY.test(value || '') && Boolean(parseProjectDate(value));
+
+const FieldError = ({ id, message }) =>
+  message ? (
+    <p id={id} role="alert" className="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400">
+      {message}
+    </p>
+  ) : null;
+
+const isFranciscoUser = (user) =>
+  user?.email?.toString().trim().toLowerCase() === 'francisco@carbonomkt.com';
+
+const buildInitialDraft = (selectedProject, intent, enforceFranciscoClient) => {
+  const properties = selectedProject.properties || {};
+  const existingResources = Array.isArray(properties.resources)
+    ? properties.resources.filter(Boolean)
+    : Array.isArray(selectedProject.resources)
+      ? selectedProject.resources.filter(Boolean)
+      : [];
+  const normalizedTeam = Array.isArray(selectedProject.team)
+    ? selectedProject.team
+    : typeof selectedProject.team === 'string' && selectedProject.team.length > 0
+      ? selectedProject.team.split(',').map((member) => member.trim()).filter(Boolean)
+      : [];
+
+  // No pre-rellenar el responsable en proyectos nuevos (evita asignar al
+  // usuario activo por defecto). Solo se conservan los responsables existentes.
+  const managers = Array.isArray(selectedProject.managers)
+    ? selectedProject.managers
+    : typeof selectedProject.manager === 'string' && selectedProject.manager.length > 0
+      ? selectedProject.manager.split(',').map((manager) => manager.trim()).filter(Boolean)
+      : [];
+
+  const rawStage = selectedProject.stage || properties.stage || '';
+  const stage = rawStage ? rawStage.toString().trim().toLowerCase() : STAGES.GRABACION;
+  const registrationType =
+    selectedProject.registrationType || properties.registrationType || selectedProject.type || 'spot';
+  const projectClient = enforceFranciscoClient
+    ? 'Carbono'
+    : (selectedProject.client || selectedProject.cliente || properties.client || properties.cliente || '')
+      .toString()
+      .trim();
+  const recordingDates = sanitizeRecordingDates(
+    selectedProject.recordingDates ||
+    properties.recordingDates ||
+    selectedProject.recordingDate ||
+    selectedProject.fechaGrabacion ||
+    properties.fechaGrabacion ||
+    ''
+  );
+  const recordingDate = recordingDates[0] || '';
+  const recordingTime = selectedProject.recordingTime || properties.recordingTime || '';
+  const recordingLocation = selectedProject.recordingLocation || properties.recordingLocation || '';
+  const recordingDescription = selectedProject.recordingDescription || properties.recordingDescription || '';
+  const deliverableLink = (selectedProject.deliverableLink || properties.deliverableLink || properties.deliverable_link || '')
+    .toString()
+    .trim();
+
+  return {
+    ...selectedProject,
+    manager: managers[0] || '',
+    managers,
+    startDate: selectedProject.startDate || '',
+    deadline: selectedProject.deadline || '',
+    team: normalizedTeam,
+    registrationType,
+    stage,
+    recordingDate,
+    recordingDates,
+    recordingTime,
+    recordingLocation,
+    recordingDescription,
+    deliverableLink,
+    type: registrationType || selectedProject.type || '',
+    status: intent?.status || selectedProject.status || 'Programado',
+    client: projectClient,
+    properties: {
+      ...properties,
+      resources: existingResources,
+      managers,
+      registrationType,
+      stage,
+      recordingTime,
+      recordingLocation,
+      recordingDescription,
+      fechaGrabacion: recordingDate || properties.fechaGrabacion || '',
+      recordingDates,
+      deliverableLink,
+      client: projectClient,
+    },
+    resources: existingResources,
+  };
 };
 
 const ModalDetalles = () => {
   const isModalOpen = useStore((state) => state.isModalOpen);
   const closeModal = useStore((state) => state.closeModal);
   const selectedProject = useStore((state) => state.selectedProject);
+  const modalIntent = useStore((state) => state.modalIntent);
   const updateProject = useStore((state) => state.updateProject);
   const addProject = useStore((state) => state.addProject);
-  const deleteProject = useStore((state) => state.deleteProject);
   const teamMembers = useStore((state) => state.teamMembers);
   const projects = useStore((state) => state.projects);
   const currentUser = useStore((state) => state.currentUser);
   const [editedProject, setEditedProject] = useState(null);
+  const [initialSnapshot, setInitialSnapshot] = useState('');
   const [isManagerDropdownOpen, setIsManagerDropdownOpen] = useState(false);
   const managerDropdownRef = useRef(null);
+  const managerTriggerRef = useRef(null);
   const [clientSelection, setClientSelection] = useState('');
   const [isCustomClient, setIsCustomClient] = useState(false);
   const [sosComment, setSosComment] = useState('');
+  const [pendingDay, setPendingDay] = useState('');
+  const [errors, setErrors] = useState({});
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [newResource, setNewResource] = useState('');
+  const [showResourceInput, setShowResourceInput] = useState(false);
 
-  const isFranciscoUser = (user) =>
-    user?.email?.toString().trim().toLowerCase() === 'francisco@carbonomkt.com';
-
-  const normalizedClientOptions = useMemo(() => {
-    const seen = new Map();
-    (projects || []).forEach((project) => {
-      const candidates = [
-        project.client,
-        project.cliente,
-        project.properties?.client,
-        project.properties?.cliente,
-      ];
-      candidates.forEach((value) => {
-        const trimmed = value?.toString().trim();
-        if (!trimmed) return;
-        const normalized = trimmed.toLowerCase();
-        if (!seen.has(normalized)) {
-          seen.set(normalized, trimmed);
-        }
-      });
-    });
-    return Array.from(seen.values()).sort((a, b) => a.localeCompare(b, 'es'));
-  }, [projects]);
+  const nameRef = useRef(null);
+  const clientRef = useRef(null);
+  const dayInputRef = useRef(null);
+  const deliverableRef = useRef(null);
+  const deadlineRef = useRef(null);
 
   const enforceFranciscoClient = isFranciscoUser(currentUser);
+
+  // Clientes existentes, con un solo nombre por cliente ("FUSO" y "Fuso" → "Fuso").
+  const clientLabelMap = useMemo(() => buildClientLabelMap(projects || []), [projects]);
+  const normalizedClientOptions = useMemo(
+    () => Array.from(clientLabelMap.values()).sort((a, b) => a.localeCompare(b, 'es')),
+    [clientLabelMap]
+  );
+
   const availableClientOptions = useMemo(
     () => (enforceFranciscoClient ? ['Carbono'] : normalizedClientOptions),
     [enforceFranciscoClient, normalizedClientOptions]
   );
   const canAddCustomClient = !enforceFranciscoClient;
 
-  const findMatchingClientOption = useCallback((value) => {
-    if (!value) return null;
-    const normalized = value.toString().trim().toLowerCase();
-    return (
-      availableClientOptions.find(
-        (option) => option.toString().trim().toLowerCase() === normalized
-      ) || null
-    );
-  }, [availableClientOptions]);
+  const findMatchingClientOption = useCallback(
+    (value) => {
+      if (!value) return null;
+      return clientLabelMap.get(getClientKey(value)) || null;
+    },
+    [clientLabelMap]
+  );
+
+  // Se lee desde una ref para que una recarga de proyectos (tiempo real) no
+  // reinicie el formulario mientras se edita.
+  const findMatchingClientOptionRef = useRef(findMatchingClientOption);
+  findMatchingClientOptionRef.current = findMatchingClientOption;
 
   useEffect(() => {
     if (selectedProject) {
-      const properties = selectedProject.properties || {};
-      const existingResources = Array.isArray(properties.resources)
-        ? properties.resources.filter(Boolean)
-        : Array.isArray(selectedProject.resources)
-          ? selectedProject.resources.filter(Boolean)
-          : [];
-      const normalizedTeam = Array.isArray(selectedProject.team)
-        ? selectedProject.team
-        : typeof selectedProject.team === 'string' && selectedProject.team.length > 0
-          ? selectedProject.team
-            .split(',')
-            .map((member) => member.trim())
-            .filter(Boolean)
-          : [];
-
-      const normalizedManagers = Array.isArray(selectedProject.managers)
-        ? selectedProject.managers
-        : typeof selectedProject.manager === 'string' && selectedProject.manager.length > 0
-          ? selectedProject.manager
-            .split(',')
-            .map((manager) => manager.trim())
-            .filter(Boolean)
-          : [];
-
-      const rawStage = selectedProject.stage || properties.stage || '';
-      const stage = rawStage ? rawStage.toString().trim().toLowerCase() : STAGES.GRABACION;
-      const registrationType =
-        selectedProject.registrationType || properties.registrationType || selectedProject.type || 'spot';
-      const projectClient =
-        (selectedProject.client ||
-          selectedProject.cliente ||
-          properties.client ||
-          properties.cliente ||
-          '').toString().trim();
-      const recordingDatesInit = sanitizeRecordingDates(
-        selectedProject.recordingDates ||
-        properties.recordingDates ||
-        selectedProject.recordingDate ||
-        selectedProject.fechaGrabacion ||
-        properties.fechaGrabacion ||
-        ''
-      );
-      const recordingDate = recordingDatesInit[0] || '';
-      const recordingTime = selectedProject.recordingTime || properties.recordingTime || '';
-      const recordingLocation =
-        selectedProject.recordingLocation || properties.recordingLocation || '';
-      const recordingDescription =
-        selectedProject.recordingDescription || properties.recordingDescription || '';
-
-      // No pre-rellenar el responsable en proyectos nuevos (evita asignar al
-      // usuario activo por defecto). Solo se conservan los responsables existentes.
-      const managers = normalizedManagers;
-
-      const deliverableLink =
-        (selectedProject.deliverableLink ||
-          properties.deliverableLink ||
-          properties.deliverable_link ||
-          '')
-          .toString()
-          .trim();
-
-      setEditedProject({
-        ...selectedProject,
-        manager: managers[0] || '',
-        managers,
-        startDate: selectedProject.startDate || '',
-        deadline: selectedProject.deadline || '',
-        team: normalizedTeam,
-        registrationType,
-        stage,
-        recordingDate: recordingDate || '',
-        recordingDates: recordingDatesInit,
-        recordingTime,
-        recordingLocation,
-        recordingDescription,
-        deliverableLink,
-        type: registrationType || selectedProject.type || '',
-        status: selectedProject.status || 'Programado',
-        client: projectClient,
-        properties: {
-          ...properties,
-          resources: existingResources,
-          managers,
-          registrationType,
-          stage,
-          recordingTime,
-          recordingLocation,
-          recordingDescription,
-          fechaGrabacion: recordingDate || properties.fechaGrabacion || '',
-          recordingDates: recordingDatesInit,
-          deliverableLink,
-          client: projectClient,
-        },
-        resources: existingResources,
-      });
-      setIsManagerDropdownOpen(false);
-    } else {
-      setEditedProject(null);
-      setIsManagerDropdownOpen(false);
-      setClientSelection('');
-      setIsCustomClient(false);
-    }
-  }, [selectedProject, teamMembers]);
-
-  useEffect(() => {
-    if (editedProject && enforceFranciscoClient) {
-      setEditedProject(prev => {
-        if (prev.client === 'Carbono') return prev;
-        return {
-          ...prev,
-          client: 'Carbono',
-          properties: {
-            ...prev.properties,
-            client: 'Carbono',
-          }
-        }
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enforceFranciscoClient, editedProject?.id, editedProject?.client]);
-
-  useEffect(() => {
-    if (editedProject) {
-      const matchingOption = findMatchingClientOption(editedProject.client);
+      const draft = buildInitialDraft(selectedProject, null, enforceFranciscoClient);
+      const matchingClient = findMatchingClientOptionRef.current(draft.client);
       if (enforceFranciscoClient) {
         setClientSelection('Carbono');
         setIsCustomClient(false);
-      } else if (matchingOption) {
-        setClientSelection(matchingOption);
+      } else if (matchingClient) {
+        setClientSelection(matchingClient);
         setIsCustomClient(false);
-      } else if (editedProject.client) {
+      } else if (draft.client) {
         setClientSelection('__new__');
         setIsCustomClient(true);
       } else {
         setClientSelection('');
         setIsCustomClient(false);
       }
+      const withIntent = modalIntent ? buildInitialDraft(selectedProject, modalIntent, enforceFranciscoClient) : draft;
+      setEditedProject(withIntent);
+      // El estado propuesto por `intent` cuenta como cambio sin guardar.
+      setInitialSnapshot(JSON.stringify(draft));
+      setErrors(
+        modalIntent?.status === 'Completado' && !withIntent.deliverableLink
+          ? { deliverableLink: 'Agrega el link del entregable para marcar el proyecto como Completado.' }
+          : {}
+      );
+    } else {
+      setEditedProject(null);
+      setInitialSnapshot('');
+      setClientSelection('');
+      setIsCustomClient(false);
+      setErrors({});
     }
-    // We intentionally only react to editedProject.client changes, not the entire editedProject object
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editedProject?.client, enforceFranciscoClient, availableClientOptions, findMatchingClientOption]);
+    setIsManagerDropdownOpen(false);
+    setPendingDay('');
+    setShowDiscardConfirm(false);
+    setConfirmDelete(false);
+    setSaving(false);
+    setNewResource('');
+    setShowResourceInput(false);
+    setSosComment('');
+  }, [selectedProject, modalIntent, enforceFranciscoClient]);
 
+  // Enfoca el campo del entregable cuando se abre para completar un proyecto.
   useEffect(() => {
-    if (!isModalOpen) {
-      setIsManagerDropdownOpen(false);
+    if (isModalOpen && modalIntent?.status === 'Completado') {
+      const timer = setTimeout(() => deliverableRef.current?.focus(), 350);
+      return () => clearTimeout(timer);
     }
-  }, [isModalOpen]);
+    return undefined;
+  }, [isModalOpen, modalIntent]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -273,7 +309,50 @@ const ModalDetalles = () => {
     };
   }, []);
 
+  const currentStage = (editedProject?.stage || '').toLowerCase();
+  const isAbsenceStage = currentStage === STAGES.AUSENCIA;
+  const isRecordingStage = currentStage === STAGES.GRABACION || currentStage === STAGES.FOTOGRAFIA;
+  const usesDayPicker = isRecordingStage || isAbsenceStage;
+  const todayKey = format(startOfDay(new Date()), 'yyyy-MM-dd');
+
+  // Días del borrador a partir de hoy: los que importan para cruces y disponibilidad.
+  const upcomingDraftDays = useMemo(
+    () => (usesDayPicker ? (editedProject?.recordingDates || []).filter((day) => day >= todayKey) : []),
+    [usesDayPicker, editedProject?.recordingDates, todayKey]
+  );
+
+  const scheduleIndex = useMemo(() => buildScheduleIndex(projects || []), [projects]);
+
+  const conflicts = useMemo(() => {
+    if (!editedProject || upcomingDraftDays.length === 0) return [];
+    return findProjectConflicts(
+      { ...editedProject, recordingDates: upcomingDraftDays },
+      projects || []
+    );
+  }, [editedProject, upcomingDraftDays, projects]);
+
+  const turnaround = useMemo(() => computeTurnaroundByFormat(projects || []), [projects]);
+  const deliveryEstimate = useMemo(() => {
+    if (!editedProject || !isRecordingStage || editedProject.deadline) return null;
+    return estimateDeliveryDate({ ...editedProject, deadline: null, properties: { ...editedProject.properties, deadline: null, fecha_entrega: null } }, turnaround);
+  }, [editedProject, isRecordingStage, turnaround]);
+
+  const isDirty = Boolean(editedProject) && JSON.stringify(editedProject) !== initialSnapshot;
+
+  const requestClose = useCallback(() => {
+    if (saving) return;
+    if (isDirty) {
+      setShowDiscardConfirm(true);
+      return;
+    }
+    closeModal();
+  }, [saving, isDirty, closeModal]);
+
   if (!editedProject) return null;
+
+  const originalStatus = editedProject.id
+    ? (projects || []).find((p) => p.id === editedProject.id)?.status || selectedProject?.status
+    : null;
 
   // Solo propiedades realmente "personalizadas": ni metadata interna ni valores
   // no primitivos (arrays/objetos como tasks/managers, que mostraban [object Object]).
@@ -289,14 +368,19 @@ const ModalDetalles = () => {
     ? teamMembers.filter((member) => !selectedManagers.includes(member))
     : [];
 
-  const currentStage = (editedProject.stage || '').toLowerCase();
-  const isRecordingStage = currentStage === STAGES.GRABACION || currentStage === STAGES.FOTOGRAFIA;
-
-  // Mismo mapeo que STATUS_PROGRESS en DashboardHero — solo para mostrar dónde
+  // Mismo mapeo que STATUS_PROGRESS en MyPriorities — solo para mostrar dónde
   // quedaría el slider en "automático" cuando no hay progreso manual.
   const rawProgress = editedProject?.properties?.progress;
   const hasManualProgress = rawProgress !== '' && rawProgress !== null && rawProgress !== undefined;
   const autoProgress = AUTO_PROGRESS_BY_STATUS[editedProject?.status] ?? 20;
+
+  const clearError = (key) =>
+    setErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
 
   const calculateEndTime = (time) => {
     if (!time) return '';
@@ -314,6 +398,8 @@ const ModalDetalles = () => {
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
+    clearError(name);
+    if (name === 'status' && value !== 'Completado') clearError('deliverableLink');
     setEditedProject((prev) => {
       const next = { ...prev, [name]: value };
       if (name === 'startDate' && isRecordingStage) {
@@ -326,13 +412,14 @@ const ModalDetalles = () => {
 
   const handleClientSelectionChange = (event) => {
     const { value } = event.target;
+    clearError('client');
     setClientSelection(value);
     if (value === '__new__') {
       setIsCustomClient(true);
       setEditedProject((prev) => ({
         ...prev,
-        client: prev?.client || '',
-        properties: { ...prev?.properties, client: prev?.client || '' },
+        client: '',
+        properties: { ...prev?.properties, client: '' },
       }));
       return;
     }
@@ -346,6 +433,7 @@ const ModalDetalles = () => {
 
   const handleCustomClientChange = (event) => {
     const { value } = event.target;
+    clearError('client');
     setEditedProject((prev) => ({
       ...prev,
       client: value,
@@ -364,21 +452,18 @@ const ModalDetalles = () => {
   };
 
   const handleStageChange = (value) => {
-    setEditedProject((prev) => {
-      const nextStage = value;
-      const next = {
-        ...prev,
-        stage: nextStage,
-        properties: { ...prev.properties, stage: nextStage },
-      };
-      return next;
-    });
+    clearError('recordingDates');
+    setEditedProject((prev) => ({
+      ...prev,
+      stage: value,
+      properties: { ...prev.properties, stage: value },
+    }));
   };
 
-  // Rodajes de varios días: agregar / quitar días sueltos.
-  const handleAddRecordingDate = (event) => {
-    const value = event.target.value;
-    if (!value) return;
+  // Rodajes / ausencias de varios días: agregar / quitar días sueltos.
+  const addDay = (value) => {
+    if (!isPlausibleIsoDay(value)) return false;
+    clearError('recordingDates');
     setEditedProject((prev) => {
       const list = sanitizeRecordingDates([...(prev.recordingDates || []), value]);
       return {
@@ -388,6 +473,29 @@ const ModalDetalles = () => {
         properties: { ...prev.properties, recordingDates: list, fechaGrabacion: list[0] || '' },
       };
     });
+    setPendingDay('');
+    return true;
+  };
+
+  // El <input type="date"> avisa en cada tecla: mientras se tipea el año
+  // aparecen valores como 0002-10-10. Se agrega solo cuando la fecha está
+  // completa y el año es razonable; si no, se avisa al salir del campo.
+  const handlePendingDayChange = (event) => {
+    const { value } = event.target;
+    setPendingDay(value);
+    if (isPlausibleIsoDay(value)) {
+      addDay(value);
+    }
+  };
+
+  const validatePendingDay = () => {
+    if (!pendingDay) return;
+    if (addDay(pendingDay)) return;
+    const year = pendingDay.slice(0, 4);
+    setErrors((prev) => ({
+      ...prev,
+      recordingDates: `Revisa el año (${year}): debe estar entre ${MIN_PLAUSIBLE_YEAR} y ${MAX_PLAUSIBLE_YEAR}.`,
+    }));
   };
 
   const handleRemoveRecordingDate = (date) => {
@@ -412,6 +520,7 @@ const ModalDetalles = () => {
   };
 
   const handleManagerSelect = (manager) => {
+    clearError('managers');
     setEditedProject((prev) => {
       if (!prev) return prev;
       const currentManagers = Array.isArray(prev.managers) ? prev.managers : [];
@@ -438,6 +547,16 @@ const ModalDetalles = () => {
         properties: { ...(prev.properties || {}), managers: nextManagers },
       };
     });
+  };
+
+  // Esc dentro del desplegable lo cierra a él, no al formulario.
+  const handleManagerKeyDown = (event) => {
+    if (event.key === 'Escape' && isManagerDropdownOpen) {
+      event.preventDefault();
+      event.stopPropagation();
+      setIsManagerDropdownOpen(false);
+      managerTriggerRef.current?.focus();
+    }
   };
 
   const handleTeamChange = (event) => {
@@ -482,9 +601,7 @@ const ModalDetalles = () => {
   };
 
   const handleAddResource = () => {
-    const url = window.prompt('Ingresa el enlace del recurso');
-    if (!url) return;
-    const trimmed = url.trim();
+    const trimmed = newResource.trim();
     if (!trimmed) return;
     setEditedProject((prev) => {
       const nextResources = [...(prev.resources || []), trimmed];
@@ -494,6 +611,8 @@ const ModalDetalles = () => {
         properties: { ...prev.properties, resources: nextResources },
       };
     });
+    setNewResource('');
+    setShowResourceInput(false);
   };
 
   const handleRemoveResource = (index) => {
@@ -508,7 +627,70 @@ const ModalDetalles = () => {
     });
   };
 
-  const handleSave = () => {
+  // Validación en orden de lectura del formulario. Devuelve los errores y la
+  // referencia del primer campo a enfocar.
+  const validate = () => {
+    const nextErrors = {};
+    const order = [];
+    const recordingDates = sanitizeRecordingDates(editedProject.recordingDates || editedProject.recordingDate);
+    const managers = Array.isArray(editedProject.managers) ? editedProject.managers.filter(Boolean) : [];
+
+    if (!isAbsenceStage && !(editedProject.name || '').trim()) {
+      nextErrors.name = 'Escribe el nombre del proyecto.';
+      order.push(nameRef);
+    }
+    if (!isAbsenceStage && !(editedProject.client || '').trim()) {
+      nextErrors.client = 'Elige un cliente o agrega uno nuevo.';
+      order.push(clientRef);
+    }
+    if (isAbsenceStage && managers.length === 0) {
+      nextErrors.managers = 'Elige quién no va a estar.';
+      order.push(managerTriggerRef);
+    }
+    if (usesDayPicker && recordingDates.length === 0) {
+      nextErrors.recordingDates = isAbsenceStage
+        ? 'Agrega al menos un día de ausencia.'
+        : 'Agrega al menos un día de grabación.';
+      order.push(dayInputRef);
+    }
+    if (!usesDayPicker) {
+      if (editedProject.startDate && !parseProjectDate(editedProject.startDate)) {
+        nextErrors.startDate = `Revisa el año de la fecha de inicio (entre ${MIN_PLAUSIBLE_YEAR} y ${MAX_PLAUSIBLE_YEAR}).`;
+      }
+    }
+    if (editedProject.deadline) {
+      const deadline = parseProjectDate(editedProject.deadline);
+      const start = usesDayPicker
+        ? parseProjectDate(recordingDates[recordingDates.length - 1])
+        : parseProjectDate(editedProject.startDate);
+      if (!deadline) {
+        nextErrors.deadline = `Revisa el año de la fecha de entrega (entre ${MIN_PLAUSIBLE_YEAR} y ${MAX_PLAUSIBLE_YEAR}).`;
+        order.push(deadlineRef);
+      } else if (start && deadline < start) {
+        nextErrors.deadline = usesDayPicker
+          ? 'La entrega no puede ser antes del último día de grabación.'
+          : 'La entrega no puede ser antes del inicio.';
+        order.push(deadlineRef);
+      }
+    }
+    // Completado exige el link del entregable (así la Galería es confiable).
+    const becomesCompleted = editedProject.status === 'Completado' && originalStatus !== 'Completado';
+    if (!isAbsenceStage && becomesCompleted && !(editedProject.deliverableLink || '').trim()) {
+      nextErrors.deliverableLink = 'Agrega el link del entregable para marcar el proyecto como Completado.';
+      order.push(deliverableRef);
+    }
+    return { nextErrors, firstRef: order[0] || null };
+  };
+
+  const handleSave = async () => {
+    if (saving) return;
+    const { nextErrors, firstRef } = validate();
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      firstRef?.current?.focus();
+      return;
+    }
+
     const resources = editedProject.resources || [];
     const stage = (editedProject.stage || STAGES.GRABACION).toLowerCase();
     const registrationType = editedProject.registrationType || editedProject.type || '';
@@ -529,10 +711,13 @@ const ModalDetalles = () => {
         : [];
     const managerString = managers.join(', ');
 
-    if ((stage === STAGES.GRABACION || stage === STAGES.FOTOGRAFIA) && recordingDates.length === 0) {
-      window.alert('Agrega al menos un día de grabación para continuar.');
-      return;
-    }
+    // Cliente con el nombre ya existente si coincide ("fuso" → "Fuso").
+    const client = isAbsenceStage
+      ? 'Interno'
+      : findMatchingClientOption(editedProject.client) || (editedProject.client || '').trim();
+    const name = isAbsenceStage
+      ? (editedProject.name || '').trim() || `Ausencia — ${managers.join(', ')}`
+      : (editedProject.name || '').trim();
 
     const trimmedDeliverableLink = (editedProject.deliverableLink || '').toString().trim();
 
@@ -542,6 +727,7 @@ const ModalDetalles = () => {
       managers,
       registrationType,
       stage,
+      client,
       recordingTime,
       recordingLocation,
       recordingDescription,
@@ -560,12 +746,12 @@ const ModalDetalles = () => {
     }
 
     // Progreso manual (%): vacío = automático según estado (ver STATUS_PROGRESS
-    // en DashboardHero). Si hay valor, se clampea a 0–100.
-    const rawProgress = editedProject.properties?.progress;
-    if (rawProgress === '' || rawProgress === null || rawProgress === undefined) {
+    // en MyPriorities). Si hay valor, se clampea a 0–100.
+    const rawProgressValue = editedProject.properties?.progress;
+    if (rawProgressValue === '' || rawProgressValue === null || rawProgressValue === undefined) {
       delete updatedProperties.progress;
     } else {
-      const parsedProgress = Number.parseInt(rawProgress, 10);
+      const parsedProgress = Number.parseInt(rawProgressValue, 10);
       if (Number.isNaN(parsedProgress)) {
         delete updatedProperties.progress;
       } else {
@@ -584,14 +770,24 @@ const ModalDetalles = () => {
     if (!recordingLocation) delete updatedProperties.recordingLocation;
     if (!recordingDescription) delete updatedProperties.recordingDescription;
 
+    let startDate = editedProject.startDate || '';
+    let deadline = editedProject.deadline || '';
+    if (usesDayPicker) {
+      startDate = recordingDate || startDate;
+    }
+    if (isAbsenceStage) {
+      deadline = recordingDates[recordingDates.length - 1] || deadline;
+    }
+
     const payload = {
       ...editedProject,
+      name,
+      client,
+      status: isAbsenceStage ? 'Programado' : editedProject.status,
       manager: managers[0] || managerString || '',
       managers,
-      startDate:
-        (stage === STAGES.GRABACION || stage === STAGES.FOTOGRAFIA)
-          ? recordingDate || editedProject.startDate || '' : editedProject.startDate || '',
-      deadline: (stage === STAGES.GRABACION || stage === STAGES.FOTOGRAFIA) ? null : editedProject.deadline || '',
+      startDate,
+      deadline: deadline || null,
       type: registrationType || editedProject.type || '',
       registrationType,
       stage,
@@ -609,14 +805,27 @@ const ModalDetalles = () => {
 
     delete payload.resources;
 
-    if (payload.id) {
-      updateProject(payload);
-    } else {
-      addProject(payload);
+    setSaving(true);
+    const isNew = !payload.id;
+    const result = isNew ? await addProject(payload) : await updateProject(payload);
+    setSaving(false);
+
+    if (!result?.ok) {
+      setErrors((prev) => ({
+        ...prev,
+        form: 'No se pudo guardar. Revisa tu conexión e intenta de nuevo; tus cambios siguen aquí.',
+      }));
+      return;
     }
-    
+
+    toast.success(
+      isAbsenceStage
+        ? isNew ? 'Ausencia registrada' : 'Ausencia actualizada'
+        : isNew ? 'Proyecto creado' : 'Cambios guardados'
+    );
+
     // Cerezo Hub Phase 5: Check-out
-    if (payload.status === 'Completado') {
+    if (payload.status === 'Completado' && originalStatus !== 'Completado') {
       const u = useStore.getState().currentUser;
       if (u) {
         const term = (u.user_metadata?.full_name || u.email || '').toLowerCase();
@@ -627,7 +836,7 @@ const ModalDetalles = () => {
           const m = (p.managers || []).join(' ').toLowerCase() + ' ' + (p.manager || '').toLowerCase();
           return m.includes(term.split('@')[0]) || m.includes(term.split(' ')[0]);
         });
-        
+
         if (activeTasks.length === 0) {
           // Última tarea completada
           confetti({
@@ -638,25 +847,34 @@ const ModalDetalles = () => {
           });
           toast.success('¡Has completado todas tus tareas de hoy! Modo Fuera de la oficina activado.', { duration: 5000 });
           useStore.getState().setUserAvailability('Fuera de la oficina');
-        } else {
-          toast.success('Tarea completada. Quedan ' + activeTasks.length + ' tareas.');
         }
       }
     }
-    
+
     closeModal();
   };
 
-  const handleDelete = () => {
-    if (editedProject.id && window.confirm('¿Estás seguro de que deseas eliminar este proyecto?')) {
-      deleteProject(editedProject.id);
-      closeModal();
-    }
+  const handleDelete = async () => {
+    if (!editedProject.id) return;
+    const project = editedProject;
+    closeModal();
+    await deleteProjectWithUndo(project);
   };
+
+  const stageButtonClass = (value) => {
+    const active = currentStage === value;
+    if (!active) {
+      return 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-white/60';
+    }
+    if (value === STAGES.AUSENCIA) return 'border-slate-500 bg-slate-100 text-slate-800 shadow-sm dark:bg-white/15 dark:text-white';
+    return 'border-accent bg-accent/10 text-accent shadow-sm';
+  };
+
+  const dayCountLabel = (editedProject?.recordingDates || []).length;
 
   return (
     <Transition.Root show={isModalOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={closeModal}>
+      <Dialog as="div" className="relative z-50" onClose={requestClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-200"
@@ -679,27 +897,34 @@ const ModalDetalles = () => {
               leaveFrom="opacity-100 translate-y-0 scale-100"
               leaveTo="opacity-0 translate-y-4 scale-95">
               <Dialog.Panel className="flex h-full w-full max-w-full transform flex-col overflow-hidden rounded-none border border-border bg-white text-left align-middle shadow-2xl transition-all sm:h-auto sm:max-w-4xl sm:rounded-xl dark:border-white/5 dark:bg-[#16171D] dark:shadow-[0_48px_96px_rgba(0,0,0,0.8)]">
-                <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border/40 px-4 py-4 sm:px-8 sm:py-8">
-                  <Dialog.Title className="flex-1">
+                <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border/40 px-4 py-4 sm:px-8 sm:py-6">
+                  <div className="flex-1">
+                    <Dialog.Title className="sr-only">
+                      {isAbsenceStage ? 'Ausencia' : editedProject.id ? 'Editar proyecto' : 'Nuevo proyecto'}
+                    </Dialog.Title>
+                    <label htmlFor="project-name" className="sr-only">
+                      {isAbsenceStage ? 'Nombre de la ausencia (opcional)' : 'Nombre del proyecto'}
+                    </label>
                     <input
+                      ref={nameRef}
+                      id="project-name"
                       type="text"
                       name="name"
                       value={editedProject?.name || ''}
                       onChange={handleInputChange}
-                      className="w-full bg-transparent text-3xl font-semibold text-primary tracking-tight placeholder:text-secondary/30 focus:outline-none dark:text-white dark:placeholder:text-white/10"
-                      placeholder="Nombre del proyecto"
+                      aria-invalid={Boolean(errors.name)}
+                      aria-describedby={errors.name ? 'error-name' : undefined}
+                      className="w-full bg-transparent text-3xl font-semibold text-primary tracking-tight placeholder:text-secondary/50 focus:outline-none dark:text-white dark:placeholder:text-white/30"
+                      placeholder={isAbsenceStage ? 'Ausencia (opcional: vacaciones, permiso…)' : 'Nombre del proyecto'}
                     />
-                    <div className="flex items-center gap-2 mt-3">
-                      <div className="h-1 w-8 rounded-full bg-accent" />
-                      <p className="text-xs font-medium text-secondary/60 uppercase tracking-[0.2em]">
-                        Detalles operativos y recursos
-                      </p>
-                    </div>
-                  </Dialog.Title>
+                    <FieldError id="error-name" message={errors.name} />
+                  </div>
                   <button
                     type="button"
-                    onClick={closeModal}
-                    className="group rounded-lg border border-border bg-white p-3 text-secondary transition-all hover:bg-slate-50 hover:scale-110 active:scale-95 dark:border-white/10 dark:bg-white/5 dark:text-white/50 dark:hover:bg-white/10 dark:hover:text-white"
+                    onClick={requestClose}
+                    aria-label="Cerrar"
+                    title="Cerrar"
+                    className="group rounded-lg border border-border bg-white p-3 text-secondary transition-all hover:bg-slate-50 active:scale-95 dark:border-white/10 dark:bg-white/5 dark:text-white/50 dark:hover:bg-white/10 dark:hover:text-white"
                   >
                     <X size={24} className="transition-transform group-hover:rotate-90" />
                   </button>
@@ -708,44 +933,70 @@ const ModalDetalles = () => {
                 <div className="grid max-h-[68vh] flex-1 gap-8 overflow-y-auto px-4 py-6 soft-scroll sm:px-6 md:grid-cols-2">
                   <div className="space-y-5">
                     <div>
-                      <label className="text-sm font-medium text-gray-600">Cliente</label>
-                      <select
-                        value={clientSelection}
-                        onChange={handleClientSelectionChange}
-                        disabled={enforceFranciscoClient}
-                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A disabled:cursor-not-allowed disabled:bg-gray-100"
-                      >
-                        {!enforceFranciscoClient && (
-                          <option value="">Selecciona un cliente</option>
-                        )}
-                        {availableClientOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
+                      <span className={labelClass}>Fase</span>
+                      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="Fase">
+                        {STAGE_BUTTONS.map((button) => (
+                          <button
+                            key={button.value}
+                            type="button"
+                            aria-pressed={currentStage === button.value}
+                            onClick={() => handleStageChange(button.value)}
+                            className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${stageButtonClass(button.value)}`}
+                          >
+                            {button.label}
+                          </button>
                         ))}
-                        {canAddCustomClient && (
-                          <option value="__new__">Agregar nuevo cliente…</option>
-                        )}
-                      </select>
-                      {canAddCustomClient && isCustomClient && (
-                        <input
-                          type="text"
-                          name="client"
-                          value={editedProject?.client || ''}
-                          onChange={handleCustomClientChange}
-                          className="mt-3 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
-                          placeholder="Ingresa un nuevo cliente"
-                        />
-                      )}
+                      </div>
                     </div>
+
+                    {!isAbsenceStage && (
+                      <div>
+                        <label htmlFor="project-client" className={labelClass}>Cliente</label>
+                        <select
+                          ref={clientRef}
+                          id="project-client"
+                          value={clientSelection}
+                          onChange={handleClientSelectionChange}
+                          disabled={enforceFranciscoClient}
+                          aria-invalid={Boolean(errors.client) && !isCustomClient}
+                          className={`${inputClass} ${errors.client && !isCustomClient ? inputError : inputOk} disabled:cursor-not-allowed disabled:bg-gray-100`}
+                        >
+                          {!enforceFranciscoClient && (
+                            <option value="">Selecciona un cliente</option>
+                          )}
+                          {availableClientOptions.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                          {canAddCustomClient && (
+                            <option value="__new__">Agregar nuevo cliente…</option>
+                          )}
+                        </select>
+                        {canAddCustomClient && isCustomClient && (
+                          <input
+                            type="text"
+                            name="client"
+                            aria-label="Nombre del nuevo cliente"
+                            value={editedProject?.client || ''}
+                            onChange={handleCustomClientChange}
+                            aria-invalid={Boolean(errors.client)}
+                            className={`${inputClass} ${errors.client ? inputError : inputOk} mt-3`}
+                            placeholder="Nombre del nuevo cliente"
+                          />
+                        )}
+                        <FieldError message={errors.client} />
+                      </div>
+                    )}
 
                     {isRecordingStage && (
                       <div>
-                        <label className="text-sm font-medium text-gray-600">Tipo de registro</label>
+                        <label htmlFor="project-format" className={labelClass}>Formato</label>
                         <select
+                          id="project-format"
                           value={editedProject?.registrationType || ''}
                           onChange={handleRegistrationTypeChange}
-                          className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
+                          className={`${inputClass} ${inputOk}`}
                         >
                           <option value="" disabled>
                             Selecciona una opción
@@ -759,111 +1010,93 @@ const ModalDetalles = () => {
                       </div>
                     )}
 
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Fase</label>
-                      <div className="mt-2 flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleStageChange(STAGES.GRABACION)}
-                          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${(editedProject.stage || '').toLowerCase() === STAGES.GRABACION
-                            ? 'border-[#FF4B2A/40] bg-[#FF4B2A/10] text-[#FF4B2A] shadow-sm'
-                            : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
-                            }`}
+                    {!isAbsenceStage && (
+                      <div>
+                        <label htmlFor="project-status" className={labelClass}>Estado</label>
+                        <select
+                          id="project-status"
+                          name="status"
+                          value={editedProject?.status || 'Programado'}
+                          onChange={handleInputChange}
+                          className={`${inputClass} ${inputOk}`}
                         >
-                          Grabación
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleStageChange(STAGES.FOTOGRAFIA)}
-                          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${(editedProject.stage || '').toLowerCase() === STAGES.FOTOGRAFIA
-                            ? 'border-[#5F6468/40] bg-[#5F6468/10] text-[#5F6468] shadow-sm'
-                            : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
-                            }`}
-                        >
-                          Fotografía
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleStageChange(STAGES.EDICION)}
-                          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${(editedProject.stage || '').toLowerCase() === STAGES.EDICION
-                            ? 'border-#FF4B2A bg-#FF4B2A/10 text-#FF4B2A shadow-sm'
-                            : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
-                            }`}
-                        >
-                          Edición
-                        </button>
+                          {STATUS_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                    </div>
+                    )}
 
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Estado</label>
-                      <select
-                        name="status"
-                        value={editedProject?.status || 'Programado'}
-                        onChange={handleInputChange}
-                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
-                      >
-                        <option value="Programado">Programado</option>
-                        <option value="En progreso">En progreso</option>
-                        <option value="Stuck">Stuck (Atascado)</option>
-                        <option value="En revisión">En revisión</option>
-                        <option value="Completado">Completado</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Progreso manual (%)</label>
-                      <div className="mt-2 flex items-center gap-3">
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          value={hasManualProgress ? Number(rawProgress) : autoProgress}
-                          onChange={(e) => handlePropertyChange('progress', e.target.value)}
-                          className="h-2 w-full cursor-pointer accent-[#FF4B2A]"
-                        />
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={hasManualProgress ? rawProgress : ''}
-                          onChange={(e) => handlePropertyChange('progress', e.target.value)}
-                          placeholder={`${autoProgress}`}
-                          className="w-20 shrink-0 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-center text-sm text-gray-800 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
-                        />
-                        {hasManualProgress && (
-                          <button
-                            type="button"
-                            onClick={() => handlePropertyChange('progress', '')}
-                            className="shrink-0 text-xs font-medium text-secondary/50 underline-offset-2 hover:text-secondary hover:underline"
-                          >
-                            Auto
-                          </button>
-                        )}
+                    {!isAbsenceStage && (
+                      <div>
+                        <label htmlFor="project-progress" className={labelClass}>Progreso manual (%)</label>
+                        <div className="mt-2 flex items-center gap-3">
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="5"
+                            aria-label="Progreso"
+                            value={hasManualProgress ? Number(rawProgress) : autoProgress}
+                            onChange={(e) => handlePropertyChange('progress', e.target.value)}
+                            className="h-2 w-full cursor-pointer accent-[#FF4B2A]"
+                          />
+                          <input
+                            id="project-progress"
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={hasManualProgress ? rawProgress : ''}
+                            onChange={(e) => handlePropertyChange('progress', e.target.value)}
+                            placeholder={`${autoProgress}`}
+                            className="w-20 shrink-0 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-center text-sm text-gray-800 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/85"
+                          />
+                          {hasManualProgress && (
+                            <button
+                              type="button"
+                              onClick={() => handlePropertyChange('progress', '')}
+                              className="shrink-0 text-xs font-medium text-secondary underline-offset-2 hover:text-primary hover:underline"
+                            >
+                              Auto
+                            </button>
+                          )}
+                        </div>
+                        <p className="mt-1 text-xs text-gray-600 dark:text-white/50">
+                          Vacío = automático según el estado ({autoProgress}%). Se ve en &quot;Tus prioridades&quot; de Inicio.
+                        </p>
                       </div>
-                      <p className="mt-1 text-[11px] text-gray-500">
-                        Vacío = automático según el estado ({autoProgress}%). Se ve en &quot;Tus prioridades&quot; del Panel Ejecutivo.
-                      </p>
-                    </div>
+                    )}
 
                     <div>
-                      <label className="text-sm font-medium text-gray-600">Responsables</label>
-                      <div ref={managerDropdownRef} className="relative mt-2">
+                      <span id="managers-label" className={labelClass}>{isAbsenceStage ? 'Quién no va a estar' : 'Responsables'}</span>
+                      <div ref={managerDropdownRef} className="relative mt-2" onKeyDown={handleManagerKeyDown}>
                         <div
+                          ref={managerTriggerRef}
                           role="button"
                           tabIndex={0}
+                          aria-haspopup="listbox"
+                          aria-expanded={isManagerDropdownOpen}
+                          aria-labelledby="managers-label"
+                          aria-describedby={errors.managers ? 'error-managers' : undefined}
                           onClick={() => setIsManagerDropdownOpen((prev) => !prev)}
-                          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setIsManagerDropdownOpen((prev) => !prev)}
-                          className="flex w-full items-center justify-between gap-3 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setIsManagerDropdownOpen((prev) => !prev);
+                            }
+                          }}
+                          className={`flex w-full items-center justify-between gap-3 rounded-lg border bg-white px-4 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 dark:bg-[#0d0f1a] dark:text-white/85 ${errors.managers ? inputError : inputOk}`}
                         >
-                          <div className="flex w-full flex-wrap items-center gap-2 text-left pointer-events-none">
+                          <div className="flex w-full flex-wrap items-center gap-2 text-left">
                             {selectedManagers.length > 0 ? (
                               selectedManagers.map((manager) => (
                                 <span
                                   key={manager}
-                                  className="inline-flex items-center gap-1.5 rounded-md bg-#FF4B2A/20 px-2 py-1 text-xs font-medium text-#FF4B2A"
+                                  className="inline-flex items-center gap-1.5 rounded-md bg-accent/10 py-1 pl-1 pr-2 text-xs font-medium text-primary dark:text-white"
                                 >
+                                  <MemberAvatar name={manager} size="sm" />
                                   {manager}
                                   <button
                                     type="button"
@@ -871,37 +1104,65 @@ const ModalDetalles = () => {
                                       event.stopPropagation();
                                       handleManagerRemove(manager);
                                     }}
-                                    className="pointer-events-auto text-#FF4B2A transition hover:text-#FF4B2A"
+                                    aria-label={`Quitar a ${manager}`}
+                                    className="text-secondary transition hover:text-red-500"
                                   >
                                     <X size={12} />
                                   </button>
                                 </span>
                               ))
                             ) : (
-                              <span className="text-secondary">Selecciona responsables</span>
+                              <span className="text-secondary">{isAbsenceStage ? 'Selecciona a la persona' : 'Selecciona responsables'}</span>
                             )}
                           </div>
                           <ChevronDown
                             size={16}
-                            className={`ml-auto shrink-0 text-gray-500 transition ${isManagerDropdownOpen ? 'rotate-180 text-#FF4B2A' : ''
-                              }`}
+                            className={`ml-auto shrink-0 text-gray-500 transition ${isManagerDropdownOpen ? 'rotate-180 text-accent' : ''}`}
                           />
                         </div>
                         {isManagerDropdownOpen && (
-                          <div className="absolute left-0 right-0 z-30 mt-2 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2 text-sm shadow-lg">
+                          <div
+                            role="listbox"
+                            aria-labelledby="managers-label"
+                            className="absolute left-0 right-0 z-30 mt-2 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2 text-sm shadow-lg dark:border-white/10 dark:bg-[#16171D]"
+                          >
                             {availableManagers.length > 0 ? (
-                              availableManagers.map((manager) => (
-                                <button
-                                  key={manager}
-                                  type="button"
-                                  onClick={() => handleManagerSelect(manager)}
-                                  className="flex w-full items-center rounded-md px-3 py-2 text-left text-gray-800 transition hover:bg-gray-100"
-                                >
-                                  {manager}
-                                </button>
-                              ))
+                              availableManagers.map((manager) => {
+                                // Disponibilidad en los días elegidos (desde hoy).
+                                const commitments = upcomingDraftDays.length
+                                  ? getMemberCommitments(scheduleIndex, manager, upcomingDraftDays, editedProject.id)
+                                  : [];
+                                const absent = commitments.filter((c) => c.kind === 'absence');
+                                const busy = commitments.filter((c) => c.kind !== 'absence');
+                                return (
+                                  <button
+                                    key={manager}
+                                    type="button"
+                                    role="option"
+                                    aria-selected={false}
+                                    onClick={() => handleManagerSelect(manager)}
+                                    className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-gray-800 transition hover:bg-gray-100 dark:text-white/85 dark:hover:bg-white/5"
+                                  >
+                                    <MemberAvatar name={manager} size="sm" />
+                                    <span className="flex-1 font-medium">{manager}</span>
+                                    {upcomingDraftDays.length > 0 && (
+                                      absent.length > 0 ? (
+                                        <span className="text-xs font-medium text-red-600 dark:text-red-400">
+                                          Ausente {formatShortDay(absent[0].day)}
+                                        </span>
+                                      ) : busy.length > 0 ? (
+                                        <span className="max-w-[60%] truncate text-xs font-medium text-amber-700 dark:text-amber-400" title={busy.map((c) => `${formatShortDay(c.day)}: ${c.project.name}`).join(' · ')}>
+                                          Ocupado {formatShortDay(busy[0].day)} · {busy[0].project.name}
+                                        </span>
+                                      ) : (
+                                        <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Libre</span>
+                                      )
+                                    )}
+                                  </button>
+                                );
+                              })
                             ) : (
-                              <p className="px-3 py-2 text-xs text-gray-500">
+                              <p className="px-3 py-2 text-xs text-gray-600 dark:text-white/50">
                                 {teamMembers && teamMembers.length > 0
                                   ? 'No quedan responsables por asignar.'
                                   : 'Sin integrantes disponibles.'}
@@ -910,37 +1171,241 @@ const ModalDetalles = () => {
                           </div>
                         )}
                       </div>
-                      <p className="mt-1 text-[11px] text-gray-500">
-                        Selecciona responsables desde la lista y elimínalos tocando la etiqueta.
-                      </p>
+                      <FieldError id="error-managers" message={errors.managers} />
+                      {usesDayPicker && upcomingDraftDays.length === 0 && (
+                        <p className="mt-1 text-xs text-gray-600 dark:text-white/50">
+                          Agrega los días para ver quién está libre.
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   <div className="space-y-5">
+                    {usesDayPicker && (
+                      <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-4 dark:border-white/10 dark:bg-white/[0.03]">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <label htmlFor="add-day" className={labelClass}>
+                            {isAbsenceStage ? 'Días de ausencia' : 'Días de grabación'}
+                          </label>
+                          {isRecordingStage && (
+                            <button
+                              type="button"
+                              onClick={handleOpenRecordingCalendar}
+                              disabled={!editedProject.recordingDate}
+                              className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold transition ${editedProject.recordingDate
+                                ? 'border-accent/40 bg-accent/10 text-accent hover:bg-accent/20'
+                                : 'cursor-not-allowed border-gray-300 bg-gray-100 text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-white/40'
+                                }`}
+                            >
+                              <Calendar size={14} />
+                              Agendar en Google Calendar
+                            </button>
+                          )}
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          {(editedProject?.recordingDates || []).map((date) => (
+                            <span
+                              key={date}
+                              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium ${isAbsenceStage ? 'bg-slate-200 text-slate-800 dark:bg-white/15 dark:text-white' : 'bg-accent/10 text-[#C2321A] dark:bg-accent/15 dark:text-[#FF8A73]'}`}
+                            >
+                              <Calendar size={12} />
+                              {formatDayChip(date)}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveRecordingDate(date)}
+                                className="transition hover:opacity-70"
+                                aria-label={`Quitar ${formatDayChip(date)}`}
+                              >
+                                <X size={12} />
+                              </button>
+                            </span>
+                          ))}
+                          <input
+                            ref={dayInputRef}
+                            id="add-day"
+                            type="date"
+                            min={`${MIN_PLAUSIBLE_YEAR}-01-01`}
+                            max={`${MAX_PLAUSIBLE_YEAR}-12-31`}
+                            value={pendingDay}
+                            onChange={handlePendingDayChange}
+                            onBlur={validatePendingDay}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') {
+                                event.preventDefault();
+                                validatePendingDay();
+                              }
+                            }}
+                            aria-invalid={Boolean(errors.recordingDates)}
+                            aria-describedby="days-help"
+                            className={`rounded-lg border border-dashed bg-white px-3 py-1.5 text-xs text-gray-800 focus:outline-none focus:ring-2 dark:bg-[#0d0f1a] dark:text-white/80 ${errors.recordingDates ? inputError : 'border-gray-400 focus:border-accent focus:ring-accent/20 dark:border-white/20'}`}
+                          />
+                        </div>
+                        <FieldError message={errors.recordingDates} />
+                        <p id="days-help" className="mt-2 text-xs text-gray-600 dark:text-white/50">
+                          {dayCountLabel > 0
+                            ? isAbsenceStage
+                              ? `${dayCountLabel} día(s). Aparecen en el Timeline y en el aviso de cruces.`
+                              : `${dayCountLabel} día(s). Cada día aparece en el calendario con sus responsables; edición arranca después del último.`
+                            : 'Elige un día y se agrega solo. Puedes agregar varios y saltarte los fines de semana.'}
+                        </p>
+
+                        {conflicts.length > 0 && (
+                          <div role="status" className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-500/30 dark:bg-amber-500/10">
+                            <p className="flex items-center gap-2 text-sm font-semibold text-amber-800 dark:text-amber-300">
+                              <AlertTriangle size={15} />
+                              Cruce de agenda
+                            </p>
+                            <ul className="mt-1.5 space-y-1 text-xs text-amber-900 dark:text-amber-200/90">
+                              {conflicts.slice(0, 6).map((conflict) => (
+                                <li key={`${conflict.member}-${conflict.day}-${conflict.project.id || conflict.project.name}`}>
+                                  {conflict.kind === 'absence'
+                                    ? `${conflict.member} no está el ${formatDayChip(conflict.day)}.`
+                                    : `${conflict.member} ya tiene «${conflict.project.name || 'otro proyecto'}» el ${formatDayChip(conflict.day)}.`}
+                                </li>
+                              ))}
+                              {conflicts.length > 6 && <li>Y {conflicts.length - 6} cruce(s) más.</li>}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {isRecordingStage && (
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div>
+                          <label htmlFor="recording-time" className={labelClass}>Hora</label>
+                          <input
+                            id="recording-time"
+                            type="time"
+                            value={editedProject?.recordingTime || ''}
+                            onChange={handleRecordingFieldChange('recordingTime')}
+                            className={`${inputClass} ${inputOk}`}
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="recording-location" className={labelClass}>Lugar</label>
+                          <input
+                            id="recording-location"
+                            type="text"
+                            value={editedProject?.recordingLocation || ''}
+                            onChange={handleRecordingFieldChange('recordingLocation')}
+                            className={`${inputClass} ${inputOk}`}
+                            placeholder="Estudio, locación, referencia"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label htmlFor="recording-deadline" className={labelClass}>Entrega al cliente</label>
+                          <input
+                            ref={deadlineRef}
+                            id="recording-deadline"
+                            type="date"
+                            name="deadline"
+                            min={`${MIN_PLAUSIBLE_YEAR}-01-01`}
+                            max={`${MAX_PLAUSIBLE_YEAR}-12-31`}
+                            value={editedProject?.deadline || ''}
+                            onChange={handleInputChange}
+                            aria-invalid={Boolean(errors.deadline)}
+                            className={`${inputClass} ${errors.deadline ? inputError : inputOk}`}
+                          />
+                          <FieldError message={errors.deadline} />
+                          {deliveryEstimate && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                clearError('deadline');
+                                setEditedProject((prev) => ({ ...prev, deadline: format(deliveryEstimate.date, 'yyyy-MM-dd') }));
+                              }}
+                              className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-accent/30 bg-accent/5 px-2.5 py-1 text-xs font-medium text-primary transition hover:bg-accent/10 dark:text-white/85"
+                            >
+                              <Sparkles size={12} className="text-accent" />
+                              Usar {format(deliveryEstimate.date, "EEE d MMM", { locale: es })}
+                              <span className="text-secondary dark:text-white/50">
+                                · {deliveryEstimate.formatLabel} suele tardar {deliveryEstimate.days} días
+                              </span>
+                            </button>
+                          )}
+                        </div>
+                        <div className="md:col-span-2">
+                          <label htmlFor="recording-description" className={labelClass}>Descripción de la grabación</label>
+                          <textarea
+                            id="recording-description"
+                            value={editedProject?.recordingDescription || ''}
+                            onChange={handleRecordingFieldChange('recordingDescription')}
+                            rows={3}
+                            className={`${inputClass} ${inputOk}`}
+                            placeholder="Ángulos, requerimientos técnicos o mensajes clave"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {!usesDayPicker && (
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div>
+                          <label htmlFor="project-start" className={labelClass}>Fecha de inicio</label>
+                          <input
+                            id="project-start"
+                            type="date"
+                            name="startDate"
+                            min={`${MIN_PLAUSIBLE_YEAR}-01-01`}
+                            max={`${MAX_PLAUSIBLE_YEAR}-12-31`}
+                            value={editedProject?.startDate || ''}
+                            onChange={handleInputChange}
+                            aria-invalid={Boolean(errors.startDate)}
+                            className={`${inputClass} ${errors.startDate ? inputError : inputOk}`}
+                          />
+                          <FieldError message={errors.startDate} />
+                        </div>
+                        <div>
+                          <label htmlFor="project-deadline" className={labelClass}>Fecha de entrega</label>
+                          <input
+                            ref={deadlineRef}
+                            id="project-deadline"
+                            type="date"
+                            name="deadline"
+                            min={`${MIN_PLAUSIBLE_YEAR}-01-01`}
+                            max={`${MAX_PLAUSIBLE_YEAR}-12-31`}
+                            value={editedProject?.deadline || ''}
+                            onChange={handleInputChange}
+                            aria-invalid={Boolean(errors.deadline)}
+                            className={`${inputClass} ${errors.deadline ? inputError : inputOk}`}
+                          />
+                          <FieldError message={errors.deadline} />
+                        </div>
+                      </div>
+                    )}
+
                     <div>
-                      <label className="text-sm font-medium text-gray-600">Descripción general</label>
+                      <label htmlFor="project-description" className={labelClass}>
+                        {isAbsenceStage ? 'Motivo (opcional)' : 'Descripción general'}
+                      </label>
                       <textarea
+                        id="project-description"
                         name="description"
                         value={editedProject?.description || ''}
                         onChange={handleInputChange}
-                        rows={4}
-                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
-                        placeholder="Describe objetivos, entregables y contexto del proyecto"
+                        rows={isAbsenceStage ? 2 : 4}
+                        className={`${inputClass} ${inputOk}`}
+                        placeholder={isAbsenceStage ? 'Vacaciones, permiso, viaje…' : 'Describe objetivos, entregables y contexto del proyecto'}
                       />
                     </div>
 
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Equipo</label>
-                      <input
-                        type="text"
-                        value={editedProject?.team?.join(', ') || ''}
-                        onChange={handleTeamChange}
-                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
-                        placeholder="Nombre1, Nombre2, Nombre3"
-                      />
-                    </div>
+                    {!isAbsenceStage && (
+                      <div>
+                        <label htmlFor="project-team" className={labelClass}>Equipo</label>
+                        <input
+                          id="project-team"
+                          type="text"
+                          value={editedProject?.team?.join(', ') || ''}
+                          onChange={handleTeamChange}
+                          className={`${inputClass} ${inputOk}`}
+                          placeholder="Nombre1, Nombre2, Nombre3"
+                        />
+                      </div>
+                    )}
                   </div>
 
+                  {!isAbsenceStage && (
                   <div className="md:col-span-2 space-y-6">
                     {editedProject?.properties?.tasks && editedProject.properties.tasks.length > 0 && (
                       <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 dark:bg-slate-900/50 dark:border-slate-800">
@@ -951,7 +1416,7 @@ const ModalDetalles = () => {
                           {editedProject.properties.tasks.map(task => (
                             <div key={task.id} className="flex items-start gap-2 bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-100 dark:border-slate-700">
                               <span className="mt-0.5">{task.completed ? '✅' : '⏳'}</span>
-                              <span className={`text-sm ${task.completed ? 'text-slate-400 line-through' : 'text-slate-700 dark:text-slate-200'}`}>
+                              <span className={`text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-slate-700 dark:text-slate-200'}`}>
                                 {task.text}
                               </span>
                             </div>
@@ -963,14 +1428,15 @@ const ModalDetalles = () => {
                       <div className="rounded-xl border border-red-200 bg-red-50/50 p-4 dark:border-red-900/30 dark:bg-red-900/10 animate-in slide-in-from-top-2">
                         <div className="flex items-center gap-2 mb-3">
                           <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                          <h3 className="text-sm font-bold text-red-600 dark:text-red-400">Alerta de Bloqueo / SOS</h3>
+                          <h3 className="text-sm font-bold text-red-600 dark:text-red-400">Alerta de bloqueo / SOS</h3>
                         </div>
                         <div className="flex gap-3">
                           <textarea
                             value={sosComment}
                             onChange={(e) => setSosComment(e.target.value)}
-                            placeholder="Escribe el motivo del bloqueo (Ej. Error de render en el minuto 01:10)..."
-                            className="flex-1 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 dark:border-red-900/50 dark:bg-slate-900 dark:text-white"
+                            aria-label="Motivo del bloqueo"
+                            placeholder="Escribe el motivo del bloqueo (ej. error de render en el minuto 01:10)…"
+                            className="flex-1 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 dark:border-red-900/50 dark:bg-slate-900 dark:text-white"
                             rows={2}
                           />
                           <button
@@ -981,7 +1447,7 @@ const ModalDetalles = () => {
                             }}
                             className="bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 font-semibold text-sm transition-all"
                           >
-                            Enviar Alerta
+                            Enviar alerta
                           </button>
                         </div>
                       </div>
@@ -989,173 +1455,63 @@ const ModalDetalles = () => {
 
                     {editedProject?.status === 'En revisión' && (
                       <div className="animate-in slide-in-from-top-2">
-                        <VideoReviewPlayer 
-                          project={editedProject} 
+                        <VideoReviewPlayer
+                          project={editedProject}
                           onApprove={() => {
                             setEditedProject(prev => ({ ...prev, status: 'Completado' }));
-                            toast.success('¡Video Aprobado!');
-                          }} 
+                            toast.success('¡Video aprobado! Agrega el link del entregable y guarda.');
+                          }}
                         />
                       </div>
                     )}
 
-                    {isRecordingStage && (
-                      <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-4 dark:border-white/10 dark:bg-white/[0.03]">
-                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-3 dark:border-white/10">
-                          <div>
-                            <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-600 dark:text-white/80">
-                              Detalles de la grabación
-                            </h3>
-                            <p className="text-xs text-gray-500 dark:text-white/60">
-                              Define los días, hora, ubicación y contexto para coordinar el rodaje.
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handleOpenRecordingCalendar}
-                            disabled={!editedProject.recordingDate}
-                            className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold transition ${editedProject.recordingDate
-                              ? 'border-violet-300 text-#FF4B2A bg-#FF4B2A/10 hover:bg-#FF4B2A/20'
-                              : 'cursor-not-allowed border-gray-300 text-gray-400 bg-gray-100 dark:border-white/10 dark:text-white/30 dark:bg-white/5'
-                              }`}
-                          >
-                            <Calendar size={14} />
-                            Agendar grabación
-                          </button>
-                        </div>
-                        <div className="mt-4 grid gap-4 md:grid-cols-2">
-                          <div className="md:col-span-2">
-                            <label className="text-sm font-medium text-gray-600 dark:text-white/80">Días de grabación</label>
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                              {(editedProject?.recordingDates || []).map((date) => (
-                                <span
-                                  key={date}
-                                  className="inline-flex items-center gap-1.5 rounded-md bg-[#FF4B2A]/10 px-2.5 py-1 text-xs font-medium text-[#FF4B2A] dark:bg-[#FF4B2A]/15"
-                                >
-                                  <Calendar size={12} />
-                                  {formatRecordingChip(date)}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveRecordingDate(date)}
-                                    className="transition hover:opacity-70"
-                                    aria-label={`Quitar ${formatRecordingChip(date)}`}
-                                  >
-                                    <X size={12} />
-                                  </button>
-                                </span>
-                              ))}
-                              <input
-                                type="date"
-                                value=""
-                                onChange={handleAddRecordingDate}
-                                aria-label="Agregar día de grabación"
-                                className="rounded-lg border border-dashed border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-700 focus:border-[#FF4B2A] focus:outline-none focus:ring-1 focus:ring-[#FF4B2A] dark:border-white/15 dark:bg-[#0d0f1a] dark:text-white/70"
-                              />
-                            </div>
-                            <p className="mt-2 text-[11px] text-gray-500 dark:text-white/40">
-                              {(editedProject?.recordingDates || []).length > 0
-                                ? `${editedProject.recordingDates.length} día(s) seleccionado(s). Cada día aparece en el calendario con sus responsables; edición arranca después del último.`
-                                : 'Agrega uno o varios días (podés saltarte fines de semana). Edición arranca después del último día.'}
-                            </p>
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium text-gray-600 dark:text-white/80">Hora</label>
-                            <input
-                              type="time"
-                              value={editedProject?.recordingTime || ''}
-                              onChange={handleRecordingFieldChange('recordingTime')}
-                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/80"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium text-gray-600 dark:text-white/80">Lugar</label>
-                            <input
-                              type="text"
-                              value={editedProject?.recordingLocation || ''}
-                              onChange={handleRecordingFieldChange('recordingLocation')}
-                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/80 dark:placeholder:text-white/40"
-                              placeholder="Estudio, locación, referencia"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium text-gray-600 dark:text-white/80">Descripción de la grabación</label>
-                            <textarea
-                              value={editedProject?.recordingDescription || ''}
-                              onChange={handleRecordingFieldChange('recordingDescription')}
-                              rows={3}
-                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/80 dark:placeholder:text-white/40"
-                              placeholder="Ángulos, requerimientos técnicos o mensajes clave"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className={`${isRecordingStage ? 'hidden' : 'block'}`}>
-                      <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-600">
-                        Planificación
-                      </h3>
-                      <div className="mt-3 grid gap-4 md:grid-cols-2">
-                        <div>
-                          <label className="text-sm font-medium text-gray-600">Fecha de inicio</label>
-                          <input
-                            type="date"
-                            name="startDate"
-                            value={editedProject?.startDate || ''}
-                            onChange={handleInputChange}
-                            className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
-                          />
-                        </div>
-                        <div>
-                          <div>
-                            <label className="text-sm font-medium text-gray-600">Fecha de entrega</label>
-                            <input
-                              type="date"
-                              name="deadline"
-                              value={editedProject?.deadline || ''}
-                              onChange={handleInputChange}
-                              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
                     <div>
-                      <label className="text-sm font-medium text-gray-600">Entregable</label>
+                      <label htmlFor="project-deliverable" className={labelClass}>
+                        Entregable{editedProject.status === 'Completado' && <span className="text-red-600 dark:text-red-400"> *</span>}
+                      </label>
                       <input
-                        type="text"
+                        ref={deliverableRef}
+                        id="project-deliverable"
+                        type="url"
                         name="deliverableLink"
                         value={editedProject?.deliverableLink || ''}
                         onChange={handleInputChange}
-                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-#FF4B2A focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
-                        placeholder="Enlace al video, carpeta o archivo final"
+                        aria-invalid={Boolean(errors.deliverableLink)}
+                        className={`${inputClass} ${errors.deliverableLink ? inputError : inputOk}`}
+                        placeholder="Link al video, carpeta o archivo final (Vimeo, YouTube, Drive…)"
                       />
+                      <FieldError message={errors.deliverableLink} />
+                      {!errors.deliverableLink && editedProject.status === 'Completado' && !(editedProject.deliverableLink || '').trim() && (
+                        <p className="mt-1.5 text-xs text-amber-700 dark:text-amber-400">
+                          Este proyecto está completado pero no tiene entregable: no aparecerá en la Galería.
+                        </p>
+                      )}
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-gray-600">Recursos compartidos</label>
+                      <span className={labelClass}>Recursos compartidos</span>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {(editedProject.resources || []).length === 0 ? (
-                          <span className="text-xs text-gray-500">Sin enlaces añadidos.</span>
+                          <span className="text-xs text-gray-600 dark:text-white/50">Sin enlaces añadidos.</span>
                         ) : (
                           editedProject.resources.map((resource, index) => (
                             <div
                               key={`${resource}-${index}`}
-                              className="group flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-1 text-xs text-gray-800 shadow-sm transition hover:border-violet-300"
+                              className="group flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-1 text-xs text-gray-800 shadow-sm transition hover:border-accent/40 dark:border-white/10 dark:bg-white/5 dark:text-white/80"
                             >
                               <a
                                 href={resource}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="max-w-[200px] truncate text-#FF4B2A transition group-hover:text-#FF4B2A"
+                                className="max-w-[200px] truncate text-[#C2321A] underline-offset-2 hover:underline dark:text-[#FF8A73]"
                               >
                                 {resource}
                               </a>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveResource(index)}
-                                className="rounded-full bg-gray-200 p-1 text-gray-500 transition hover:bg-red-500 hover:text-white"
+                                aria-label={`Quitar recurso ${resource}`}
+                                className="rounded-full bg-gray-200 p-1 text-gray-600 transition hover:bg-red-500 hover:text-white dark:bg-white/10 dark:text-white/60"
                               >
                                 <Trash2 size={12} />
                               </button>
@@ -1163,20 +1519,61 @@ const ModalDetalles = () => {
                           ))
                         )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={handleAddResource}
-                        className="mt-3 inline-flex items-center gap-2 rounded-md border border-violet-300 bg-#FF4B2A/10 px-3 py-1.5 text-xs font-medium text-#FF4B2A transition hover:bg-#FF4B2A/20"
-                      >
-                        <Plus size={14} />
-                        Añadir recurso
-                      </button>
+                      {showResourceInput ? (
+                        <div className="mt-3 flex items-center gap-2">
+                          <input
+                            type="url"
+                            autoFocus
+                            aria-label="Link del recurso"
+                            value={newResource}
+                            onChange={(e) => setNewResource(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddResource();
+                              }
+                              if (e.key === 'Escape') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setShowResourceInput(false);
+                                setNewResource('');
+                              }
+                            }}
+                            placeholder="https://…"
+                            className={`${inputClass} ${inputOk} mt-0 flex-1`}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddResource}
+                            className="rounded-md bg-dark-bg px-3 py-2 text-xs font-semibold text-white dark:bg-accent"
+                          >
+                            Añadir
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setShowResourceInput(false); setNewResource(''); }}
+                            className="rounded-md px-3 py-2 text-xs font-medium text-secondary hover:bg-gray-100 dark:text-white/60 dark:hover:bg-white/5"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setShowResourceInput(true)}
+                          className="mt-3 inline-flex items-center gap-2 rounded-md border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-medium text-[#C2321A] transition hover:bg-accent/20 dark:text-[#FF8A73]"
+                        >
+                          <Plus size={14} />
+                          Añadir recurso
+                        </button>
+                      )}
                     </div>
                   </div>
+                  )}
 
-                  {editedProject.id && customPropertyEntries.length > 0 && (
+                  {editedProject.id && !isAbsenceStage && customPropertyEntries.length > 0 && (
                     <div className="md:col-span-2">
-                      <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-600">
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-white/80">
                         Propiedades personalizadas
                       </h3>
                       <div className="mt-3 space-y-4">
@@ -1184,19 +1581,21 @@ const ModalDetalles = () => {
                           .map(([key, value]) => (
                             <div
                               key={key}
-                              className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50/70 p-4 md:flex-row md:items-center md:gap-4"
+                              className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50/70 p-4 md:flex-row md:items-center md:gap-4 dark:border-white/10 dark:bg-white/[0.03]"
                             >
                               <input
                                 type="text"
                                 value={key}
                                 disabled
-                                className="w-full rounded-md bg-gray-200 px-3 py-2 text-xs uppercase tracking-wide text-gray-500 md:max-w-[200px]"
+                                aria-label="Nombre de la propiedad"
+                                className="w-full rounded-md bg-gray-200 px-3 py-2 text-xs text-gray-700 md:max-w-[200px] dark:bg-white/10 dark:text-white/70"
                               />
                               <input
                                 type="text"
                                 value={value}
+                                aria-label={`Valor de ${key}`}
                                 onChange={(event) => handlePropertyChange(key, event.target.value)}
-                                className="w-full rounded-md bg-white border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-#FF4B2A"
+                                className="w-full rounded-md bg-white border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-accent/20 dark:border-white/10 dark:bg-[#0d0f1a] dark:text-white/85"
                               />
                             </div>
                           ))}
@@ -1205,40 +1604,94 @@ const ModalDetalles = () => {
                   )}
                 </div>
 
-                <div className="flex flex-col gap-4 border-t border-border/40 bg-slate-50 px-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-10 dark:border-white/5 dark:bg-[#0B0C10]/50">
-                  {editedProject.id ? (
-                    <button
-                      type="button"
-                      className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg bg-transparent px-5 py-2 text-sm font-semibold uppercase tracking-wide text-red-500 transition-all hover:bg-red-500/10 active:scale-95"
-                      onClick={handleDelete}
-                    >
-                      <Trash2 size={18} />
-                      Eliminar
-                    </button>
+                <div className="flex flex-col gap-3 border-t border-border/40 bg-slate-50 px-4 py-5 sm:px-10 dark:border-white/5 dark:bg-[#0B0C10]/50">
+                  {errors.form && (
+                    <p role="alert" className="rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+                      {errors.form}
+                    </p>
+                  )}
+                  {showDiscardConfirm ? (
+                    <div role="alertdialog" aria-label="Cambios sin guardar" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-sm font-medium text-primary dark:text-white">
+                        Tienes cambios sin guardar. ¿Quieres descartarlos?
+                      </p>
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          autoFocus
+                          onClick={() => setShowDiscardConfirm(false)}
+                          className="min-h-[44px] rounded-lg border border-border bg-white px-5 py-2 text-sm font-semibold text-primary transition hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                        >
+                          Seguir editando
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setShowDiscardConfirm(false); closeModal(); }}
+                          className="min-h-[44px] rounded-lg bg-red-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+                        >
+                          Descartar cambios
+                        </button>
+                      </div>
+                    </div>
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-accent animate-pulse" />
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-secondary/50">
-                        Nuevo Registro
-                      </span>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      {editedProject.id ? (
+                        confirmDelete ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-medium text-red-600 dark:text-red-400">¿Eliminar {isAbsenceStage ? 'esta ausencia' : 'este proyecto'}?</span>
+                            <button
+                              type="button"
+                              onClick={handleDelete}
+                              className="min-h-[40px] rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+                            >
+                              Sí, eliminar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDelete(false)}
+                              className="min-h-[40px] rounded-lg px-3 py-2 text-sm font-medium text-secondary hover:bg-slate-100 dark:text-white/60 dark:hover:bg-white/5"
+                            >
+                              No
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-transparent px-4 py-2 text-sm font-semibold text-red-600 transition-all hover:bg-red-500/10 active:scale-95 dark:text-red-400"
+                            onClick={() => setConfirmDelete(true)}
+                          >
+                            <Trash2 size={18} />
+                            Eliminar
+                          </button>
+                        )
+                      ) : (
+                        <span className="text-sm font-medium text-secondary dark:text-white/50">
+                          {isAbsenceStage ? 'Nueva ausencia' : 'Nuevo proyecto'}
+                        </span>
+                      )}
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          className="min-h-[48px] rounded-lg border border-border bg-white px-8 py-2 text-sm font-semibold text-secondary transition-all hover:bg-slate-50 active:scale-95 dark:border-white/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
+                          onClick={requestClose}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          disabled={saving}
+                          className="min-h-[48px] rounded-lg bg-dark-bg px-10 py-2 text-sm font-semibold text-white shadow-xl transition-all hover:-translate-y-0.5 hover:shadow-2xl active:scale-95 disabled:cursor-wait disabled:opacity-70 dark:bg-accent dark:text-dark-bg dark:shadow-accent/20"
+                          onClick={handleSave}
+                        >
+                          {saving
+                            ? 'Guardando…'
+                            : editedProject.id
+                              ? 'Guardar cambios'
+                              : isAbsenceStage ? 'Registrar ausencia' : 'Crear proyecto'}
+                        </button>
+                      </div>
                     </div>
                   )}
-                  <div className="flex flex-wrap gap-4">
-                    <button
-                      type="button"
-                      className="min-h-[48px] rounded-lg border border-border bg-white px-8 py-2 text-sm font-semibold uppercase tracking-wide text-secondary transition-all hover:bg-slate-50 active:scale-95 dark:border-white/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
-                      onClick={closeModal}
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="button"
-                      className="min-h-[48px] rounded-lg bg-dark-bg px-10 py-2 text-sm font-semibold uppercase tracking-[0.15em] text-white shadow-xl transition-all hover:-translate-y-1 hover:shadow-2xl active:scale-95 dark:bg-accent dark:text-dark-bg dark:shadow-accent/20"
-                      onClick={handleSave}
-                    >
-                      {editedProject.id ? 'Guardar Cambios' : 'Crear Proyecto'}
-                    </button>
-                  </div>
                 </div>
               </Dialog.Panel>
             </Transition.Child>

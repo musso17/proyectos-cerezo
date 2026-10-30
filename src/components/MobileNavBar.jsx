@@ -19,7 +19,7 @@ const NAV_ITEMS = [
   { id: 'Table', icon: FolderOpen, label: 'Proyectos' },
   { id: 'Calendar', icon: CalendarIcon, label: 'Calendario' },
   { id: 'Gallery', icon: Images, label: 'Galería' },
-  { id: 'Edition', icon: Layers, label: 'Edición' },
+  { id: 'Edition', icon: Layers, label: 'Cola' },
 ];
 
 const selectNavState = (state) => ({

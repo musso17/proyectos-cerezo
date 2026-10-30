@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import {
@@ -12,19 +12,98 @@ import {
     AlertCircle,
     ChevronDown
 } from 'lucide-react';
-import { format, isPast, isToday, parseISO } from 'date-fns';
+import { differenceInCalendarDays, format, isPast, isToday, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { toast } from 'react-hot-toast';
 import useStore from '../../hooks/useStore';
 import { ensureMemberName } from '../../constants/team';
+import { getStatusLabel, normalizeStatus } from '../../utils/statusHelpers';
+import { isAbsenceProject } from '../../utils/absences';
+import { filterProjects } from '../../utils/filterProjects';
+import { setUIPreference } from '../../utils/uiPreferences';
+import MemberAvatar from '../ui/MemberAvatar';
+import { hasDeliverableLink } from '../ui/projectActions';
 
 // -- Constants & Helpers --
 
 const STATUS_DOT_COLORS = {
-    'Programado': 'bg-slate-300',
-    'En progreso': 'bg-[#FF4B2A]',
-    'En edición': 'bg-[#FF4B2A] shadow-[0_0_8px_rgba(255,75,42,0.4)]',
-    'En revisión': 'bg-[#5F6468]',
-    'Completado': 'bg-black dark:bg-white',
+    'Programado': 'bg-slate-400',
+    'En progreso': 'bg-amber-500',
+    'En revisión': 'bg-blue-500',
+    'Completado': 'bg-emerald-500',
+    'Stuck': 'bg-red-500',
+};
+
+// Urgente: vencido o vence en los próximos 2 días.
+const isUrgentTask = (task) => {
+    if (!task.deadline) return false;
+    try {
+        return differenceInCalendarDays(parseISO(task.deadline), new Date()) <= 2;
+    } catch {
+        return false;
+    }
+};
+
+const QUICK_FILTERS = [
+    { id: 'urgent', label: 'Urgente', test: isUrgentTask },
+    { id: 'review', label: 'En revisión', test: (task) => task.status === 'En revisión' },
+    { id: 'stuck', label: 'Atascados', test: (task) => task.status === 'Stuck' },
+];
+
+// Menú "···" de cada editor: atajos a su agenda y a sus proyectos.
+const EditorMenu = ({ member }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+    const setCurrentView = useStore((state) => state.setCurrentView);
+    const setSearchTerm = useStore((state) => state.setSearchTerm);
+
+    useEffect(() => {
+        if (!open) return undefined;
+        const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+        const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+        document.addEventListener('mousedown', onClick);
+        document.addEventListener('keydown', onKey);
+        return () => {
+            document.removeEventListener('mousedown', onClick);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, [open]);
+
+    const goToTimeline = () => {
+        setUIPreference('calendarPrimaryView', 'timeline');
+        setSearchTerm(`responsable:${member}`);
+        setCurrentView('Calendar');
+    };
+
+    const goToProjects = () => {
+        setSearchTerm(`responsable:${member}`);
+        setCurrentView('Table');
+    };
+
+    return (
+        <div className="relative" ref={ref}>
+            <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={open}
+                aria-label={`Opciones de ${member}`}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-secondary transition-colors hover:bg-white hover:text-primary dark:text-white/50 dark:hover:bg-white/5"
+            >
+                <MoreHorizontal size={16} />
+            </button>
+            {open && (
+                <div role="menu" className="absolute right-0 top-full z-30 mt-1 w-56 rounded-lg border border-slate-200 bg-white p-1.5 text-sm shadow-xl dark:border-white/10 dark:bg-[#16171D]">
+                    <button type="button" role="menuitem" onClick={goToTimeline} className="block w-full rounded-md px-3 py-2 text-left text-primary hover:bg-slate-100 dark:text-white/80 dark:hover:bg-white/5">
+                        Ver su semana en el Timeline
+                    </button>
+                    <button type="button" role="menuitem" onClick={goToProjects} className="block w-full rounded-md px-3 py-2 text-left text-primary hover:bg-slate-100 dark:text-white/80 dark:hover:bg-white/5">
+                        Ver todos sus proyectos
+                    </button>
+                </div>
+            )}
+        </div>
+    );
 };
 
 // -- Components --
@@ -53,7 +132,7 @@ const TaskCard = ({ task, onComplete, index }) => {
                     <div className="flex flex-1 flex-col p-5 gap-4">
                         <div className="flex items-start justify-between gap-4">
                             <div className="flex flex-col gap-1.5">
-                                <span className="text-[9px] font-medium uppercase tracking-[0.25em] text-secondary/40">
+                                <span className="text-xs font-medium text-secondary dark:text-white/50">
                                     {task.client || 'Sin cliente'}
                                 </span>
                                 <h4 className="text-[14px] font-semibold tracking-tight text-primary dark:text-white leading-tight">
@@ -65,12 +144,12 @@ const TaskCard = ({ task, onComplete, index }) => {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
                                 <div className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT_COLORS[task.status] || 'bg-slate-300'}`} />
-                                <span className="text-[10px] font-medium text-secondary/60 dark:text-white/40">
-                                    {task.status}
+                                <span className="text-xs font-medium text-secondary dark:text-white/60">
+                                    {getStatusLabel(task.status)}
                                 </span>
                             </div>
 
-                            <div className={`flex items-center gap-1.5 text-[10px] font-medium ${isOverdue ? 'text-red-500' : 'text-secondary/40'}`}>
+                            <div className={`flex items-center gap-1.5 text-xs font-medium ${isOverdue ? 'text-red-600 dark:text-red-400' : 'text-secondary dark:text-white/50'}`}>
                                 {isOverdue ? <AlertCircle size={12} /> : <Clock size={12} />}
                                 <span>{task.deadline ? format(parseISO(task.deadline), "d MMM", { locale: es }) : 'S/F'}</span>
                             </div>
@@ -82,10 +161,10 @@ const TaskCard = ({ task, onComplete, index }) => {
                                     e.stopPropagation();
                                     onComplete && onComplete(task);
                                 }}
-                                className="mt-1 flex items-center justify-center gap-2 rounded-xl bg-slate-50 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-secondary/60 opacity-0 transition-all hover:bg-dark-bg hover:text-white group-hover:opacity-100 dark:bg-white/5 dark:text-white/40 dark:hover:bg-accent dark:hover:text-dark-bg"
+                                className="mt-1 flex items-center justify-center gap-2 rounded-xl bg-slate-50 py-2.5 text-xs font-semibold text-secondary opacity-0 transition-all hover:bg-dark-bg hover:text-white focus:opacity-100 group-hover:opacity-100 dark:bg-white/5 dark:text-white/60 dark:hover:bg-accent dark:hover:text-dark-bg"
                             >
                                 <CheckCircle2 size={12} />
-                                <span>Marcar Completado</span>
+                                <span>Marcar completado</span>
                             </button>
                         )}
                     </div>
@@ -96,26 +175,26 @@ const TaskCard = ({ task, onComplete, index }) => {
 };
 
 const EditorColumn = ({ member, tasks, onComplete }) => {
-    const initials = member.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     const formattedName = member.charAt(0).toUpperCase() + member.slice(1).toLowerCase();
+    const isUnassigned = member === 'Sin asignar';
 
     return (
         <div className="flex min-w-[340px] flex-col gap-6 rounded-xl bg-slate-100/30 p-6 dark:bg-white/[0.02] h-full">
             <div className="flex items-center justify-between px-2">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[11px] font-bold text-primary shadow-sm dark:bg-white/10 dark:text-white">
-                        {initials}
-                    </div>
+                    {isUnassigned ? (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-300 text-xs font-bold text-white dark:bg-slate-600">?</div>
+                    ) : (
+                        <MemberAvatar name={member} size="lg" />
+                    )}
                     <div className="flex flex-col">
                         <h3 className="text-sm font-semibold text-primary dark:text-white leading-none">{formattedName}</h3>
-                        <span className="mt-1 text-[10px] font-medium text-secondary/40 uppercase tracking-widest">
-                            {tasks.length} {tasks.length === 1 ? 'Tarea' : 'Tareas'}
+                        <span className="mt-1 text-xs font-medium text-secondary dark:text-white/50">
+                            {tasks.length} {tasks.length === 1 ? 'tarea' : 'tareas'}
                         </span>
                     </div>
                 </div>
-                <button className="flex h-8 w-8 items-center justify-center rounded-full text-secondary/30 transition-colors hover:bg-white hover:text-primary dark:hover:bg-white/5">
-                    <MoreHorizontal size={16} />
-                </button>
+                {!isUnassigned && <EditorMenu member={member} />}
             </div>
 
             <Droppable droppableId={member}>
@@ -129,7 +208,7 @@ const EditorColumn = ({ member, tasks, onComplete }) => {
                     >
                         {tasks.length === 0 && !snapshot.isDraggingOver && (
                             <div className="flex grow flex-col items-center justify-center rounded-xl bg-slate-50/50 dark:bg-white/[0.01]">
-                                <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-secondary/20">Disponible</p>
+                                <p className="text-xs font-medium text-secondary/70 dark:text-white/40">Disponible</p>
                             </div>
                         )}
                         {tasks.map((task, index) => (
@@ -149,23 +228,28 @@ const EditorColumn = ({ member, tasks, onComplete }) => {
 };
 
 const VistaEdicion = () => {
-    const { projects, teamMembers, updateProject } = useStore(
+    const { projects, teamMembers, updateProject, openModal, searchTerm, setSearchTerm } = useStore(
         useShallow((state) => ({
             projects: state.projects,
             teamMembers: state.teamMembers,
             updateProject: state.updateProject,
+            openModal: state.openModal,
+            // Misma búsqueda que el buscador de arriba.
+            searchTerm: state.searchTerm,
+            setSearchTerm: state.setSearchTerm,
         }))
     );
 
-    const [searchTerm, setSearchTerm] = useState('');
+    const [quickFilter, setQuickFilter] = useState(null);
 
     // Build tasks and sort by priority
     const allTasks = useMemo(() => {
         let tasks = [];
 
         // 1. Explicit Editing Projects
-        const editingProjects = projects.filter(p => {
-            const isCompleted = (p.status || '').toLowerCase() === 'completado';
+        const editingProjects = filterProjects(projects, searchTerm).filter(p => {
+            if (isAbsenceProject(p)) return false;
+            const isCompleted = normalizeStatus(p.status) === 'Completado';
             const isEditingType = (p.type || '').toLowerCase() === 'edicion' || (p.stage || '').toLowerCase() === 'edicion';
             return !isCompleted && isEditingType;
         });
@@ -175,7 +259,7 @@ const VistaEdicion = () => {
             title: p.name,
             client: p.client,
             manager: ensureMemberName(p.manager), // Normalize manager name
-            status: p.status || 'Programado',
+            status: normalizeStatus(p.status),
             deadline: p.deadline || p.endDate,
             isIsa: false,
             originalProject: p,
@@ -183,20 +267,15 @@ const VistaEdicion = () => {
             completed: false
         }));
 
-        // Filter by search
-        if (searchTerm.trim()) {
-            const lowerRaw = searchTerm.toLowerCase();
-            tasks = tasks.filter(t =>
-                t.title.toLowerCase().includes(lowerRaw) ||
-                t.client.toLowerCase().includes(lowerRaw) ||
-                t.manager.toLowerCase().includes(lowerRaw)
-            );
+        const activeFilter = QUICK_FILTERS.find((f) => f.id === quickFilter);
+        if (activeFilter) {
+            tasks = tasks.filter(activeFilter.test);
         }
 
         // Sort by priorityOrder (ascending)
         return tasks.sort((a, b) => (a.priorityOrder || 0) - (b.priorityOrder || 0));
 
-    }, [projects, searchTerm]);
+    }, [projects, searchTerm, quickFilter]);
 
     const tasksByMember = useMemo(() => {
         const grouped = {};
@@ -290,7 +369,11 @@ const VistaEdicion = () => {
 
 
     const handleComplete = async (task) => {
-        if (!confirm(`¿Marcar "${task.title}" como completado?`)) return;
+        // Completado exige el link del entregable: se abre el formulario para pedirlo.
+        if (!hasDeliverableLink(task.originalProject)) {
+            openModal(task.originalProject, { status: 'Completado' });
+            return;
+        }
 
         const updated = {
             ...task.originalProject,
@@ -301,7 +384,9 @@ const VistaEdicion = () => {
                 completedAt: new Date().toISOString()
             }
         };
-        await updateProject(updated);
+        const result = await updateProject(updated);
+        if (result?.ok) toast.success(`«${task.title}» completado`);
+        else toast.error('No se pudo marcar como completado.');
     };
 
     return (
@@ -316,24 +401,36 @@ const VistaEdicion = () => {
                                 Cola de Edición
                             </h1>
                         </div>
-                        <p className="text-sm font-medium text-secondary/40">
-                            Gestión de entregas y revisiones por editor profesional
+                        <p className="text-sm text-secondary dark:text-white/60">
+                            Proyectos en edición por editor. Arrastra para reasignar o priorizar.
                         </p>
                     </div>
 
                     <div className="flex flex-col items-end gap-6">
-                        <div className="flex items-center gap-4">
-                            {['Urgente', 'En Revisión', 'Feedbacks'].map((f) => (
-                                <button key={f} className="text-[10px] font-semibold uppercase tracking-[0.2em] text-secondary/30 hover:text-accent transition-colors">
-                                    {f}
-                                </button>
-                            ))}
+                        <div className="flex items-center gap-2" role="group" aria-label="Filtros rápidos">
+                            {QUICK_FILTERS.map((f) => {
+                                const active = quickFilter === f.id;
+                                return (
+                                    <button
+                                        key={f.id}
+                                        type="button"
+                                        aria-pressed={active}
+                                        onClick={() => setQuickFilter(active ? null : f.id)}
+                                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${active
+                                            ? 'border-dark-bg bg-dark-bg text-white dark:border-accent dark:bg-accent dark:text-dark-bg'
+                                            : 'border-border text-secondary hover:border-secondary hover:text-primary dark:border-white/10 dark:text-white/60 dark:hover:text-white'}`}
+                                    >
+                                        {f.label}
+                                    </button>
+                                );
+                            })}
                         </div>
                         <div className="relative group">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary/30 transition-colors group-focus-within:text-accent" size={16} />
                             <input
                                 type="text"
-                                placeholder="Buscar proyecto..."
+                                aria-label="Buscar en la cola de edición"
+                                placeholder="Buscar proyecto…"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-80 rounded-lg border border-border/40 bg-slate-50/50 py-3.5 pl-12 pr-6 text-sm outline-none transition-all focus:border-accent focus:bg-white dark:border-white/5 dark:bg-white/[0.02] dark:text-white dark:focus:border-accent"
