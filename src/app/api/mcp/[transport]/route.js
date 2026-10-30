@@ -284,14 +284,24 @@ const handler = createMcpHandler(
 // ─── Auth por token compartido ──────────────────────────────────────────────────
 const authed = async (req) => {
   const secret = process.env.MCP_SECRET;
-  // Si no hay secreto configurado, permitir (modo abierto) pero advertir en logs.
+  // Sin secreto el conector queda cerrado (usa la service role, que se salta
+  // la RLS). Solo en desarrollo local se permite el modo abierto.
   if (!secret) {
-    console.warn('[MCP] MCP_SECRET no configurado: el conector está ABIERTO.');
-    return handler(req);
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[MCP] MCP_SECRET no configurado: conector abierto solo en desarrollo.');
+      return handler(req);
+    }
+    console.error('[MCP] MCP_SECRET no configurado: conector cerrado.');
+    return new Response(JSON.stringify({ error: 'MCP_SECRET no configurado' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
   const auth = req.headers.get('authorization') || '';
   const bearer = auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : null;
   const headerKey = req.headers.get('x-api-key');
+  // ?key= se mantiene por compatibilidad con conectores que no permiten
+  // cabeceras, pero queda en los logs: preferir Authorization o x-api-key.
   const urlKey = new URL(req.url).searchParams.get('key');
   if (bearer === secret || headerKey === secret || urlKey === secret) {
     return handler(req);

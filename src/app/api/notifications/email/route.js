@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { requireTeamMember } from '../../../../lib/auth/teamAuth';
+import { MEMBER_BY_EMAIL } from '../../../../constants/team';
 
+// Solo se avisa al equipo: antes cualquiera podía usar esta ruta para mandar
+// correos a cualquier dirección desde notificaciones@cerezoperu.com.
+const TEAM_EMAILS = new Set(Object.keys(MEMBER_BY_EMAIL));
 
 // Los datos del proyecto vienen del cliente: se escapan antes de armar el HTML.
 const escapeHtml = (value) =>
@@ -22,6 +27,9 @@ const safeUrl = (value) => {
 };
 
 export async function POST(request) {
+  const auth = await requireTeamMember(request);
+  if (auth.response) return auth.response;
+
   const apiKey = process.env.RESEND_API_KEY;
 
   if (!apiKey) {
@@ -44,13 +52,16 @@ export async function POST(request) {
     if (!to) {
       return NextResponse.json({ code: 'MISSING_RECIPIENT', message: 'Falta el destinatario.' }, { status: 400 });
     }
+    if (!TEAM_EMAILS.has(to.toString().trim().toLowerCase())) {
+      return NextResponse.json({ code: 'RECIPIENT_NOT_ALLOWED', message: 'Solo se puede avisar a integrantes del equipo.' }, { status: 403 });
+    }
 
     const calendarHref = safeUrl(calendarLink);
 
     const { data, error } = await resend.emails.send({
       from: 'Cerezo Planner <notificaciones@cerezoperu.com>',
       to: [to],
-      subject: subject,
+      subject: (subject || '').toString().slice(0, 200),
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; border: 1px solid #f0f0f0; border-radius: 24px;">
           <h1 style="font-size: 24px; color: #1a1a1a; margin-bottom: 8px;">Nuevo Proyecto Asignado</h1>

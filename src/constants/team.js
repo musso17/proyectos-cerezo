@@ -63,7 +63,9 @@ export const MEMBER_COLORS = {
 
 export const DEFAULT_MEMBER_COLOR = '#64748b';
 
-const MEMBER_BY_EMAIL = {
+// Lista blanca del equipo: también la usan las rutas del servidor para
+// autorizar la oficina y los avisos por correo (ver src/lib/auth/teamAuth.js).
+export const MEMBER_BY_EMAIL = {
   'hola@cerezoperu.com': 'Marcelo',
   'mauriciomu22ts@gmail.com': 'Mauricio',
   'edsonlom321@gmail.com': 'Edson',
@@ -78,6 +80,12 @@ export const getMemberInitials = (name) => {
   if (parts.length > 1) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   return member.charAt(0).toUpperCase() + (member.charAt(1) || '').toLowerCase();
 };
+
+export const getTeamMemberByEmail = (email) =>
+  MEMBER_BY_EMAIL[(email || '').toString().trim().toLowerCase()] || null;
+
+// Solo el equipo entra a la oficina y a las salas de voz (Francisco no).
+export const isTeamUser = (user) => Boolean(user && getTeamMemberByEmail(user.email));
 
 // Integrante del equipo que corresponde al usuario con sesión iniciada.
 export const getMemberNameForUser = (user) => {

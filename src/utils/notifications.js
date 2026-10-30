@@ -1,4 +1,5 @@
 import { MEMBER_EMAILS, generarLinkGoogleCalendar } from './calendar';
+import { authFetch } from './authFetch';
 
 /**
  * Notifica a un encargado por correo electrónico sobre la asignación de un proyecto.
@@ -40,7 +41,7 @@ export const notifyManagerAssignment = async (project, managerName) => {
   };
 
   try {
-    const response = await fetch('/api/notifications/email', {
+    const response = await authFetch('/api/notifications/email', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

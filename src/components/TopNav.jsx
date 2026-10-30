@@ -27,7 +27,7 @@ import useStore from '../hooks/useStore';
 import UserSettingsPanel from './UserSettingsPanel';
 import { AVAILABILITY_OPTIONS } from '../utils/availability';
 import { useMemberColor } from './ui/MemberAvatar';
-import { getMemberNameForUser } from '../constants/team';
+import { getMemberNameForUser, isTeamUser } from '../constants/team';
 
 const NAV_ITEMS = [
   { id: 'Dashboard', icon: Activity, label: 'Inicio' },
@@ -363,7 +363,7 @@ const TopNav = () => {
             {/* Presencia + colaboración en vivo */}
             <div className="hidden items-center gap-2 sm:flex">
               <PresenceButton />
-              <VoiceRoomsButton />
+              {isTeamUser(currentUser) && <VoiceRoomsButton />}
             </div>
 
             {/* Separador entre presencia y utilidades */}
@@ -456,7 +456,7 @@ const TopNav = () => {
             </div>
             <div className="flex flex-col gap-2 pt-1">
               <PresenceButton />
-              <VoiceRoomsButton />
+              {isTeamUser(currentUser) && <VoiceRoomsButton />}
             </div>
             <div className="flex items-center gap-2 pt-1">
               <button onClick={toggleTheme} className={iconBtn} title="Cambiar tema" aria-label="Cambiar tema">{theme === 'dark' ? <Sun size={18} className="text-accent" /> : <Moon size={18} />}</button>

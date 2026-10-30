@@ -1,30 +1,65 @@
-import { AccessToken } from 'livekit-server-sdk';
+import { AccessToken, TrackSource } from 'livekit-server-sdk';
 import { NextResponse } from 'next/server';
+import { requireTeamMember } from '../../../lib/auth/teamAuth';
+import {
+  TOKEN_TTL,
+  buildIdentity,
+  buildParticipantMetadata,
+  buildVideoGrant,
+  isAllowedRoom,
+} from '../../../lib/office/livekitPolicy';
 
-export async function GET(req) {
-  const room = req.nextUrl.searchParams.get('room');
-  const username = req.nextUrl.searchParams.get('username');
-  const displayName = req.nextUrl.searchParams.get('displayName');
+export const dynamic = 'force-dynamic';
 
-  if (!room || !username) {
-    return NextResponse.json({ error: 'Faltan los parámetros "room" o "username"' }, { status: 400 });
+const TRACK_SOURCES = {
+  microphone: TrackSource.MICROPHONE,
+  screen_share: TrackSource.SCREEN_SHARE,
+  screen_share_audio: TrackSource.SCREEN_SHARE_AUDIO,
+};
+
+const json = (body, status = 200) =>
+  NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
+
+// POST { room, deviceId } con Authorization: Bearer <access_token de Supabase>.
+// La identidad y el nombre los decide el servidor a partir de la sesión.
+export async function POST(req) {
+  const auth = await requireTeamMember(req);
+  if (auth.response) return auth.response;
+  const { user, member } = auth;
+
+  let body = {};
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: 'Cuerpo inválido.' }, 400);
   }
+
+  const room = (body.room || '').toString();
+  if (!isAllowedRoom(room)) return json({ error: 'Sala no permitida.' }, 403);
 
   const apiKey = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_API_SECRET;
-
   if (!apiKey || !apiSecret) {
-    return NextResponse.json({ error: 'Credenciales de LiveKit no configuradas en el servidor' }, { status: 500 });
+    return json({ error: 'Credenciales de LiveKit no configuradas en el servidor' }, 500);
   }
 
+  const identity = buildIdentity(user.id, body.deviceId);
   const at = new AccessToken(apiKey, apiSecret, {
-    identity: username,
-    name: displayName || username.split('@')[0],
+    identity,
+    name: member,
+    ttl: TOKEN_TTL,
+    metadata: buildParticipantMetadata({
+      member,
+      userId: user.id,
+      avatarColor: user.user_metadata?.avatar_color,
+    }),
   });
+  at.addGrant(buildVideoGrant(room, (source) => TRACK_SOURCES[source]));
 
-  at.addGrant({ roomJoin: true, room: room, canPublish: true, canSubscribe: true });
+  return json({ token: await at.toJwt(), identity, member });
+}
 
-  const token = await at.toJwt();
-  
-  return NextResponse.json({ token });
+// El GET anterior (sin autenticación) queda cerrado.
+export async function GET() {
+  return json({ error: 'Usa POST con tu sesión.' }, 405);
 }
