@@ -50,6 +50,53 @@ const matchTeamMember = (raw) => {
   return trimmed;
 };
 
+// Avatares: mismas iniciales y colores en toda la app. Dos letras para que
+// Marcelo (Ma) y Mauricio (Mu) no se confundan.
+export const MEMBER_ABBREV = { Marcelo: 'Ma', Mauricio: 'Mu', Edson: 'Ed', Luis: 'Lu' };
+
+export const MEMBER_COLORS = {
+  Marcelo: '#10b981',
+  Mauricio: '#0ea5e9',
+  Edson: '#f59e0b',
+  Luis: '#8b5cf6',
+};
+
+export const DEFAULT_MEMBER_COLOR = '#64748b';
+
+// Lista blanca del equipo: también la usan las rutas del servidor para
+// autorizar la oficina y los avisos por correo (ver src/lib/auth/teamAuth.js).
+export const MEMBER_BY_EMAIL = {
+  'hola@cerezoperu.com': 'Marcelo',
+  'mauriciomu22ts@gmail.com': 'Mauricio',
+  'edsonlom321@gmail.com': 'Edson',
+  'luis.matallana.30@gmail.com': 'Luis',
+};
+
+export const getMemberInitials = (name) => {
+  const member = matchTeamMember(name);
+  if (!member) return '?';
+  if (MEMBER_ABBREV[member]) return MEMBER_ABBREV[member];
+  const parts = member.split(/[\s._-]+/).filter(Boolean);
+  if (parts.length > 1) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return member.charAt(0).toUpperCase() + (member.charAt(1) || '').toLowerCase();
+};
+
+export const getTeamMemberByEmail = (email) =>
+  MEMBER_BY_EMAIL[(email || '').toString().trim().toLowerCase()] || null;
+
+// Solo el equipo entra a la oficina y a las salas de voz (Francisco no).
+export const isTeamUser = (user) => Boolean(user && getTeamMemberByEmail(user.email));
+
+// Integrante del equipo que corresponde al usuario con sesión iniciada.
+export const getMemberNameForUser = (user) => {
+  if (!user) return null;
+  const meta = user.user_metadata || {};
+  const fromName = matchTeamMember(meta.display_name || meta.full_name || meta.name || '');
+  if (fromName && TEAM_MEMBERS.includes(fromName)) return fromName;
+  const email = (user.email || '').toString().trim().toLowerCase();
+  return MEMBER_BY_EMAIL[email] || null;
+};
+
 export const ensureMemberName = (name) => {
   if (Array.isArray(name)) {
     const [first] = name

@@ -4,14 +4,23 @@ import { supabase } from '../config/supabase';
 import { persist } from 'zustand/middleware';
 import { TEAM_MEMBERS } from '../constants/team';
 import { generarTareasEdicionDesdeProyectos } from '../utils/editingTasks';
-import { normalizeStatus, ALLOWED_STATUSES } from '../utils/statusHelpers';
-import { notifyManagerAssignment } from '../utils/notifications';
-import { sanitizeRecordingDates, getProjectLastRecordingDate } from '../utils/dashboardHelpers';
+import { toast } from 'react-hot-toast';
+import { normalizeStatus } from '../utils/statusHelpers';
+import { notifyNewManagers } from '../utils/notifications';
+import {
+  sanitizeRecordingDates,
+  getProjectLastRecordingDate,
+  computeTurnaroundByFormat,
+  estimateDeliveryDate,
+} from '../utils/dashboardHelpers';
+import { canonicalizeProjectClients } from '../utils/clients';
+import { ABSENCE_STAGE, getAbsenceMembersFromName, isAbsenceProject } from '../utils/absences';
+import { deriveAvailability } from '../utils/availability';
+import { getMemberNameForUser } from '../constants/team';
 
 const LOCAL_STORAGE_KEY = 'cerezo-projects';
 const RETAINERS_KEY = 'cerezo-retainers';
 const DEFAULT_ALLOWED_VIEWS = ['Table', 'Calendar', 'Timeline', 'Gallery', 'Edition'];
-const AGENT_STORAGE_KEY = 'cerezo-agent-state';
 const FRANCISCO_EMAIL = 'francisco@carbonomkt.com';
 const CEO_EMAIL = 'hola@cerezoperu.com';
 const THEME_STORAGE_KEY = 'cerezo-theme';
@@ -94,7 +103,9 @@ const deriveProjectStatuses = (projects = []) =>
       state === 'entregado' ||
       (project.properties?.state && project.properties.state.toString().trim().toLowerCase() === 'entregado');
 
-    if (normalizedStatus === 'completado' || isEntregado) {
+    // El estado elegido manda: "entregado" solo completa si no hay otro estado
+    // explícito (antes un completado que pasaba a "Atascado" volvía a Completado).
+    if (normalizedStatus === 'completado' || (isEntregado && !normalizedStatus)) {
       derivedStatus = 'Completado';
     } else if (
       (stage === 'edicion' || stage === 'grabacion' || stage === 'fotografia' || stage === 'fotografía') &&
@@ -129,9 +140,12 @@ const normalizeProject = (project) => {
     : Array.isArray(properties.resources)
       ? properties.resources.filter(Boolean)
       : [];
-  const managers = normalizeManagers(
+  let managers = normalizeManagers(
     project.managers || project.manager || project.encargado || properties.managers
   );
+  if (managers.length === 0 && isAbsenceProject(project)) {
+    managers = getAbsenceMembersFromName(project.name);
+  }
   const rawStage = project.stage || properties.stage || '';
   const normalizedStage =
     rawStage && rawStage.toString().trim().length > 0
@@ -187,6 +201,12 @@ const normalizeProject = (project) => {
     properties.deliverable_link ||
     null;
 
+  // Ausencias cargadas antes como "NO ESTÁ <nombre>" (cliente Interno) pasan a
+  // la fase propia de ausencias; al guardarlas queda persistido.
+  const resolvedStage = isAbsenceProject(project)
+    ? ABSENCE_STAGE
+    : normalizedStage || (fechaGrabacion ? 'grabacion' : properties.stage || '');
+
   return {
     ...project,
     startDate,
@@ -200,7 +220,7 @@ const normalizeProject = (project) => {
     recordingDates,
     resources,
     registrationType,
-    stage: normalizedStage || (fechaGrabacion ? 'grabacion' : properties.stage || ''),
+    stage: resolvedStage,
     recordingTime,
     recordingLocation,
     recordingDescription,
@@ -213,7 +233,7 @@ const normalizeProject = (project) => {
       resources,
       managers,
       registrationType,
-      stage: normalizedStage || properties.stage,
+      stage: resolvedStage || properties.stage,
       recordingTime,
       recordingLocation,
       recordingDescription,
@@ -528,7 +548,8 @@ const filterProjectsForUser = (projects, user) => {
 
 const buildProjectsStateSnapshot = (state, projects) => {
   const filteredProjects = filterProjectsForUser(projects || [], state.currentUser);
-  const enrichedProjects = deriveProjectStatuses(filteredProjects);
+  // "FUSO"/"Fuso", "Propio"/"Interno"… se muestran (y se guardan) con un solo nombre.
+  const enrichedProjects = deriveProjectStatuses(canonicalizeProjectClients(filteredProjects));
   return {
     projects: enrichedProjects,
     editingTasks: buildEditingTasks(enrichedProjects),
@@ -634,13 +655,36 @@ const hasGeneratedEditingProject = (projects, recordingId) => {
   });
 };
 
-const readLocalAgentState = () => {
-  if (typeof window === 'undefined') return { lastRunAt: null, summary: '', suggestions: [] };
-  try {
-    const stored = window.localStorage.getItem(AGENT_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : { lastRunAt: null, summary: '', suggestions: [] };
-  } catch (error) {
-    return { lastRunAt: null, summary: '', suggestions: [] };
+let inFlightProjectsFetch = null;
+
+const sortByStartDateDesc = (projects) =>
+  [...projects].sort((a, b) => {
+    const startA = a.startDate ? new Date(a.startDate).getTime() : 0;
+    const startB = b.startDate ? new Date(b.startDate).getTime() : 0;
+    return startB - startA;
+  });
+
+const joinNames = (results) => results.map((result) => result.manager).join(', ');
+
+// Envía el aviso por correo a los responsables recién asignados y muestra el
+// resultado: antes los fallos solo quedaban en la consola.
+const announceAssignments = async (project, previousManagers = []) => {
+  if (!project || isAbsenceProject(project)) return;
+  const results = await notifyNewManagers(project, previousManagers);
+  if (results.length === 0) return;
+  const sent = results.filter((result) => result.ok);
+  const failed = results.filter((result) => !result.ok);
+  if (sent.length > 0) {
+    toast.success(`Aviso por correo enviado a ${joinNames(sent)}.`);
+  }
+  if (failed.length > 0) {
+    const notConfigured = failed.some((result) => result.code === 'EMAIL_NOT_CONFIGURED');
+    toast.error(
+      notConfigured
+        ? `No se envió el aviso por correo a ${joinNames(failed)}: el envío de correos no está configurado.`
+        : `No se pudo avisar por correo a ${joinNames(failed)}.`,
+      { duration: 8000 }
+    );
   }
 };
 
@@ -664,12 +708,18 @@ const useStore = create((set, get) => ({
   setActiveVoiceRoom: (room) => set({ activeVoiceRoom: room, isVoiceRoomMinimized: false }),
   setIsVoiceRoomMinimized: (minimized) => set({ isVoiceRoomMinimized: minimized }),
   userAvailability: 'Activo - Editando',
-  setUserAvailability: (status) => set({ userAvailability: status }),
+  // 'auto' = se calcula con la agenda de hoy; 'manual' = la persona lo eligió.
+  availabilitySource: 'auto',
+  setUserAvailability: (status) => set({ userAvailability: status, availabilitySource: 'manual' }),
+  syncAvailabilityFromSchedule: () => {
+    const { availabilitySource, currentUser, projects } = get();
+    if (availabilitySource === 'manual') return;
+    const derived = deriveAvailability(projects, getMemberNameForUser(currentUser));
+    if (derived) set({ userAvailability: derived });
+  },
   theme: getInitialTheme(),
   selectedDashboardDate: startOfMonth(new Date()),
   reportingData: {
-    projects: [],
-    efficiency: [],
     lastSync: null,
     isOnline: true,
   },
@@ -683,8 +733,11 @@ const useStore = create((set, get) => ({
     }),
 
   setSelectedDashboardDate: (date) => set({ selectedDashboardDate: startOfMonth(date) }),
-  openModal: (project) => set({ isModalOpen: true, selectedProject: project }),
-  closeModal: () => set({ isModalOpen: false, selectedProject: null }),
+  // `intent` permite abrir el formulario con un cambio ya propuesto, p. ej.
+  // { status: 'Completado' } cuando falta el link del entregable.
+  modalIntent: null,
+  openModal: (project, intent = null) => set({ isModalOpen: true, selectedProject: project, modalIntent: intent }),
+  closeModal: () => set({ isModalOpen: false, selectedProject: null, modalIntent: null }),
   setSearchTerm: (term) => set({ searchTerm: term }),
   openSidebar: () => set({ sidebarOpen: true }),
   closeSidebar: () => set({ sidebarOpen: false, isSidebarOpen: false }), // Cierra ambos
@@ -801,107 +854,65 @@ const useStore = create((set, get) => ({
     set({ loading: true, error: null });
     try {
       await get()._fetchProjects();
-    } catch (error) {
-      // El error ya se maneja dentro de _fetchProjects
     } finally {
       set({ loading: false });
     }
   },
 
-  // FUNCIÓN INTERNA: Solo obtiene datos, no gestiona 'loading'.
-  _fetchProjects: async () => {
-    // set({ loading: true, error: null }); // Se elimina el control de loading
+  // FUNCIÓN INTERNA: Solo obtiene datos, no gestiona 'loading'. Si ya hay una
+  // carga en curso devuelve la misma promesa, así la tabla no se pide dos veces.
+  _fetchProjects: () => {
+    if (inFlightProjectsFetch) return inFlightProjectsFetch;
 
-    if (!supabaseClient) {
-      const localProjects = readLocalProjects();
-      set((state) => ({
-        ...buildProjectsStateSnapshot(state, localProjects),
-      }));
-      return;
-    }
-
-    try {
-      const { data, error } = await supabaseClient.from('projects').select('*');
-
-      if (error) throw error;
-
-      const projects = (data || []).map(normalizeProject).sort((a, b) => {
-        const startA = a.startDate || null;
-        const startB = b.startDate || null;
-        const tsA = startA ? new Date(startA).getTime() : 0;
-        const tsB = startB ? new Date(startB).getTime() : 0;
-        return tsB - tsA;
-      });
-      persistLocalProjects(projects);
-
-      set((state) => ({
-        ...buildProjectsStateSnapshot(state, projects),
-        reportingData: {
-          ...state.reportingData,
-          projects: data || [],
-          lastSync: new Date().toISOString(),
-          isOnline: true,
-        }
-      }));
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-      const fallbackProjects = readLocalProjects();
-      set((state) => ({
-        error: 'Error fetching projects',
-        ...buildProjectsStateSnapshot(state, fallbackProjects),
-        reportingData: {
-          ...state.reportingData,
-          isOnline: false,
-        }
-      }));
-    }
-  },
-
-  fetchReportingData: async (options = {}) => {
-    const { forceFresh = false } = options;
-    if (!supabaseClient) return null;
-
-    try {
-      // 1. Fetch de la vista canónica de proyectos
-      const { data: projectsView, error: pError } = await supabaseClient
-        .from('projects_reporting_view')
-        .select('*');
-      
-      // Si la vista no existe, fallar al modo raw
-      if (pError) {
-        console.warn('projects_reporting_view not found, using raw projects table.');
+    const run = async () => {
+      if (!supabaseClient) {
+        const localProjects = readLocalProjects();
+        set((state) => ({
+          ...buildProjectsStateSnapshot(state, localProjects),
+        }));
+        return;
       }
 
-      // 2. Fetch de métricas de eficiencia (Problema 3)
-      const { data: efficiencyData, error: eError } = await supabaseClient
-        .from('efficiency_metrics_view')
-        .select('*');
+      try {
+        const { data, error } = await supabaseClient.from('projects').select('*');
 
-      const reportingData = {
-        projects: projectsView || get().reportingData.projects,
-        efficiency: efficiencyData || [],
-        lastSync: new Date().toISOString(),
-        isOnline: true,
-      };
+        if (error) throw error;
 
-      set({ reportingData });
-      return reportingData;
-    } catch (err) {
-      console.error('Error fetching reporting data:', err);
-      set((state) => ({
-        reportingData: {
-          ...state.reportingData,
-          isOnline: false,
-        }
-      }));
-      return null;
-    }
+        const projects = sortByStartDateDesc((data || []).map(normalizeProject));
+        persistLocalProjects(projects);
+
+        set((state) => ({
+          ...buildProjectsStateSnapshot(state, projects),
+          reportingData: {
+            lastSync: new Date().toISOString(),
+            isOnline: true,
+          },
+        }));
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+        const fallbackProjects = readLocalProjects();
+        set((state) => ({
+          error: 'Error fetching projects',
+          ...buildProjectsStateSnapshot(state, fallbackProjects),
+          reportingData: {
+            ...state.reportingData,
+            isOnline: false,
+          },
+        }));
+      }
+    };
+
+    inFlightProjectsFetch = run().finally(() => {
+      inFlightProjectsFetch = null;
+    });
+    return inFlightProjectsFetch;
   },
 
   checkAndAdvanceProjectStates: async () => {
     const { projects, updateProject } = get();
     const today = startOfDay(new Date());
     const projectsToAdvance = projects.filter(p => {
+      if (isAbsenceProject(p)) return false;
       const stage = (p.stage || p.properties?.stage || '').toString().trim().toLowerCase();
       const state = (p.state || p.properties?.state || '').toString().trim().toLowerCase();
 
@@ -920,39 +931,50 @@ const useStore = create((set, get) => ({
 
     console.log(`[Agent] Found ${projectsToAdvance.length} projects to advance from 'grabacion/fotografia' to 'edicion'.`);
 
+    const turnaround = computeTurnaroundByFormat(projects);
+
     for (const project of projectsToAdvance) {
       const recordingDate =
         getProjectLastRecordingDate(project) || parseDateOnly(project.fechaGrabacion || project.startDate);
-      const registrationType = getRegistrationType(project);
-      const durationDays = computeEditingDurationDays(registrationType);
-
       const newStartDate = addDays(recordingDate, 1);
-      const newDeadline = addDays(newStartDate, Math.max(0, durationDays - 1));
+
+      // Entrega: la comprometida si ya hay una posterior al rodaje; si no, la
+      // estimada con el promedio histórico del formato; sin historial, la
+      // duración fija de siempre.
+      const existingDeadline = parseDateOnly(project.deadline);
+      let newDeadline = existingDeadline && existingDeadline >= newStartDate ? existingDeadline : null;
+      if (!newDeadline) {
+        const estimate = estimateDeliveryDate(
+          {
+            ...project,
+            deadline: null,
+            properties: { ...(project.properties || {}), deadline: null, fecha_entrega: null },
+          },
+          turnaround
+        );
+        newDeadline =
+          estimate && estimate.date >= newStartDate
+            ? estimate.date
+            : addDays(newStartDate, Math.max(0, computeEditingDurationDays(getRegistrationType(project)) - 1));
+      }
 
       const patch = {
         state: 'edicion',
         stage: 'edicion',
         startDate: formatDateOnly(newStartDate),
         deadline: formatDateOnly(newDeadline),
-        // Opcional: limpiar campos específicos de la grabación si es necesario
-        // fechaGrabacion: null, 
       };
 
       console.log(`[Agent] Advancing project ${project.id}:`, patch);
       // Usamos el ID del proyecto existente para actualizarlo
-      await updateProject({ ...project, ...patch }, { skipLoading: true });
+      await updateProject({ ...project, ...patch }, { skipNotifications: true });
     }
   },
 
+  // Devuelve { ok, project } o { ok: false, error } para que la interfaz confirme o avise.
   addProject: async (project, options = {}) => {
-    set({ loading: true, error: null });
-
-    // DEPRECATED: La lógica de auto-generación de proyectos de edición ha sido reemplazada 
-    // por checkAndAdvanceProjectStates para evitar duplicados.
-    const { skipAutoEditingGeneration = true } = options; // Default to true to disable old logic
-    const isNewProject = !project?.id;
-    const wantsAutoEditing = false; // Disabled globally
-    // isNewProject && !skipAutoEditingGeneration && shouldGenerateEditingProject(project);
+    const { skipNotifications = false } = options;
+    set({ error: null });
 
     if (!supabaseClient) {
       const baseId = project.id || generateLocalId();
@@ -963,39 +985,13 @@ const useStore = create((set, get) => ({
         created_at: project.created_at || new Date().toISOString(),
       });
 
-      // --- Notificar al nuevo encargado (Local) ---
-      if (newProject.manager && newProject.manager !== 'Sin asignar') {
-        notifyManagerAssignment(newProject, newProject.manager);
-      }
-
       set((state) => {
-        const nextProjects = [...state.projects, newProject];
-        // OLD LOGIC - DISABLED
-        /*
-        if (wantsAutoEditing && !hasGeneratedEditingProject(nextProjects, newProject.id)) {
-          const editingCandidate = createEditingProjectFromRecording(newProject);
-          if (editingCandidate) {
-            const editingProject = normalizeProject({
-              ...editingCandidate,
-              id: editingCandidate.id || generateLocalId(),
-              properties: editingCandidate.properties || {},
-              created_at: new Date().toISOString(),
-            });
-            nextProjects.push(editingProject);
-          }
-        }
-        */
-
-        const projects = nextProjects.sort((a, b) => {
-          const startA = a.startDate ? new Date(a.startDate).getTime() : 0;
-          const startB = b.startDate ? new Date(b.startDate).getTime() : 0;
-          return startB - startA;
-        });
+        const projects = sortByStartDateDesc([...state.projects, newProject]);
         persistLocalProjects(projects);
         return buildProjectsStateSnapshot(state, projects);
       });
-      set({ loading: false });
-      return;
+      if (!skipNotifications) announceAssignments(newProject, []);
+      return { ok: true, project: newProject };
     }
 
     try {
@@ -1005,94 +1001,63 @@ const useStore = create((set, get) => ({
       if (error) throw error;
 
       const inserted = Array.isArray(data) ? data[0] : data;
+      const normalized = normalizeProject(inserted || payload);
 
-      if (inserted) {
-        const normalized = normalizeProject(inserted);
-        
-        // --- Notificar al nuevo encargado ---
-        if (normalized.manager && normalized.manager !== 'Sin asignar') {
-          notifyManagerAssignment(normalized, normalized.manager);
-        }
+      set((state) => {
+        const projects = sortByStartDateDesc([
+          ...state.projects.filter((p) => p.id !== normalized.id),
+          normalized,
+        ]);
+        persistLocalProjects(projects);
+        return buildProjectsStateSnapshot(state, projects);
+      });
 
-        set((state) => {
-          const nextProjects = [...state.projects, normalized];
-          const projects = nextProjects.sort((a, b) => {
-            const startA = a.startDate ? new Date(a.startDate).getTime() : 0;
-            const startB = b.startDate ? new Date(b.startDate).getTime() : 0;
-            return startB - startA;
-          });
-          persistLocalProjects(projects);
-          return buildProjectsStateSnapshot(state, projects);
-        });
-
-        if (wantsAutoEditing && !hasGeneratedEditingProject(get().projects, normalized.id)) {
-          const editingPayload = createEditingProjectFromRecording(normalized);
-          if (editingPayload) {
-            await get().addProject(editingPayload, { skipAutoEditingGeneration: true });
-          }
-        }
-      }
+      if (!skipNotifications) announceAssignments(normalized, []);
+      return { ok: true, project: normalized };
     } catch (error) {
       set({ error: 'Error adding project' });
       console.error('Error adding project:', error);
-    } finally {
-      set({ loading: false });
+      return { ok: false, error };
     }
   },
 
+  // Acepta el proyecto completo o solo los campos que cambian ({ id, properties }):
+  // se combina con lo que ya hay para no borrar fechas, responsables, etc.
   updateProject: async (project, options = {}) => {
-    const { skipLoading = false } = options;
-    if (skipLoading) {
-      set({ error: null });
-    } else {
-      set({ loading: true, error: null });
+    const { skipNotifications = false } = options;
+    set({ error: null });
+
+    const previous = get().projects.find((p) => p.id === project.id) || null;
+    const previousManagers = previous?.managers || [];
+    const merged = previous ? { ...previous, ...project } : { ...project };
+
+    // Si deja de estar completado, el proyecto ya no está "entregado".
+    const mergedState = (merged.state || merged.properties?.state || '').toString().toLowerCase();
+    if (merged.status && normalizeStatus(merged.status) !== 'Completado' && mergedState === 'entregado') {
+      const stage = (merged.stage || merged.properties?.stage || '').toString().toLowerCase();
+      const reopenedState = stage === 'grabacion' || stage === 'fotografia' ? stage : 'edicion';
+      merged.state = reopenedState;
+      merged.properties = { ...(merged.properties || {}), state: reopenedState };
     }
 
     // 1. Optimistic Update (Immediate Feedback)
-    // We normalize the incoming project to ensure it matches our internal structure immediately
-    const optimisticNormalized = normalizeProject(project);
+    const optimisticNormalized = normalizeProject(merged);
 
     set((state) => {
-      const projects = state.projects
-        .map((p) => (p.id === optimisticNormalized.id ? { ...p, ...optimisticNormalized } : p))
-        .sort((a, b) => {
-          const startA = a.startDate ? new Date(a.startDate).getTime() : 0;
-          const startB = b.startDate ? new Date(b.startDate).getTime() : 0;
-          return startB - startA;
-        });
-      // Persist locally in case of refresh before DB sync
+      const projects = sortByStartDateDesc(
+        state.projects.map((p) => (p.id === optimisticNormalized.id ? optimisticNormalized : p))
+      );
       persistLocalProjects(projects);
       return buildProjectsStateSnapshot(state, projects);
     });
 
     if (!supabaseClient) {
-      if (!skipLoading) {
-        set({ loading: false });
-      }
-
-      // --- Notificar al nuevo encargado (Local) ---
-      const oldProject = get().projects.find(p => p.id === project.id);
-      const oldManager = oldProject?.manager || '';
-      const newManager = optimisticNormalized.manager || '';
-
-      if (newManager && newManager !== 'Sin asignar' && newManager !== oldManager) {
-        notifyManagerAssignment(optimisticNormalized, newManager);
-      }
-
-      return;
+      if (!skipNotifications) announceAssignments(optimisticNormalized, previousManagers);
+      return { ok: true, project: optimisticNormalized };
     }
 
     try {
-      const payload = prepareProjectForSupabase(project);
-
-      // --- Detectar si el encargado cambió para notificar ---
-      const oldProject = get().projects.find(p => p.id === project.id);
-      const oldManager = oldProject?.manager || '';
-      const newManager = optimisticNormalized.manager || '';
-
-      if (newManager && newManager !== 'Sin asignar' && newManager !== oldManager) {
-        notifyManagerAssignment(optimisticNormalized, newManager);
-      }
+      const payload = prepareProjectForSupabase(merged);
 
       const { data, error } = await supabaseClient
         .from('projects')
@@ -1103,36 +1068,37 @@ const useStore = create((set, get) => ({
       if (error) throw error;
 
       // 2. Confirmed Update (Sync with DB Truth)
-      // Once Supabase responds, we update again with the server-side data (e.g. triggers, timestamps)
       const updated = Array.isArray(data) ? data[0] : data;
-      const verified = normalizeProject(updated || project);
+      const verified = normalizeProject(updated || merged);
 
       set((state) => {
-        const projects = state.projects
-          .map((p) => (p.id === verified.id ? { ...p, ...verified } : p))
-          .sort((a, b) => {
-            const startA = a.startDate ? new Date(a.startDate).getTime() : 0;
-            const startB = b.startDate ? new Date(b.startDate).getTime() : 0;
-            return startB - startA;
-          });
+        const projects = sortByStartDateDesc(
+          state.projects.map((p) => (p.id === verified.id ? verified : p))
+        );
         persistLocalProjects(projects);
         return buildProjectsStateSnapshot(state, projects);
       });
+
+      if (!skipNotifications) announceAssignments(verified, previousManagers);
+      return { ok: true, project: verified };
     } catch (error) {
-      set({ error: 'Error updating project' });
       console.error('Error updating project:', error);
-      // Note: In a production app, we might want to revert the optimistic update here.
-      // For now, keeping the user's input visible is often better than a silent revert, 
-      // but showing the error is crucial.
-    } finally {
-      if (!skipLoading) {
-        set({ loading: false });
-      }
+      // Revertir el cambio optimista: la interfaz avisa del error y conserva lo escrito.
+      set((state) => {
+        const projects = previous
+          ? sortByStartDateDesc(state.projects.map((p) => (p.id === previous.id ? previous : p)))
+          : state.projects;
+        persistLocalProjects(projects);
+        return { ...buildProjectsStateSnapshot(state, projects), error: 'Error updating project' };
+      });
+      return { ok: false, error };
     }
   },
 
+  // Devuelve el proyecto eliminado para poder deshacer con restoreProject.
   deleteProject: async (id) => {
-    set({ loading: true, error: null });
+    set({ error: null });
+    const removed = get().projects.find((p) => p.id === id) || null;
 
     if (!supabaseClient) {
       set((state) => {
@@ -1140,8 +1106,7 @@ const useStore = create((set, get) => ({
         persistLocalProjects(projects);
         return buildProjectsStateSnapshot(state, projects);
       });
-      set({ loading: false });
-      return;
+      return { ok: true, project: removed };
     }
 
     try {
@@ -1153,12 +1118,18 @@ const useStore = create((set, get) => ({
         persistLocalProjects(projects);
         return buildProjectsStateSnapshot(state, projects);
       });
+      return { ok: true, project: removed };
     } catch (error) {
       set({ error: 'Error deleting project' });
       console.error('Error deleting project:', error);
-    } finally {
-      set({ loading: false });
+      return { ok: false, error };
     }
+  },
+
+  // Deshacer una eliminación: vuelve a insertar el mismo proyecto (mismo id), sin reenviar avisos.
+  restoreProject: async (project) => {
+    if (!project) return { ok: false };
+    return get().addProject(project, { skipNotifications: true });
   },
 
   setProjects: (projects) => {
@@ -1189,63 +1160,6 @@ const useStore = create((set, get) => ({
       };
     }),
 
-  // Slice para el Agente Planificador
-  agent: readLocalAgentState(),
-  runAgent: async (mode = 'diagnose') => {
-    const snapshot = get();
-    if (snapshot.agent?.running) {
-      return;
-    }
-    set((state) => ({
-      agent: {
-        ...state.agent,
-        running: true,
-        error: null,
-        suggestions: [],
-        summary: 'Analizando...',
-      },
-    }));
-    try {
-      const res = await fetch('/api/agent/planificador', {
-        method: 'POST',
-        body: JSON.stringify({
-          mode,
-          projects: snapshot.projects || [],
-          retainers: snapshot.retainers || [],
-          teamMembers: snapshot.teamMembers || [],
-        }),
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.message || 'Error al ejecutar el agente');
-
-      const agentState = {
-        lastRunAt: Date.now(),
-        summary: data.summary || '',
-        suggestions: data.actions || [],
-        running: false,
-        error: null,
-      };
-
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(AGENT_STORAGE_KEY, JSON.stringify(agentState));
-      }
-      set({ agent: agentState });
-    } catch (error) {
-      set((state) => ({
-        agent: {
-          ...state.agent,
-          running: false,
-          error: error.message || 'Error al ejecutar el agente',
-        },
-      }));
-    }
-  },
-  applyAgentAction: async (action) => {
-    if (action.type === 'UPDATE_PROJECT' && action.projectId && action.patch) {
-      await get().updateProject({ id: action.projectId, ...action.patch });
-    }
-  },
 }));
 
 if (typeof window !== 'undefined') {
@@ -1253,38 +1167,20 @@ if (typeof window !== 'undefined') {
 }
 
 if (supabaseClient) {
+  // Varios cambios seguidos (p. ej. el propio guardado) disparan una sola recarga.
+  let realtimeRefreshTimer = null;
+  const scheduleRealtimeRefresh = () => {
+    if (realtimeRefreshTimer) clearTimeout(realtimeRefreshTimer);
+    realtimeRefreshTimer = setTimeout(() => {
+      realtimeRefreshTimer = null;
+      useStore.getState()._fetchProjects();
+      useStore.setState({ lastUpdate: Date.now() });
+    }, 400);
+  };
+
   supabaseClient
     .channel('projects')
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'projects' },
-      (payload) => {
-        console.log('Realtime: Nuevo proyecto recibido', payload.new);
-        const { _fetchProjects } = useStore.getState();
-        _fetchProjects(); // Vuelve a cargar todos para mantener la consistencia sin bloquear UI
-        set({ lastUpdate: Date.now() });
-      }
-    )
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'projects' },
-      (payload) => {
-        console.log('Realtime: Proyecto actualizado', payload.new);
-        const { _fetchProjects } = useStore.getState();
-        _fetchProjects();
-        set({ lastUpdate: Date.now() });
-      }
-    )
-    .on(
-      'postgres_changes',
-      { event: 'DELETE', schema: 'public', table: 'projects' },
-      (payload) => {
-        console.log('Realtime: Proyecto eliminado', payload.old.id);
-        const { _fetchProjects } = useStore.getState();
-        _fetchProjects();
-        set({ lastUpdate: Date.now() });
-      }
-    )
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, scheduleRealtimeRefresh)
     .subscribe();
 }
 

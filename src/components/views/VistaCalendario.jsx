@@ -11,6 +11,8 @@ import CalendarGrid from '../calendar/CalendarGrid';
 import MobileCalendarGrid from '../calendar/MobileCalendarGrid';
 import MobileEventList from '../calendar/MobileEventList';
 import DayDetailPanel from '../calendar/DayDetailPanel';
+import AbsencesPanel from '../calendar/AbsencesPanel';
+import { ABSENCE_STAGE } from '../../utils/absences';
 import { useCalendarData } from '../../hooks/useCalendarData';
 import { useCalendarDnD } from '../../hooks/useCalendarDnD';
 
@@ -74,63 +76,70 @@ const VistaCalendario = ({ projects: projectsProp }) => {
 
   const filterOptions = useMemo(() => ['Todos', ...(teamMembers || [])], [teamMembers]);
 
+  const handleAddAbsence = () => openModal({ properties: { stage: ABSENCE_STAGE }, stage: ABSENCE_STAGE });
+
+  const monthControls = (
+    <div className="flex flex-col gap-4">
+      <MonthNavigator
+        currentMonth={currentMonth}
+        handlePrevMonth={handlePrevMonth}
+        handleNextMonth={handleNextMonth}
+      />
+      <MemberFilters
+        filterOptions={filterOptions}
+        selectedMember={selectedMember}
+        setSelectedMember={setSelectedMember}
+      />
+    </div>
+  );
+
   return (
-    <div className="space-y-6 px-3 py-6 sm:px-6">
+    <div className="space-y-6 px-3 pb-24 pt-6 sm:px-6 md:pb-6">
       <CalendarHeader
         primaryView={primaryView}
         setPrimaryView={setPrimaryView}
+        onAddAbsence={handleAddAbsence}
       />
 
-      {primaryView === 'calendar' ? (
-        <>
-          <div className="flex flex-col gap-4">
-            <MonthNavigator
+      {/* Móvil: siempre la agenda (mes + eventos del día), aunque la última
+          vista elegida en escritorio haya sido el Timeline. */}
+      <div className="md:hidden">
+        {monthControls}
+        <div className="-mx-3 mt-4">
+          <div className="flex items-center justify-between px-4 pb-2">
+            <button
+              onClick={handleGoToToday}
+              className="text-sm font-semibold text-[#C2321A] active:opacity-50 transition-opacity dark:text-accent"
+            >
+              Hoy
+            </button>
+            <span className="text-xs text-secondary dark:text-white/60">
+              {selectedDayDetails.length} evento{selectedDayDetails.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div className="border-t border-b border-gray-100 dark:border-white/5">
+            <MobileCalendarGrid
+              calendarDays={calendarDays}
               currentMonth={currentMonth}
-              handlePrevMonth={handlePrevMonth}
-              handleNextMonth={handleNextMonth}
-            />
-            <MemberFilters
-              filterOptions={filterOptions}
-              selectedMember={selectedMember}
-              setSelectedMember={setSelectedMember}
+              calendarItemsByDay={calendarItemsByDay}
+              selectedDayKey={selectedDayKey}
+              handleDaySelect={handleDaySelect}
             />
           </div>
-
-          {/* Versión Móvil: Grid + Lista (iOS Style) */}
-          <div className="sm:hidden -mx-3">
-            <div className="flex items-center justify-between px-4 pb-2">
-              <button
-                onClick={handleGoToToday}
-                className="text-sm font-semibold text-accent active:opacity-50 transition-opacity"
-              >
-                Hoy
-              </button>
-              <span className="text-xs text-secondary/60 dark:text-white/40">
-                {selectedDayDetails.length} evento{selectedDayDetails.length !== 1 ? 's' : ''}
-              </span>
-            </div>
-            <div className="border-t border-b border-gray-100 dark:border-white/5">
-              <MobileCalendarGrid
-                calendarDays={calendarDays}
-                currentMonth={currentMonth}
-                calendarItemsByDay={calendarItemsByDay}
-                selectedDayKey={selectedDayKey}
-                handleDaySelect={handleDaySelect}
-              />
-            </div>
-            
-            <div className="bg-white dark:bg-[#0F0F11] pb-24">
-              <MobileEventList
-                selectedDayDetails={selectedDayDetails}
-                selectedDayDate={selectedDayDate}
-                openModal={openModal}
-              />
-            </div>
-            
+          <div className="bg-white dark:bg-[#0F0F11]">
+            <MobileEventList
+              selectedDayDetails={selectedDayDetails}
+              selectedDayDate={selectedDayDate}
+              openModal={openModal}
+            />
           </div>
+        </div>
+      </div>
 
-          {/* Versión Desktop: Grid Clásico */}
-          <div className="hidden sm:block">
+      <div className="hidden md:block">
+        {primaryView === 'calendar' ? (
+          <div className="space-y-6">
+            {monthControls}
             <CalendarGrid
               calendarDays={calendarDays}
               currentMonth={currentMonth}
@@ -148,10 +157,12 @@ const VistaCalendario = ({ projects: projectsProp }) => {
               openModal={openModal}
             />
           </div>
-        </>
-      ) : (
-        <VistaTimeline projects={projects} />
-      )}
+        ) : (
+          <VistaTimeline projects={projects} />
+        )}
+      </div>
+
+      <AbsencesPanel projects={projects} onAdd={handleAddAbsence} openModal={openModal} />
     </div>
   );
 };

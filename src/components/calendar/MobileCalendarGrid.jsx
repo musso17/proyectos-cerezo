@@ -20,11 +20,11 @@ const MobileCalendarGrid = ({
   }
 
   return (
-    <div className="sm:hidden w-full bg-white dark:bg-[#0F0F11] px-2 py-4">
+    <div className="w-full bg-white dark:bg-[#0F0F11] px-2 py-4">
       {/* Header de días de la semana */}
       <div className="grid grid-cols-7 mb-2">
         {WEEKDAYS.map((day, i) => (
-          <div key={i} className="text-center text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase">
+          <div key={i} className="text-center text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">
             {day}
           </div>
         ))}
@@ -40,9 +40,12 @@ const MobileCalendarGrid = ({
           const items = calendarItemsByDay.get(dayKey) || [];
 
           return (
-            <div
+            <button
+              type="button"
               key={dayKey}
               onClick={() => handleDaySelect(day)}
+              aria-label={`${format(day, "EEEE d 'de' MMMM", { locale: es })}${items.length ? `, ${items.length} evento${items.length === 1 ? '' : 's'}` : ''}`}
+              aria-pressed={isSelected}
               className="relative flex flex-col items-center justify-center py-3"
             >
               <div
@@ -67,7 +70,7 @@ const MobileCalendarGrid = ({
                   <div className={`h-1 w-1 rounded-full ${isToday || isSelected ? 'bg-gray-400' : 'bg-gray-300 dark:bg-gray-600'}`} />
                 )}
               </div>
-            </div>
+            </button>
           );
         })}
       </div>

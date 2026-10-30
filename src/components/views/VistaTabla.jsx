@@ -2,12 +2,25 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
-import { Calendar as CalendarIcon, Edit2, Trash2, ChevronDown } from 'lucide-react';
+import { differenceInCalendarDays, format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { Edit2, Trash2, ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import useStore from '../../hooks/useStore';
 import { filterProjects } from '../../utils/filterProjects';
-import { getClientBadgeClass } from '../../utils/clientStyles';
-import { generarLinkGoogleCalendar } from '../../utils/calendar';
 import { getUIPreference, setUIPreference } from '../../utils/uiPreferences';
+import { STATUS_OPTIONS, getStatusLabel, normalizeStatus } from '../../utils/statusHelpers';
+import { isAbsenceProject } from '../../utils/absences';
+import {
+  computeTurnaroundByFormat,
+  estimateDeliveryDate,
+  extractProjectInfo,
+  getFormatLabel,
+  getProjectRecordingDates,
+  parseProjectDate,
+} from '../../utils/dashboardHelpers';
+import MemberAvatar from '../ui/MemberAvatar';
+import { deleteProjectWithUndo, hasDeliverableLink } from '../ui/projectActions';
 
 const getLabel = (value, fallback) => {
   if (!value) return fallback;
@@ -16,41 +29,24 @@ const getLabel = (value, fallback) => {
 };
 
 const formatDate = (value) => {
-  if (!value) return '—';
-  const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-  
-  try {
-    const str = value.toString().trim();
-    let date;
-    const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (isoMatch) {
-      date = new Date(str.length <= 10 ? `${str}T12:00:00` : str);
-    } else {
-      date = new Date(str);
-    }
-    
-    if (Number.isNaN(date.getTime())) return str;
-    
-    const day = date.getDate();
-    const month = months[date.getMonth()];
-    return `${day} ${month}`;
-  } catch {
-    return value;
-  }
+  const date = value instanceof Date ? value : parseProjectDate(value);
+  if (!date) return '—';
+  return format(date, 'd MMM', { locale: es });
 };
 
-// Proyecto vencido: tiene fecha de entrega pasada y no está completado.
-const isOverdue = (project) => {
-  const d = project?.deadline;
-  if (!d) return false;
-  const status = (project?.status || '').toString().trim().toLowerCase();
-  if (status === 'completado') return false;
-  const str = d.toString().trim();
-  const date = new Date(str.length <= 10 ? `${str}T12:00:00` : str);
-  if (Number.isNaN(date.getTime())) return false;
+const startOfToday = () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return date < today;
+  return today;
+};
+
+// Días de atraso: fecha de entrega pasada y no completado.
+const getOverdueDays = (project) => {
+  if (normalizeStatus(project?.status) === 'Completado') return 0;
+  const deadline = parseProjectDate(project?.deadline);
+  if (!deadline) return 0;
+  const days = differenceInCalendarDays(startOfToday(), deadline);
+  return days > 0 ? days : 0;
 };
 
 // Inicio y entrega caen el mismo día (trabajo de un solo día, no falta de margen).
@@ -61,90 +57,35 @@ const isSameDayProject = (project) => {
   return start.toString().trim().slice(0, 10) === end.toString().trim().slice(0, 10);
 };
 
-
-const TYPE_COLORS = {
+const PHASE_COLORS = {
   grabacion: '#FF4B2A',
   edicion: '#5F6468',
   fotografia: '#000000',
 };
 
-const TYPE_BADGES = {
-  grabacion: { label: 'Grabación', color: '#FF4B2A' },
-  edicion: { label: 'Edición', color: '#5F6468' },
-  fotografia: { label: 'Fotografía', color: '#000000' },
+const PHASE_LABELS = {
+  grabacion: 'Grabación',
+  edicion: 'Edición',
+  fotografia: 'Fotografía',
+  'fotografía': 'Fotografía',
 };
 
-const Avatar = ({ name }) => {
-  if (!name) return null;
-  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  const formattedName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-  
-  return (
-    <div className="flex items-center gap-2.5">
-      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[10px] font-semibold text-secondary dark:bg-white/5 dark:text-white/60">
-        {initials}
-      </div>
-      <span className="text-xs font-medium text-secondary/80 dark:text-white/70">{formattedName}</span>
-    </div>
-  );
-};
+const getStage = (project) => (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
 
-const getProjectTypeBadge = (project) => {
-  if (!project) return { label: 'Sin tipo', color: '#94A3B8' };
+const getPhaseLabel = (project) => PHASE_LABELS[getStage(project)] || 'Sin fase';
 
-  const rawStage = project.stage || project.properties?.stage || '';
-  const rawType = project.type || project.properties?.registrationType || '';
+const isCompletedProject = (project) => normalizeStatus(project?.status) === 'Completado';
 
-  const normalizedStage = rawStage?.toString().trim().toLowerCase();
-  const normalizedType = rawType?.toString().trim().toLowerCase();
-
-  if (normalizedStage && TYPE_BADGES[normalizedStage]) {
-    return TYPE_BADGES[normalizedStage];
-  }
-  if (normalizedStage === 'fotografía') return TYPE_BADGES.fotografia;
-
-  if (normalizedType && TYPE_BADGES[normalizedType]) {
-    return TYPE_BADGES[normalizedType];
-  }
-  if (normalizedType === 'fotografía') return TYPE_BADGES.fotografia;
-
-  return {
-    label: rawType || rawStage || 'Sin tipo',
-    color: '#94A3B8',
-  };
-};
-
-
-const isCompletedProject = (project) => {
-  const status = project?.status || '';
-  return status.toString().trim().toLowerCase() === 'completado';
-};
-
-const getRecordingDateValue = (project) => {
-  const candidates = [
-    project.recordingDate,
-    project.fechaGrabacion,
-    project.fecha_grabacion,
-    project.fechaGrabación,
-    project.properties?.fechaGrabacion,
-    project.properties?.fecha_grabacion,
-  ];
-  const value = candidates.find((item) => item && item.toString().trim().length > 0);
-  return value || '';
-};
-
+// Grabación cuyo último día ya pasó (se mueve sola a edición).
 const isExpiredRecordingProject = (project) => {
-  const stage = (project.stage || project.properties?.stage || '').toString().trim().toLowerCase();
+  const stage = getStage(project);
   if (stage !== 'grabacion' && stage !== 'fotografia' && stage !== 'fotografía') return false;
-  const rawDate = getRecordingDateValue(project);
-  if (!rawDate) return false;
-  const parsed = new Date(rawDate.length <= 10 ? `${rawDate}T00:00:00` : rawDate);
-  if (Number.isNaN(parsed.getTime())) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  parsed.setHours(0, 0, 0, 0);
-  return parsed < today;
+  const days = getProjectRecordingDates(project);
+  const last = days[days.length - 1];
+  return Boolean(last && last < startOfToday());
 };
+
+const isFinishedProject = (project) => isCompletedProject(project) || isExpiredRecordingProject(project);
 
 const DEFAULT_TABLE_FILTERS = {
   type: 'Todos',
@@ -167,131 +108,217 @@ const buildInitialFilters = () => {
   return base;
 };
 
+const STATUS_DOT = {
+  Programado: 'bg-slate-400',
+  'En progreso': 'bg-amber-500',
+  'En revisión': 'bg-blue-500',
+  Completado: 'bg-emerald-500',
+  Stuck: 'bg-red-500',
+};
+
 const StatusSelector = ({ project }) => {
   const updateProject = useStore((state) => state.updateProject);
+  const openModal = useStore((state) => state.openModal);
   const [loading, setLoading] = useState(false);
-
-  // Normalizar el estado actual a una de las opciones disponibles
-  const currentStatus = useMemo(() => {
-    const status = (project.status || '').toString().trim();
-    if (status.toLowerCase() === 'completado') return 'Completado';
-
-    // Mapeo directo de estados
-    if (status) return status;
-
-    return 'Programado'; // Default
-  }, [project]);
+  const currentStatus = normalizeStatus(project.status);
 
   const handleChange = async (e) => {
     const newValue = e.target.value;
-    if (!newValue || newValue === currentStatus) return;
+    if (!newValue || newValue === currentStatus || loading) return;
 
-    if (loading) return;
-    setLoading(true);
-
-    try {
-      const nextProperties = { ...(project.properties || {}) };
-
-      const updatePayload = {
-        ...project,
-        id: project.id,
-        status: newValue,
-        properties: nextProperties,
-      };
-
-      if (newValue === 'Completado') {
-        const now = new Date().toISOString();
-        const completedState = 'entregado';
-
-        // NOTE: We do NOT set completedAt on the root object because the column does not exist in Supabase.
-        // It is sufficient to store it in the properties JSONB column.
-        updatePayload.state = completedState;
-
-        // Ensure consistency in properties
-        nextProperties.completedAt = now;
-        nextProperties.state = completedState;
-        nextProperties.status = 'Completado';
-      } else {
-        // If moving OUT of completed, we should probably reset state?
-        // For now, let's at least enforce the new status clearly
-        nextProperties.status = newValue;
-      }
-
-      // Hack para dar feedback instantáneo antes de que el store se actualice
-      await updateProject(updatePayload, { skipLoading: true });
-
-    } catch (error) {
-      console.error("Error updating status:", error);
-    } finally {
-      setLoading(false);
+    // Completado exige el link del entregable: se abre el formulario para pedirlo.
+    if (newValue === 'Completado' && !hasDeliverableLink(project)) {
+      openModal(project, { status: 'Completado' });
+      return;
     }
-  };
 
-  const getStatusDotColor = (status) => {
-    switch (status) {
-      case 'Programado': return 'bg-slate-300';
-      case 'En progreso': return 'bg-[#FF4B2A]';
-      case 'En edición': return 'bg-[#FF4B2A] shadow-[0_0_8px_rgba(255,75,42,0.4)]';
-      case 'En revisión': return 'bg-[#5F6468]';
-      case 'Completado': return 'bg-black dark:bg-white';
-      default: return 'bg-gray-300';
+    setLoading(true);
+    const nextProperties = { ...(project.properties || {}), status: newValue };
+    const updatePayload = { ...project, status: newValue, properties: nextProperties };
+
+    if (newValue === 'Completado') {
+      // completedAt vive en properties (la columna no existe en Supabase).
+      updatePayload.state = 'entregado';
+      nextProperties.completedAt = new Date().toISOString();
+      nextProperties.state = 'entregado';
+    }
+
+    const result = await updateProject(updatePayload);
+    setLoading(false);
+    if (result?.ok) {
+      toast.success(`«${project.name || 'Proyecto'}» → ${getStatusLabel(newValue)}`);
+    } else {
+      toast.error('No se pudo cambiar el estado. Intenta de nuevo.');
     }
   };
 
   return (
     <div
-      className="group relative flex items-center gap-2.5 rounded-full border border-border/40 bg-white/50 px-4 py-2.5 transition-all hover:bg-white dark:border-white/5 dark:bg-white/[0.02]"
+      className="group relative inline-flex items-center gap-2 rounded-full border border-border/60 bg-white/70 px-3 py-1.5 transition-all hover:bg-white dark:border-white/10 dark:bg-white/[0.03]"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className={`h-2 w-2 rounded-full ${getStatusDotColor(currentStatus)}`} />
-      <span className="text-[11px] font-medium text-secondary/80 dark:text-white/60">{currentStatus}</span>
-      
+      <span className={`h-2 w-2 rounded-full ${STATUS_DOT[currentStatus] || 'bg-gray-400'}`} />
+      <span className="whitespace-nowrap text-xs font-medium text-primary dark:text-white/80">{getStatusLabel(currentStatus)}</span>
       <select
         value={currentStatus}
         onChange={handleChange}
         disabled={loading}
-        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+        aria-label={`Estado de ${project.name || 'proyecto'}`}
+        className="absolute inset-0 z-20 h-full w-full cursor-pointer opacity-0"
       >
-        <option value="Programado">Programado</option>
-        <option value="En progreso">En progreso</option>
-        <option value="En edición">En edición</option>
-        <option value="En revisión">En revisión</option>
-        <option value="Completado">Completado</option>
+        {STATUS_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
       </select>
-
-      <ChevronDown
-        size={12}
-        className="text-secondary/30 transition-transform group-hover:text-secondary/60"
-      />
+      <ChevronDown size={12} className="text-secondary/70 transition-transform group-hover:text-secondary" />
     </div>
   );
 };
+
+const DeliveryCell = ({ project, estimate }) => {
+  if (isCompletedProject(project)) {
+    const { deliveryDate } = extractProjectInfo(project);
+    return (
+      <span className="text-xs font-medium text-secondary dark:text-white/60">
+        {deliveryDate ? `Entregado ${formatDate(deliveryDate)}` : 'Entregado'}
+      </span>
+    );
+  }
+  const overdueDays = getOverdueDays(project);
+  if (project.deadline && overdueDays > 0) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-700 dark:text-red-400">
+        {formatDate(project.deadline)} · vencido hace {overdueDays} {overdueDays === 1 ? 'día' : 'días'}
+      </span>
+    );
+  }
+  if (project.deadline) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary dark:text-white/80">
+        {formatDate(project.deadline)}
+        {isSameDayProject(project) && (
+          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-secondary dark:bg-white/10 dark:text-white/60">
+            1 día
+          </span>
+        )}
+      </span>
+    );
+  }
+  if (estimate) {
+    return (
+      <span
+        className="text-xs italic text-secondary dark:text-white/60"
+        title={`Estimado: ${estimate.formatLabel} suele tardar ${estimate.days} días desde el último día de grabación (promedio de ${estimate.samples} proyectos).`}
+      >
+        ≈ {formatDate(estimate.date)} <span className="not-italic">(estimado)</span>
+      </span>
+    );
+  }
+  return <span className="text-xs italic text-secondary dark:text-white/60">A confirmar</span>;
+};
+
+const ProjectActions = ({ project, onEdit }) => (
+  <div className="flex items-center gap-2">
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onEdit(project);
+      }}
+      aria-label={`Editar ${project.name || 'proyecto'}`}
+      title="Editar"
+      className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-secondary transition-all hover:bg-dark-bg hover:text-white active:scale-95 dark:bg-white/5 dark:text-white/60 dark:hover:bg-accent dark:hover:text-dark-bg"
+    >
+      <Edit2 size={14} />
+    </button>
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        deleteProjectWithUndo(project);
+      }}
+      aria-label={`Eliminar ${project.name || 'proyecto'}`}
+      title="Eliminar"
+      className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-600 transition-all hover:bg-red-600 hover:text-white active:scale-95 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500 dark:hover:text-white"
+    >
+      <Trash2 size={14} />
+    </button>
+  </div>
+);
+
+const FilterSelect = ({ id, label, value, options, onChange }) => (
+  <div className="flex flex-col gap-1.5">
+    <label htmlFor={id} className="text-xs font-semibold text-secondary dark:text-white/60">
+      {label}
+    </label>
+    <select
+      id={id}
+      value={value}
+      onChange={onChange}
+      className="w-full rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/10 dark:bg-[#0B0C10] dark:text-white"
+    >
+      {options.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
+  </div>
+);
 
 const VistaTabla = ({ projects: projectsProp }) => {
   const projectsFromStore = useStore((state) => state.projects);
   const projects = projectsProp !== undefined ? projectsProp : projectsFromStore;
   const openModal = useStore((state) => state.openModal);
-  const deleteProject = useStore((state) => state.deleteProject);
   const searchTerm = useStore((state) => state.searchTerm);
+  const setSearchTerm = useStore((state) => state.setSearchTerm);
 
   const [filters, setFilters] = useState(() => buildInitialFilters());
+  const [showFinished, setShowFinished] = useState(() => getUIPreference('tableShowFinished', false) === true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
     setUIPreference('tableFilters', filters);
   }, [filters]);
 
-  const activeProjects = useMemo(
-    () => projects.filter((project) => !isCompletedProject(project) && !isExpiredRecordingProject(project)),
-    [projects]
+  useEffect(() => {
+    setUIPreference('tableShowFinished', showFinished);
+  }, [showFinished]);
+
+  const isSearching = searchTerm.trim().length > 0;
+  // Al buscar se incluyen también los terminados: si no, "porsche" decía
+  // "No se encontraron proyectos" aunque hubiera una decena entregados.
+  const includeFinished = showFinished || isSearching;
+
+  const workProjects = useMemo(() => (projects || []).filter((project) => !isAbsenceProject(project)), [projects]);
+
+  const listedProjects = useMemo(
+    () => (includeFinished ? workProjects : workProjects.filter((project) => !isFinishedProject(project))),
+    [workProjects, includeFinished]
   );
 
+  const turnaround = useMemo(() => computeTurnaroundByFormat(workProjects), [workProjects]);
+
   const orderedProjects = useMemo(() => {
-    return [...activeProjects].sort((a, b) => {
-      const aDate = a.startDate ? new Date(a.startDate).getTime() : Number.POSITIVE_INFINITY;
-      const bDate = b.startDate ? new Date(b.startDate).getTime() : Number.POSITIVE_INFINITY;
-      return aDate - bDate;
+    // Activos primero (por fecha de inicio, la más cercana arriba); los
+    // terminados al final, por fecha de entrega del más reciente al más
+    // antiguo. Sin fecha, al final de su grupo.
+    const keyed = listedProjects.map((project) => {
+      const finished = isFinishedProject(project);
+      const info = extractProjectInfo(project);
+      const date = finished ? info.deliveryDate : info.workStart;
+      return { project, finished, time: date ? date.getTime() : null };
     });
-  }, [activeProjects]);
+    return keyed
+      .sort((a, b) => {
+        if (a.finished !== b.finished) return a.finished ? 1 : -1;
+        if (a.time === null || b.time === null) return a.time === null ? (b.time === null ? 0 : 1) : -1;
+        return a.finished ? b.time - a.time : a.time - b.time;
+      })
+      .map(({ project }) => project);
+  }, [listedProjects]);
 
   const filterOptions = useMemo(() => {
     const typeSet = new Set();
@@ -299,15 +326,15 @@ const VistaTabla = ({ projects: projectsProp }) => {
     const statusSet = new Set();
     const clientSet = new Set();
 
-    activeProjects.forEach((project) => {
-      typeSet.add(getProjectTypeBadge(project).label);
+    listedProjects.forEach((project) => {
+      typeSet.add(getPhaseLabel(project));
       const managers = getProjectManagers(project);
       if (managers.length === 0) {
         managerSet.add('Sin asignar');
       } else {
         managers.forEach((manager) => managerSet.add(getLabel(manager, 'Sin asignar')));
       }
-      statusSet.add(getLabel(project.status, 'Programado'));
+      statusSet.add(getStatusLabel(project.status));
       clientSet.add(getLabel(project.client, 'Sin cliente'));
     });
 
@@ -319,15 +346,11 @@ const VistaTabla = ({ projects: projectsProp }) => {
       statuses: toSortedArray(statusSet),
       clients: toSortedArray(clientSet),
     };
-  }, [activeProjects]);
+  }, [listedProjects]);
 
   const filteredProjects = useMemo(() => {
     return orderedProjects.filter((project) => {
-      const typeLabel = getProjectTypeBadge(project).label;
-      const statusLabel = getLabel(project.status, 'Programado');
-      const clientLabel = getLabel(project.client, 'Sin cliente');
-
-      if (filters.type !== 'Todos' && filters.type !== typeLabel) return false;
+      if (filters.type !== 'Todos' && filters.type !== getPhaseLabel(project)) return false;
       if (filters.manager !== 'Todos') {
         const managers = getProjectManagers(project);
         if (managers.length === 0) {
@@ -336,8 +359,8 @@ const VistaTabla = ({ projects: projectsProp }) => {
           return false;
         }
       }
-      if (filters.status !== 'Todos' && filters.status !== statusLabel) return false;
-      if (filters.client !== 'Todos' && filters.client !== clientLabel) return false;
+      if (filters.status !== 'Todos' && filters.status !== getStatusLabel(project.status)) return false;
+      if (filters.client !== 'Todos' && filters.client !== getLabel(project.client, 'Sin cliente')) return false;
       return true;
     });
   }, [orderedProjects, filters]);
@@ -347,167 +370,137 @@ const VistaTabla = ({ projects: projectsProp }) => {
     [filteredProjects, searchTerm]
   );
 
+  const finishedMatches = useMemo(
+    () => searchFilteredProjects.filter((project) => isFinishedProject(project)).length,
+    [searchFilteredProjects]
+  );
+
+  const activeFilterCount = Object.entries(filters).filter(([key, value]) => value !== DEFAULT_TABLE_FILTERS[key]).length;
+
   const handleFilterChange = (key) => (event) => {
     const value = event.target.value;
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
+  // "Limpiar" deja la vista como recién abierta: filtros y búsqueda.
   const handleResetFilters = () => {
     setFilters(() => ({ ...DEFAULT_TABLE_FILTERS }));
+    setSearchTerm('');
   };
 
-  const handleEdit = (project, event) => {
-    event.stopPropagation();
-    openModal(project);
-  };
+  const estimateFor = (project) => (project.deadline ? null : estimateDeliveryDate(project, turnaround));
 
-  const handleDelete = (project, event) => {
-    event.stopPropagation();
-    if (!project.id) return;
-    const confirmed = window.confirm(`¿Eliminar el proyecto "${project.name}"?`);
-    if (confirmed) {
-      deleteProject(project.id);
-    }
-  };
-
-  const renderTypeBadge = (project, extraClasses = '') => {
-    const meta = getProjectTypeBadge(project);
-    return (
-      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${meta.className} ${extraClasses}`}>
-        {meta.label}
-      </span>
-    );
-  };
+  const emptyMessage = isSearching
+    ? `No hay proyectos que coincidan con «${searchTerm.trim()}»${activeFilterCount ? ' con estos filtros' : ''}.`
+    : activeFilterCount
+      ? 'No hay proyectos activos con estos filtros.'
+      : 'No hay proyectos activos.';
 
   return (
-    <div className="flex h-full flex-col gap-6 p-4 md:p-6 animate-fade-up">
-      <div className="glass-panel grid items-end gap-4 p-4 rounded-xl text-xs text-secondary sm:grid-cols-2 sm:gap-6 sm:p-6 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] lg:p-8">
-        <div className="flex flex-col gap-2">
-          <label className="mb-1 font-semibold uppercase tracking-[0.2em] text-secondary/40">Tipo</label>
-          <select
-            value={filters.type}
-            onChange={handleFilterChange('type')}
-            className="w-full min-w-[160px] rounded-lg border border-border bg-white px-5 py-3 text-sm font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
+    <div className="flex h-full flex-col gap-5 p-2 sm:p-4 md:p-6 animate-fade-up">
+      {/* Filtros: plegables en móvil para no ocupar la primera pantalla */}
+      <div className="flex items-center gap-2 md:hidden">
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((open) => !open)}
+          aria-expanded={filtersOpen}
+          aria-controls="table-filters"
+          className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-semibold text-primary dark:border-white/10 dark:bg-white/5 dark:text-white"
+        >
+          <SlidersHorizontal size={16} />
+          Filtros{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+        </button>
+        {(activeFilterCount > 0 || isSearching) && (
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            className="rounded-lg px-3 py-2.5 text-sm font-medium text-secondary underline-offset-2 hover:underline dark:text-white/60"
           >
-            {filterOptions.types.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </div>
+            Limpiar
+          </button>
+        )}
+      </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="mb-1 font-semibold uppercase tracking-[0.2em] text-secondary/40">Encargado</label>
-          <select
-            value={filters.manager}
-            onChange={handleFilterChange('manager')}
-            className="w-full min-w-[160px] rounded-lg border border-border bg-white px-5 py-3 text-sm font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
-          >
-            {filterOptions.managers.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="mb-1 font-semibold uppercase tracking-[0.2em] text-secondary/40">Estado</label>
-          <select
-            value={filters.status}
-            onChange={handleFilterChange('status')}
-            className="w-full min-w-[160px] rounded-lg border border-border bg-white px-5 py-3 text-sm font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
-          >
-            {filterOptions.statuses.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="mb-1 font-semibold uppercase tracking-[0.2em] text-secondary/40">Cliente</label>
-          <select
-            value={filters.client}
-            onChange={handleFilterChange('client')}
-            className="w-full min-w-[160px] rounded-lg border border-border bg-white px-5 py-3 text-sm font-medium text-primary focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/10 dark:border-white/5 dark:bg-[#0B0C10] dark:text-white"
-          >
-            {filterOptions.clients.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </div>
-
+      <div
+        id="table-filters"
+        className={clsx(
+          'glass-panel items-end gap-4 rounded-xl p-4 sm:grid-cols-2 md:grid lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] lg:p-5',
+          filtersOpen ? 'grid' : 'hidden'
+        )}
+      >
+        <FilterSelect id="filter-phase" label="Fase" value={filters.type} options={filterOptions.types} onChange={handleFilterChange('type')} />
+        <FilterSelect id="filter-manager" label="Responsable" value={filters.manager} options={filterOptions.managers} onChange={handleFilterChange('manager')} />
+        <FilterSelect id="filter-status" label="Estado" value={filters.status} options={filterOptions.statuses} onChange={handleFilterChange('status')} />
+        <FilterSelect id="filter-client" label="Cliente" value={filters.client} options={filterOptions.clients} onChange={handleFilterChange('client')} />
         <button
           type="button"
           onClick={handleResetFilters}
-          className="w-full rounded-lg bg-dark-bg px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white transition-all hover:-translate-y-1 active:scale-95 sm:w-auto dark:bg-accent dark:text-dark-bg"
+          className="w-full rounded-lg bg-dark-bg px-6 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:scale-95 sm:w-auto dark:bg-accent dark:text-dark-bg"
         >
           Limpiar
         </button>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-secondary dark:text-white/60">
+        <p aria-live="polite">
+          {searchFilteredProjects.length} {searchFilteredProjects.length === 1 ? 'proyecto' : 'proyectos'}
+          {isSearching && <> para «<strong className="text-primary dark:text-white">{searchTerm.trim()}</strong>»</>}
+          {isSearching && finishedMatches > 0 && ` (incluye ${finishedMatches} terminado${finishedMatches === 1 ? '' : 's'})`}
+        </p>
+        <label className="inline-flex cursor-pointer items-center gap-2 font-medium">
+          <input
+            type="checkbox"
+            checked={showFinished}
+            onChange={(e) => setShowFinished(e.target.checked)}
+            className="h-4 w-4 rounded border-border accent-[#FF4B2A]"
+          />
+          Mostrar terminados
+        </label>
       </div>
 
       {/* ── Mobile: tarjetas apiladas (en vez de la tabla con scroll horizontal) ── */}
       <div className="flex flex-col gap-3 md:hidden">
         {searchFilteredProjects.length === 0 ? (
           <div className="glass-panel rounded-xl border border-border p-8 text-center dark:border-white/5">
-            <p className="text-xs font-medium uppercase tracking-wide text-secondary/50">No se encontraron proyectos</p>
+            <p className="text-sm font-medium text-secondary dark:text-white/60">{emptyMessage}</p>
           </div>
         ) : (
           searchFilteredProjects.map((project, index) => {
-            const stage = (project.stage || project.properties?.stage || 'edicion').toLowerCase();
+            const stage = getStage(project) || 'edicion';
             const managers = getProjectManagers(project);
+            const finished = isFinishedProject(project);
             return (
               <div
                 key={project.id || index}
                 role="button"
                 tabIndex={0}
                 onClick={() => openModal(project)}
-                className="glass-panel rounded-xl border border-border p-4 transition-transform active:scale-[0.99] dark:border-white/5"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') openModal(project);
+                }}
+                className={clsx(
+                  'glass-panel rounded-xl border border-border p-4 transition-transform active:scale-[0.99] dark:border-white/5',
+                  finished && 'opacity-75'
+                )}
               >
                 <div className="flex items-start gap-3">
-                  <div className="mt-0.5 h-10 w-1 shrink-0 rounded-full" style={{ backgroundColor: TYPE_COLORS[stage] || '#5F6468' }} />
+                  <div className="mt-0.5 h-10 w-1 shrink-0 rounded-full" style={{ backgroundColor: PHASE_COLORS[stage] || '#5F6468' }} />
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-[15px] font-semibold tracking-tight text-primary dark:text-white">{project.name || 'Sin título'}</p>
-                        <p className="mt-0.5 font-mono text-[9px] uppercase tracking-wider text-secondary/40">{getProjectTypeBadge(project).label}</p>
-                      </div>
-                      <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-                        <StatusSelector project={project} />
-                      </div>
+                    <p className="line-clamp-2 text-[15px] font-semibold leading-snug tracking-tight text-primary dark:text-white">{project.name || 'Sin título'}</p>
+                    <p className="mt-0.5 text-xs text-secondary dark:text-white/60">
+                      {getPhaseLabel(project)} · {getFormatLabel(project.registrationType || project.type)} · {project.client || 'Sin cliente'}
+                    </p>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <StatusSelector project={project} />
+                      {managers.map((m) => <MemberAvatar key={m} name={m} size="sm" />)}
+                      {managers.length === 0 && <span className="text-xs italic text-secondary dark:text-white/50">Sin asignar</span>}
                     </div>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {managers.length > 0 ? (
-                        managers.map((m, i) => <Avatar key={i} name={m} />)
-                      ) : (
-                        <span className="text-xs italic text-secondary/30">Sin asignar</span>
-                      )}
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/40 pt-3 text-[11px] font-medium text-secondary/70 dark:border-white/5 dark:text-white/50">
-                      <span className="inline-flex items-center gap-1.5">
-                        {formatDate(project.startDate)}
-                        <span className="opacity-40">→</span>
-                        {!project.deadline ? (
-                          <span className="italic text-secondary/40">A confirmar</span>
-                        ) : isOverdue(project) ? (
-                          <span className="font-semibold text-red-500 dark:text-red-400">⚠️ {formatDate(project.deadline)}</span>
-                        ) : (
-                          <span>{formatDate(project.deadline)}</span>
-                        )}
-                        {isSameDayProject(project) && (
-                          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-secondary/60 dark:bg-white/10 dark:text-white/40">
-                            1 día
-                          </span>
-                        )}
-                      </span>
-                      <span className="truncate font-semibold text-primary dark:text-white/80">{project.client || 'Sin cliente'}</span>
+                    <div className="mt-3 flex items-center gap-2 border-t border-border/40 pt-3 text-xs font-medium text-secondary dark:border-white/5 dark:text-white/60">
+                      <span className="whitespace-nowrap">{formatDate(project.startDate)}</span>
+                      <span aria-hidden="true">→</span>
+                      <DeliveryCell project={project} estimate={estimateFor(project)} />
                     </div>
                   </div>
                 </div>
@@ -518,115 +511,93 @@ const VistaTabla = ({ projects: projectsProp }) => {
       </div>
 
       {/* ── Desktop: tabla ── */}
-      <div className="hidden glass-panel overflow-hidden rounded-xl border border-border shadow-2xl md:block">
+      <div className="hidden glass-panel overflow-hidden rounded-xl border border-border shadow-xl md:block dark:border-white/5">
         <div className="overflow-x-auto soft-scroll">
           <table className="w-full border-collapse text-sm text-secondary">
             <thead>
-              <tr className="bg-slate-50/50 text-[11px] font-medium uppercase tracking-[0.25em] text-secondary/40 backdrop-blur-xl dark:bg-black/40">
-                {['Proyecto', 'Encargado', 'Estado', 'Inicio', 'Entrega', 'Cliente', 'Acciones'].map((header) => (
-                  <th key={header} className="px-8 py-6 text-left first:pl-12 last:pr-12">
-                    {header}
-                  </th>
-                ))}
+              <tr className="bg-slate-50 text-left text-xs font-semibold text-secondary dark:bg-black/40 dark:text-white/60">
+                <th scope="col" className="sticky left-0 z-10 bg-slate-50 py-3 pl-6 pr-4 dark:bg-[#0d0e12]">Proyecto</th>
+                <th scope="col" className="px-4 py-3">Responsables</th>
+                <th scope="col" className="px-4 py-3">Estado</th>
+                <th scope="col" className="px-4 py-3">Inicio → Entrega</th>
+                <th scope="col" className="px-4 py-3">Cliente</th>
+                <th scope="col" className="sticky right-0 z-10 bg-slate-50 py-3 pl-4 pr-6 text-right dark:bg-[#0d0e12]">
+                  <span className="sr-only">Acciones</span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40 dark:divide-white/5">
               {searchFilteredProjects.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-8 py-20 text-center">
-                    <p className="text-xs font-medium text-secondary/50 uppercase tracking-wide">No se encontraron proyectos</p>
+                  <td colSpan={6} className="px-8 py-16 text-center">
+                    <p className="text-sm font-medium text-secondary dark:text-white/60">{emptyMessage}</p>
                   </td>
                 </tr>
               ) : (
                 searchFilteredProjects.map((project, index) => {
-                  const calendarLink = generarLinkGoogleCalendar({
-                    contenido: project.name || 'Proyecto',
-                    detalle: project.description || '',
-                    fechaInicio: project.startDate || '',
-                    fechaFin: project.deadline || '',
-                    encargado: project.manager || '',
-                    cliente: project.client || '',
-                  });
-                  const calendarDisabled = !calendarLink;
-
+                  const managers = getProjectManagers(project);
+                  const finished = isFinishedProject(project);
+                  const stage = getStage(project) || 'edicion';
                   return (
                     <tr
                       key={project.id || index}
-                      className="group transition-all duration-300 hover:bg-slate-50/80 dark:hover:bg-white/[0.02]"
+                      className={clsx(
+                        'group cursor-pointer bg-white/40 transition-colors hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/[0.03]',
+                        finished && 'text-secondary/80'
+                      )}
                       onClick={() => openModal(project)}
                     >
-                      <td className="px-8 py-10 first:pl-12">
-                        <div className="flex gap-4">
-                          <div 
-                            className="w-1 rounded-full shrink-0" 
-                            style={{ backgroundColor: TYPE_COLORS[(project.stage || project.properties?.stage || 'edicion').toLowerCase()] || '#5F6468' }} 
-                          />
-                          <div className="flex flex-col gap-1.5">
-                            <span className="text-[15px] font-semibold text-primary tracking-tight dark:text-white group-hover:text-accent transition-colors">
+                      <td className="sticky left-0 z-10 bg-white py-4 pl-6 pr-4 group-hover:bg-slate-50 dark:bg-[#121316] dark:group-hover:bg-[#17181c]">
+                        <div className="flex min-w-[220px] max-w-[320px] gap-3">
+                          <div className="w-1 shrink-0 rounded-full" style={{ backgroundColor: PHASE_COLORS[stage] || '#5F6468' }} />
+                          <div className="flex min-w-0 flex-col gap-0.5">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openModal(project);
+                              }}
+                              className={clsx(
+                                'line-clamp-2 text-left text-[15px] font-semibold leading-snug tracking-tight transition-colors hover:text-accent focus:outline-none focus-visible:underline',
+                                finished ? 'text-secondary dark:text-white/60' : 'text-primary dark:text-white'
+                              )}
+                            >
                               {project.name || 'Sin título'}
-                            </span>
-                            <span className="font-mono text-[9px] uppercase tracking-wider text-secondary/40">
-                              {getProjectTypeBadge(project).label}
+                            </button>
+                            <span className="text-xs text-secondary dark:text-white/50">
+                              {getPhaseLabel(project)} · {getFormatLabel(project.registrationType || project.type)}
                             </span>
                           </div>
                         </div>
                       </td>
-                      <td className="px-8 py-10">
-                        <div className="flex flex-col gap-2">
-                          {getProjectManagers(project).map((m, i) => (
-                            <Avatar key={i} name={m} />
+                      <td className="px-4 py-4">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {managers.map((m) => (
+                            <span key={m} className="inline-flex items-center gap-1.5">
+                              <MemberAvatar name={m} size="sm" />
+                              <span className="text-xs font-medium text-primary dark:text-white/80">{m}</span>
+                            </span>
                           ))}
-                          {getProjectManagers(project).length === 0 && (
-                            <span className="text-xs text-secondary/30 italic">Sin asignar</span>
+                          {managers.length === 0 && (
+                            <span className="text-xs italic text-secondary dark:text-white/50">Sin asignar</span>
                           )}
                         </div>
                       </td>
-                      <td className="px-8 py-10">
+                      <td className="px-4 py-4">
                         <StatusSelector project={project} />
                       </td>
-                      <td className="px-8 py-10 text-xs font-medium text-secondary/70 dark:text-white/50">
-                        {formatDate(project.startDate)}
+                      <td className="whitespace-nowrap px-4 py-4">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-secondary dark:text-white/60">{formatDate(project.startDate)} →</span>
+                          <DeliveryCell project={project} estimate={estimateFor(project)} />
+                        </div>
                       </td>
-                      <td className="px-8 py-10 text-xs font-medium">
-                        {!project.deadline ? (
-                          <span className="italic text-secondary/40">A confirmar</span>
-                        ) : isOverdue(project) ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 px-2.5 py-1 font-semibold text-red-500 dark:text-red-400">
-                            ⚠️ {formatDate(project.deadline)}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 text-secondary/70 dark:text-white/50">
-                            {formatDate(project.deadline)}
-                            {isSameDayProject(project) && (
-                              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-secondary/60 dark:bg-white/10 dark:text-white/40">
-                                1 día
-                              </span>
-                            )}
-                          </span>
-                        )}
+                      <td className="px-4 py-4">
+                        <span className="text-xs font-semibold text-primary dark:text-white/80">{project.client || 'Sin cliente'}</span>
                       </td>
-                      <td className="px-8 py-10">
-                        {(() => {
-                          const clientLabel = project.client || 'Sin cliente';
-                          return <span className="text-xs font-semibold tracking-tight text-primary dark:text-white/80">{clientLabel}</span>;
-                        })()}
-                      </td>
-                      <td className="px-8 py-10 last:pr-12">
-                        <div className="flex items-center gap-3 opacity-60 transition-opacity group-hover:opacity-100">
-                          <button
-                            type="button"
-                            onClick={(event) => handleEdit(project, event)}
-                            className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100/80 text-secondary transition-all hover:scale-110 hover:bg-dark-bg hover:text-white active:scale-95 dark:bg-white/5 dark:text-white/50 dark:hover:bg-accent dark:hover:text-dark-bg"
-                          >
-                            <Edit2 size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(event) => handleDelete(project, event)}
-                            className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50/80 text-red-500 transition-all hover:scale-110 hover:bg-red-500 hover:text-white active:scale-95 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500 dark:hover:text-white"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                      <td className="sticky right-0 z-10 bg-white py-4 pl-4 pr-6 group-hover:bg-slate-50 dark:bg-[#121316] dark:group-hover:bg-[#17181c]">
+                        <div className="flex justify-end">
+                          <ProjectActions project={project} onEdit={openModal} />
                         </div>
                       </td>
                     </tr>

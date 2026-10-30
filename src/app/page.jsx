@@ -14,6 +14,7 @@ import VistaVoiceRoom from '../components/views/VistaVoiceRoom';
 const HomeContent = ({ session }) => {
   const fetchProjects = useStore((state) => state.fetchProjects);
   const checkAndAdvanceProjectStates = useStore((state) => state.checkAndAdvanceProjectStates);
+  const syncAvailabilityFromSchedule = useStore((state) => state.syncAvailabilityFromSchedule);
   const loading = useStore((state) => state.loading);
   const setCurrentUser = useStore((state) => state.setCurrentUser);
   const activeVoiceRoom = useStore((state) => state.activeVoiceRoom);
@@ -24,15 +25,19 @@ const HomeContent = ({ session }) => {
     setCurrentUser(session?.user || null);
   }, [session, setCurrentUser]);
 
+  // Se carga una vez por usuario: Supabase emite un objeto de sesión nuevo al
+  // refrescar el token y antes eso volvía a pedir toda la tabla de proyectos.
+  const userId = session?.user?.id || null;
   useEffect(() => {
-    if (session) {
+    if (userId) {
       const initializeData = async () => {
         await fetchProjects();
         await checkAndAdvanceProjectStates();
+        syncAvailabilityFromSchedule();
       };
       initializeData();
     }
-  }, [session, fetchProjects, checkAndAdvanceProjectStates]);
+  }, [userId, fetchProjects, checkAndAdvanceProjectStates, syncAvailabilityFromSchedule]);
 
   return (
     <main className="relative flex min-h-screen flex-col gap-4 px-3 pb-28 pt-4 sm:px-4 md:px-6 md:pb-8 lg:gap-6 lg:pb-12 lg:pt-6">

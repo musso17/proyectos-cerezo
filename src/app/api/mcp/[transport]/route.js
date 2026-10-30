@@ -2,6 +2,7 @@ import { createMcpHandler } from 'mcp-handler';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
+import { ALLOWED_STATUSES, TEAM, registerProjectTools } from '../../../../lib/mcp/proyectos.js';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -14,9 +15,6 @@ const SUPABASE_URL =
   'https://yoszuiotyyckvirlbleh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = SERVICE_KEY ? createClient(SUPABASE_URL, SERVICE_KEY) : null;
-
-const ALLOWED_STATUSES = ['Programado', 'En progreso', 'En revisión', 'Completado', 'Stuck'];
-const TEAM = ['Marcelo', 'Mauricio', 'Edson', 'Luis'];
 
 const ok = (text) => ({ content: [{ type: 'text', text }] });
 const fail = (text) => ({ content: [{ type: 'text', text: `⚠️ ${text}` }], isError: true });
@@ -181,37 +179,6 @@ const handler = createMcpHandler(
       }
     );
 
-    // 4) Agregar tarea/nota a un proyecto
-    server.tool(
-      'agregar_tarea',
-      'Agrega una tarea o nota a un proyecto (se guarda en properties.tasks).',
-      {
-        project_id: z.string().describe('ID del proyecto.'),
-        texto: z.string().describe('Texto de la tarea o nota.'),
-      },
-      async ({ project_id, texto }) => {
-        try {
-          requireDb();
-          const { data: project, error: e1 } = await supabase
-            .from('projects').select('id,name,properties').eq('id', project_id).single();
-          if (e1 || !project) return fail('No se encontró el proyecto con ese ID.');
-          const tasks = Array.isArray(project.properties?.tasks) ? project.properties.tasks : [];
-          const newTask = {
-            id: Date.now().toString(),
-            text: texto,
-            completed: false,
-            createdAt: new Date().toISOString(),
-          };
-          const nextProperties = { ...(project.properties || {}), tasks: [...tasks, newTask] };
-          const { error } = await supabase.from('projects').update({ properties: nextProperties }).eq('id', project_id);
-          if (error) throw error;
-          return ok(`✅ Tarea agregada a "${project.name}": "${texto}".`);
-        } catch (e) {
-          return fail(e.message);
-        }
-      }
-    );
-
     // 5) Actualizar fechas del proyecto
     server.tool(
       'actualizar_fechas_proyecto',
@@ -293,9 +260,19 @@ const handler = createMcpHandler(
         }
       }
     );
+
+    // 7+) Crear proyectos, tareas asignadas y contratos mensuales (ver src/lib/mcp/proyectos.js)
+    registerProjectTools(server, {
+      getDb: () => {
+        requireDb();
+        return supabase;
+      },
+      ok,
+      fail,
+    });
   },
   {
-    serverInfo: { name: 'cerezo-mcp', version: '1.0.0' },
+    serverInfo: { name: 'cerezo-mcp', version: '1.1.0' },
   },
   {
     basePath: '/api/mcp',
@@ -307,14 +284,24 @@ const handler = createMcpHandler(
 // ─── Auth por token compartido ──────────────────────────────────────────────────
 const authed = async (req) => {
   const secret = process.env.MCP_SECRET;
-  // Si no hay secreto configurado, permitir (modo abierto) pero advertir en logs.
+  // Sin secreto el conector queda cerrado (usa la service role, que se salta
+  // la RLS). Solo en desarrollo local se permite el modo abierto.
   if (!secret) {
-    console.warn('[MCP] MCP_SECRET no configurado: el conector está ABIERTO.');
-    return handler(req);
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[MCP] MCP_SECRET no configurado: conector abierto solo en desarrollo.');
+      return handler(req);
+    }
+    console.error('[MCP] MCP_SECRET no configurado: conector cerrado.');
+    return new Response(JSON.stringify({ error: 'MCP_SECRET no configurado' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
   const auth = req.headers.get('authorization') || '';
   const bearer = auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : null;
   const headerKey = req.headers.get('x-api-key');
+  // ?key= se mantiene por compatibilidad con conectores que no permiten
+  // cabeceras, pero queda en los logs: preferir Authorization o x-api-key.
   const urlKey = new URL(req.url).searchParams.get('key');
   if (bearer === secret || headerKey === secret || urlKey === secret) {
     return handler(req);

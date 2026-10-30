@@ -6,7 +6,8 @@ import { es } from 'date-fns/locale';
 const WEEKDAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const MAX_ITEMS_PER_DAY = 3;
 
-const RECORDING_PILL = 'border border-[#C7DAFF] bg-[#E7F1FF] text-[#4C8EF7] dark:border-blue-500/60 dark:bg-blue-500/15 dark:text-blue-300';
+const RECORDING_PILL = 'border border-[#C7DAFF] bg-[#E7F1FF] text-[#1D4ED8] dark:border-blue-500/60 dark:bg-blue-500/15 dark:text-blue-300';
+const ABSENCE_PILL = 'border border-slate-300 bg-slate-100 text-slate-700 dark:border-white/20 dark:bg-white/10 dark:text-white/80';
 const CalendarGrid = ({
   calendarDays,
   currentMonth,
@@ -20,7 +21,7 @@ const CalendarGrid = ({
   const today = startOfDay(new Date());
 
   return (
-    <div className="hidden grid-cols-7 gap-px overflow-hidden rounded-lg border border-border bg-border/40 sm:grid">
+    <div className="hidden grid-cols-7 gap-px overflow-hidden rounded-lg border border-border bg-border/40 md:grid">
       {WEEKDAYS.map((weekday) => (
         <div
           key={weekday}
@@ -71,7 +72,8 @@ const CalendarGrid = ({
               {visibleItems.map((item) => {
                 if (item.type === 'recording_event') {
                   const { project } = item;
-                  const title = project?.name || 'Grabación';
+                  const absentNames = (project?.managers || []).join(', ');
+                  const title = item.isAbsence ? `No está: ${absentNames || project?.name}` : project?.name || 'Grabación';
                   const isMulti = item.totalDays > 1;
                   // Extiende la barra hacia el día contiguo (sin romper en el
                   // borde de la semana) para que se vea como un bloque continuo.
@@ -87,10 +89,10 @@ const CalendarGrid = ({
                         event.stopPropagation();
                         if (project) openModal(project);
                       }}
-                      title={isMulti ? `${title} · grabación día ${item.dayIndex} de ${item.totalDays}` : title}
+                      title={isMulti ? `${title} · día ${item.dayIndex} de ${item.totalDays}` : title}
                       className={clsx(
                         'group border px-2 py-1 text-left text-xs shadow-sm transition-all duration-200 ease-[var(--ease-ios-out)] hover:z-10 hover:shadow-lg',
-                        RECORDING_PILL,
+                        item.isAbsence ? ABSENCE_PILL : RECORDING_PILL,
                         extendLeft ? '-ml-2 border-l-0' : 'rounded-l-md',
                         extendRight ? '-mr-2 border-r-0' : 'rounded-r-md'
                       )}
@@ -98,14 +100,14 @@ const CalendarGrid = ({
                       {showTitle ? (
                         <div className="flex items-center justify-between gap-2">
                           <span className="truncate font-semibold">{title}</span>
-                          <span className="whitespace-nowrap text-[10px] opacity-75">
+                          <span className="whitespace-nowrap text-[11px] opacity-80">
                             {isMulti ? `${item.dayIndex}/${item.totalDays}` : format(item.range.start, 'dd/MM')}
                           </span>
                         </div>
                       ) : (
                         // Celda de continuación: sin texto, solo la barra (mantiene altura).
                         <div className="flex items-center justify-end">
-                          <span className="text-[10px] opacity-50">{item.dayIndex}/{item.totalDays}</span>
+                          <span className="text-[11px] opacity-70">{item.dayIndex}/{item.totalDays}</span>
                         </div>
                       )}
                     </button>

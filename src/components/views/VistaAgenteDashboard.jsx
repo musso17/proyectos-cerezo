@@ -23,9 +23,7 @@ const getAgentName = (user) => {
 const VistaAgenteDashboard = () => {
   const currentUser = useStore((state) => state.currentUser);
   const projects = useStore((state) => state.projects);
-  const runAgent = useStore((state) => state.runAgent);
   const openModal = useStore((state) => state.openModal);
-  const agentSuggestions = useStore((state) => state.agent.suggestions);
   const selectedDashboardDate = useStore((state) => state.selectedDashboardDate);
   const setSelectedDashboardDate = useStore((state) => state.setSelectedDashboardDate);
 

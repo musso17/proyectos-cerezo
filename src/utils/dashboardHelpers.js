@@ -1,14 +1,33 @@
 import {
+  addDays,
+  addWeeks,
   differenceInCalendarDays,
-  isSameMonth,
-  parseISO,
-  isValid,
-  isAfter,
+  eachDayOfInterval,
+  endOfMonth,
   format,
+  isSameMonth,
+  isValid,
+  parseISO,
+  startOfDay,
+  startOfMonth,
   startOfWeek,
 } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { normalizeString } from './normalize';
+import { isAbsenceProject } from './absences';
+import { getClientKey } from './clients';
+import { TEAM_MEMBERS, ensureMemberName } from '../constants/team';
+
+// Rango de años razonable: evita guardar/mostrar fechas como 10/10/0002
+// cuando el año se tipea a medias en un <input type="date">.
+export const MIN_PLAUSIBLE_YEAR = 2000;
+export const MAX_PLAUSIBLE_YEAR = 2100;
+
+export const isPlausibleDate = (date) => {
+  if (!(date instanceof Date) || !isValid(date)) return false;
+  const year = date.getFullYear();
+  return year >= MIN_PLAUSIBLE_YEAR && year <= MAX_PLAUSIBLE_YEAR;
+};
 
 export const buildLabel = (value, fallback) => {
   if (!value && value !== 0) return fallback;
@@ -20,8 +39,8 @@ export const buildLabel = (value, fallback) => {
 export const parseProjectDate = (value) => {
   if (!value) return null;
 
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value;
+  if (value instanceof Date) {
+    return isPlausibleDate(value) ? value : null;
   }
 
   const text = value.toString().trim();
@@ -29,10 +48,13 @@ export const parseProjectDate = (value) => {
 
   const normalized = /^\d{4}-\d{2}-\d{2}$/.test(text) ? `${text}T00:00:00` : text;
   const parsedISO = parseISO(normalized);
-  if (isValid(parsedISO)) return parsedISO;
+  if (isValid(parsedISO)) return isPlausibleDate(parsedISO) ? parsedISO : null;
 
   const timestamp = Date.parse(text);
-  if (!Number.isNaN(timestamp)) return new Date(timestamp);
+  if (!Number.isNaN(timestamp)) {
+    const parsed = new Date(timestamp);
+    return isPlausibleDate(parsed) ? parsed : null;
+  }
 
   return null;
 };
@@ -77,16 +99,15 @@ export const getProjectRecordingDate = (project) => {
     project.properties?.recordingDate,
   ];
   for (const candidate of candidates) {
-    if (!candidate) continue;
-    const parsed = parseISO(candidate.toString().trim().length <= 10 ? `${candidate}T00:00:00` : candidate);
-    if (isValid(parsed)) return parsed;
+    const parsed = parseProjectDate(candidate);
+    if (parsed) return parsed;
   }
   return null;
 };
 
 // Normaliza una lista (o valor suelto) de fechas de grabación a strings
 // "yyyy-MM-dd" únicos y ordenados ascendentemente. Acepta arreglos, strings
-// separados por coma o un único valor.
+// separados por coma o un único valor. Descarta años fuera de rango.
 export const sanitizeRecordingDates = (value) => {
   let raw = [];
   if (Array.isArray(value)) raw = value;
@@ -100,7 +121,7 @@ export const sanitizeRecordingDates = (value) => {
     if (!text) return;
     const dayPart = /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text;
     const parsed = parseProjectDate(dayPart);
-    if (parsed && isValid(parsed)) {
+    if (parsed) {
       seen.add(format(parsed, 'yyyy-MM-dd'));
     }
   });
@@ -131,11 +152,55 @@ export const getProjectLastRecordingDate = (project) => {
   return dates.length ? dates[dates.length - 1] : null;
 };
 
+const getProjectStage = (project) =>
+  (project?.stage || project?.properties?.stage || '').toString().trim().toLowerCase();
+
+const RECORDING_STAGES = new Set(['grabacion', 'fotografia', 'fotografía']);
+
+// Días en que una persona está comprometida todo el día y no puede estar en
+// otro lado: días de rodaje (de cualquier fase) y ausencias.
+export const getProjectBlockingDays = (project) => {
+  if (!project) return [];
+  const absence = isAbsenceProject(project);
+  let days = getProjectRecordingDates(project);
+  if (days.length > 0) return days;
+
+  if (!absence && !RECORDING_STAGES.has(getProjectStage(project))) return [];
+  const start = parseProjectDate(project.startDate);
+  if (!start) return [];
+  const end = parseProjectDate(project.deadline);
+  if (absence && end && end > start) return eachDayOfInterval({ start, end });
+  return [start];
+};
+
+// ─── Formato (Spot / Evento / Contenido / Lanzamiento) ─────────────────────────
+
+const FORMAT_LABELS = {
+  spot: 'Spot',
+  evento: 'Evento',
+  contenido: 'Contenido',
+  lanzamiento: 'Lanzamiento',
+  grabacion: 'Grabación',
+  fotografia: 'Fotografía',
+  edicion: 'Edición',
+};
+
+export const getFormatKey = (project) =>
+  normalizeString(
+    project?.registrationType || project?.properties?.registrationType || project?.type || ''
+  );
+
+export const getFormatLabel = (value) => {
+  const key = normalizeString(value || '');
+  if (!key) return 'Sin formato';
+  return FORMAT_LABELS[key] || buildLabel(value, 'Sin formato');
+};
+
 export const extractProjectInfo = (project) => {
   const id = project.id || project.uuid || project._id || project.slug || String(Math.random());
   const statusLabel = buildLabel(project.status, 'Programado');
   const statusKey = normalizeString(project.status || statusLabel || '').replace(/\s+/g, '');
-  
+
   // Normalizar para un chequeo de completado más flexible
   const normalizedStatus = statusKey.toLowerCase();
   const completedKeys = ['completado', 'completada', 'entregado', 'entregada', 'finalizado', 'finalizada'];
@@ -147,9 +212,9 @@ export const extractProjectInfo = (project) => {
     (project.fechaGrabacion || project.properties?.fechaGrabacion ? 'grabacion' : '');
   const stage = normalizeString(rawStageValue || '').replace(/\s+/g, '');
   const clientLabel = buildLabel(project.client || project.cliente, 'Sin cliente');
-  const typeLabel = buildLabel(
-    project.type || project.registrationType || project.properties?.registrationType,
-    'Sin tipo'
+  const formatKey = getFormatKey(project);
+  const typeLabel = getFormatLabel(
+    project.registrationType || project.properties?.registrationType || project.type
   );
   const recordingDate = parseProjectDate(
     project.fechaGrabacion ||
@@ -160,11 +225,14 @@ export const extractProjectInfo = (project) => {
       project.properties?.fechaGrabacion ||
       project.properties?.fecha_grabacion
   );
+  const recordingDates = getProjectRecordingDates(project);
+  const firstRecordingDate = recordingDates[0] || null;
+  const lastRecordingDate = recordingDates.length ? recordingDates[recordingDates.length - 1] : null;
   const deadlineDate = parseProjectDate(
-    project.deadline || 
-    project.endDate || 
-    project.end_date || 
-    project.fecha_entrega || 
+    project.deadline ||
+    project.endDate ||
+    project.end_date ||
+    project.fecha_entrega ||
     project.properties?.deadline ||
     project.properties?.end_date
   );
@@ -186,7 +254,19 @@ export const extractProjectInfo = (project) => {
       project.properties?.fechaEntrega ||
       project.properties?.fecha_entrega
   );
-  const referenceCompletionDate = completionDate || deadlineDate || startDate;
+
+  // Fecha de entrega del trabajo: la comprometida (deadline) o, si no hay,
+  // el último día de rodaje / inicio. `completedAt` solo como último recurso:
+  // registra cuándo se marcó como completado, que puede ser semanas después.
+  const deliveryDate = deadlineDate || lastRecordingDate || startDate || completionDate;
+
+  // Intervalo de trabajo: desde el primer rodaje o el inicio hasta la entrega.
+  const startCandidates = [startDate, firstRecordingDate].filter(Boolean);
+  const workStart = startCandidates.length
+    ? new Date(Math.min(...startCandidates.map((d) => d.getTime())))
+    : deadlineDate;
+  const workEnd = deadlineDate || lastRecordingDate || workStart;
+
   const managers = getProjectManagers(project);
   const displayName =
     buildLabel(project.name || project.projectName || project.titulo || project.title, '').length > 0
@@ -198,281 +278,182 @@ export const extractProjectInfo = (project) => {
     statusLabel,
     statusKey,
     isCompleted,
+    isAbsence: isAbsenceProject(project),
     stage,
     clientLabel,
+    formatKey,
     typeLabel,
     managers,
     recordingDate,
+    recordingDates,
+    firstRecordingDate,
+    lastRecordingDate,
     deadlineDate,
     startDate,
     completionDate,
-    referenceCompletionDate,
+    deliveryDate,
+    // Compatibilidad con código anterior.
+    referenceCompletionDate: deliveryDate,
+    workStart,
+    workEnd,
     displayName,
   };
 };
 
 /**
- * Determina si un proyecto estaba activo durante un mes específico.
- * Un proyecto está activo si:
- * 1. Empezó en el mes de referencia.
- * 2. Empezó antes y no ha terminado aún.
- * 3. Empezó antes y terminó después o durante el mes de referencia.
+ * Un proyecto pertenece a un mes si su intervalo de trabajo (primer rodaje o
+ * inicio → entrega) se cruza con ese mes. Los proyectos abiertos y vencidos
+ * siguen contando en los meses posteriores hasta hoy, porque siguen pendientes.
  */
 export const isProjectActiveInMonth = (projectInfo, referenceDate) => {
-  const { startDate, referenceCompletionDate, isCompleted } = projectInfo;
-  if (!startDate) return false;
+  const { workStart, workEnd, isCompleted } = projectInfo;
+  if (!workStart) return false;
 
-  const refStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
-  const refEnd = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0);
+  const monthStart = startOfMonth(referenceDate);
+  const monthEnd = endOfMonth(referenceDate);
+  if (workStart > monthEnd) return false;
 
-  // Caso 1: El proyecto empieza dentro del mes
-  if (isSameMonth(startDate, referenceDate)) return true;
+  const end = workEnd && workEnd > workStart ? workEnd : workStart;
+  if (end >= monthStart) return true;
 
-  // Caso 2: El proyecto empezó antes y sigue activo
-  if (startDate < refStart) {
-    if (!isCompleted) return true;
-    if (referenceCompletionDate && referenceCompletionDate >= refStart) return true;
-  }
-
-  return false;
+  return !isCompleted && monthStart <= startOfDay(new Date());
 };
+
+// Entregado en el mes: completado y con fecha de entrega dentro del mes.
+export const isDeliveredInMonth = (projectInfo, referenceDate) =>
+  Boolean(projectInfo.isCompleted && projectInfo.deliveryDate && isSameMonth(projectInfo.deliveryDate, referenceDate));
+
+// Proyectos que se muestran en un mes: los abiertos con actividad en el mes y
+// los completados que se entregaron ese mes. Misma regla para la lista del
+// periodo y para los KPIs, así los números cuadran.
+export const isProjectInPeriod = (projectInfo, referenceDate) =>
+  projectInfo.isCompleted
+    ? isDeliveredInMonth(projectInfo, referenceDate)
+    : isProjectActiveInMonth(projectInfo, referenceDate);
+
+// Tiempo promedio (días) entre el inicio y la entrega por formato.
+export const computeTurnaroundByFormat = (projects = []) => {
+  const buckets = new Map();
+  projects.forEach((project) => {
+    if (isAbsenceProject(project)) return;
+    const info = extractProjectInfo(project);
+    if (!info.isCompleted || !info.startDate || !info.completionDate) return;
+    const days = Math.max(differenceInCalendarDays(info.completionDate, info.startDate), 0);
+    const key = info.formatKey || 'sinformato';
+    const bucket = buckets.get(key) || { key, type: info.typeLabel, total: 0, count: 0 };
+    bucket.total += days;
+    bucket.count += 1;
+    buckets.set(key, bucket);
+  });
+
+  return Array.from(buckets.values())
+    .map(({ key, type, total, count }) => ({
+      key,
+      type,
+      avgDays: Number((total / count).toFixed(1)),
+      count,
+    }))
+    .sort((a, b) => b.avgDays - a.avgDays);
+};
+
+const MIN_TURNAROUND_SAMPLES = 3;
+
+// Propone una fecha de entrega con el promedio histórico del formato, contando
+// desde el último día de rodaje (o el inicio). Solo si no hay fecha comprometida.
+export const estimateDeliveryDate = (project, turnaround = []) => {
+  if (!project || isAbsenceProject(project)) return null;
+  const info = extractProjectInfo(project);
+  if (info.isCompleted || info.deadlineDate) return null;
+  const base = info.lastRecordingDate || info.startDate;
+  if (!base) return null;
+  const match = turnaround.find((item) => item.key === info.formatKey);
+  if (!match || match.count < MIN_TURNAROUND_SAMPLES) return null;
+  const days = Math.max(1, Math.round(match.avgDays));
+  return {
+    date: addDays(base, days),
+    days,
+    avgDays: match.avgDays,
+    formatLabel: match.type,
+    samples: match.count,
+  };
+};
+
+const LOAD_LEVELS = (total) =>
+  total >= 5 ? 'Carga alta' : total >= 3 ? 'Carga media' : 'Carga controlada';
+
+const WEEKS_IN_TREND = 8;
 
 export const buildDashboardData = (projects, referenceDate = new Date()) => {
   const now = referenceDate;
   const totals = { active: 0, recording: 0, editing: 0, delivered: 0 };
-  let completedThisMonth = 0;
-  const statusCount = new Map();
-  const activeStatusCount = new Map();
   const clientCount = new Map();
-  const editingDurationsByType = new Map();
-  const recordingByWeek = new Map();
-  const managerLoad = new Map();
-  let totalDeliveryDays = 0;
-  let deliverySamples = 0;
-  let projectsUnder48h = 0;
-  let totalProjectsCompleted = 0;
-  let lateEvents = 0;
-  const upcomingEvents = [];
+  const managerLoad = new Map(TEAM_MEMBERS.map((member) => [member, 0]));
+  const periodProjects = [];
 
-  const editingStatusKeys = new Set([
-    'enprogreso',
-    'enrevision',
-    'revision',
-    'corrigiendo',
-    'esperandofeedback',
-    'editando',
-  ]);
+  // Semanas de la tendencia: las 8 que terminan en la última semana del mes
+  // elegido, todas presentes aunque no tengan grabaciones.
+  const lastWeekStart = startOfWeek(endOfMonth(now), { weekStartsOn: 1 });
+  const weekStarts = Array.from({ length: WEEKS_IN_TREND }, (_, index) =>
+    addWeeks(lastWeekStart, index - (WEEKS_IN_TREND - 1))
+  );
+  const recordingsByWeekMap = new Map(weekStarts.map((week) => [week.getTime(), new Set()]));
 
-  projects.forEach((project) => {
-    const projectInfo = extractProjectInfo(project);
-    const {
-      id,
-      statusLabel,
-      statusKey,
-      isCompleted,
-      stage,
-      clientLabel,
-      typeLabel,
-      managers,
-      recordingDate,
-      deadlineDate,
-      startDate,
-      completionDate,
-      referenceCompletionDate,
-      displayName,
-    } = projectInfo;
+  const workProjects = (projects || []).filter((project) => !isAbsenceProject(project));
 
-    const isActiveInPeriod = isProjectActiveInMonth(projectInfo, now);
+  workProjects.forEach((project) => {
+    const info = extractProjectInfo(project);
+    const { isCompleted, stage, clientLabel, managers, recordingDates } = info;
+    const isActive = !isCompleted && isProjectActiveInMonth(info, now);
+    const isDelivered = isDeliveredInMonth(info, now);
 
-    statusCount.set(statusLabel, (statusCount.get(statusLabel) || 0) + 1);
-
-    if (!isCompleted && statusLabel !== 'Cancelado' && isActiveInPeriod) {
+    if (isActive) {
       totals.active += 1;
-      activeStatusCount.set(statusLabel, (activeStatusCount.get(statusLabel) || 0) + 1);
-    }
+      if (RECORDING_STAGES.has(stage)) totals.recording += 1;
+      if (stage === 'edicion' || stage === 'postproduccion') totals.editing += 1;
 
-    if (!isCompleted && stage === 'grabacion' && isActiveInPeriod) totals.recording += 1;
-    if (
-      !isCompleted &&
-      (stage === 'edicion' || stage === 'postproduccion') &&
-      editingStatusKeys.has(statusKey) &&
-      isActiveInPeriod
-    ) {
-      totals.editing += 1;
-    }
-    if (isCompleted && referenceCompletionDate && isSameMonth(referenceCompletionDate, now)) {
-      totals.delivered += 1;
-    }
-
-    if (referenceCompletionDate && isSameMonth(referenceCompletionDate, now) && isCompleted) {
-      completedThisMonth += 1;
-    }
-
-    const clientKey = normalizeString(clientLabel || 'Sin cliente');
-    const existing = clientCount.get(clientKey) || { total: 0 };
-    existing.total += 1;
-    existing.label = clientKey.charAt(0).toUpperCase() + clientKey.slice(1);
-    clientCount.set(clientKey, existing);
-
-    if (isCompleted && startDate && completionDate) {
-      const days = Math.max(differenceInCalendarDays(completionDate, startDate), 0);
-      totalDeliveryDays += days;
-      deliverySamples += 1;
-
-      const bucket = editingDurationsByType.get(typeLabel) || { total: 0, count: 0 };
-      bucket.total += days;
-      bucket.count += 1;
-      editingDurationsByType.set(typeLabel, bucket);
-
-      totalProjectsCompleted += 1;
-      if (days <= 2) projectsUnder48h += 1;
-    }
-
-    if (recordingDate) {
-      const weekStart = startOfWeek(recordingDate, { weekStartsOn: 1 });
-      const key = weekStart.getTime();
-      const current = recordingByWeek.get(key) || 0;
-      recordingByWeek.set(key, current + 1);
-    }
-
-    const considerForLoad = ['En progreso', 'En revisión'];
-    if (considerForLoad.includes(statusLabel)) {
-      const assignedManagers = managers.length > 0 ? managers : ['Sin asignar'];
-      assignedManagers.forEach((manager) => {
+      const assigned = managers.length > 0 ? managers.map((m) => ensureMemberName(m)) : ['Sin asignar'];
+      new Set(assigned).forEach((manager) => {
         managerLoad.set(manager, (managerLoad.get(manager) || 0) + 1);
       });
     }
+    if (isDelivered) totals.delivered += 1;
 
-    if (typeLabel.toLowerCase().includes('evento') && deadlineDate && deadlineDate < now && !isCompleted) {
-      lateEvents += 1;
+    if (isActive || isDelivered) {
+      periodProjects.push(project);
+      const clientKey = getClientKey(clientLabel) || 'sincliente';
+      const entry = clientCount.get(clientKey) || { client: clientLabel, total: 0 };
+      entry.total += 1;
+      clientCount.set(clientKey, entry);
     }
 
-    if (recordingDate && isAfter(recordingDate, now)) {
-      upcomingEvents.push({
-        id,
-        date: recordingDate,
-        label: 'Grabación',
-        project: displayName,
-        description: 'Coordinación de equipo y logística',
-      });
-    }
-
-    if (deadlineDate && isAfter(deadlineDate, now)) {
-      upcomingEvents.push({
-        id,
-        date: deadlineDate,
-        label: 'Entrega',
-        project: displayName,
-        description: 'Fecha comprometida con el cliente',
-      });
-    }
-
+    recordingDates.forEach((day) => {
+      const key = startOfWeek(day, { weekStartsOn: 1 }).getTime();
+      if (recordingsByWeekMap.has(key)) {
+        recordingsByWeekMap.get(key).add(info.id);
+      }
+    });
   });
 
-  const avgDeliveryDays =
-    deliverySamples > 0 ? Number((totalDeliveryDays / deliverySamples).toFixed(1)) : null;
-
-  const statusData = Array.from(statusCount.entries())
-    .map(([status, total]) => ({ status, total }))
-    .sort((a, b) => b.total - a.total);
-
-  const activeStatusData = Array.from(activeStatusCount.entries())
-    .map(([status, total]) => ({ status, total }))
-    .sort((a, b) => b.total - a.total);
-
-  const clientsData = Array.from(clientCount.entries())
-    .map(([key, { label, total }]) => ({ client: label || 'Sin cliente', total }))
+  const clientsData = Array.from(clientCount.values())
     .sort((a, b) => b.total - a.total)
     .slice(0, 8);
 
-  const editingAverageByType = Array.from(editingDurationsByType.entries())
-    .map(([type, { total, count }]) => ({
-      type,
-      avgDays: Number((total / count).toFixed(1)),
-    }))
-    .sort((a, b) => b.avgDays - a.avgDays);
-
-  const recordingsByWeek = Array.from(recordingByWeek.entries())
-    .sort((a, b) => a[0] - b[0])
-    .slice(-8)
-    .map(([timestamp, total]) => ({
-      week: format(new Date(Number(timestamp)), "d MMM", { locale: es }),
-      total,
-    }));
+  const recordingsByWeek = weekStarts.map((week) => ({
+    week: format(week, 'd MMM', { locale: es }),
+    total: recordingsByWeekMap.get(week.getTime()).size,
+  }));
 
   const managerLoadData = Array.from(managerLoad.entries())
-    .map(([manager, total]) => ({
-      manager,
-      total,
-      level: total >= 5 ? 'Carga alta' : total >= 3 ? 'Carga media' : 'Carga controlada',
-    }))
-    .sort((a, b) => b.total - a.total);
-
-  const upcoming = upcomingEvents
-    .filter((event) => differenceInCalendarDays(event.date, now) <= 30)
-    .sort((a, b) => a.date.getTime() - b.date.getTime())
-    .slice(0, 8);
+    .filter(([manager, total]) => manager !== 'Sin asignar' || total > 0)
+    .map(([manager, total]) => ({ manager, total, level: LOAD_LEVELS(total) }))
+    .sort((a, b) => b.total - a.total || a.manager.localeCompare(b.manager, 'es'));
 
   return {
     totals,
-    completedThisMonth,
-    avgDeliveryDays,
-    statusData,
-    activeStatusData,
+    periodProjects,
     clientsData,
     recordingsByWeek,
-    editingAverageByType,
-    projectsUnder48h,
-    totalProjectsCompleted,
-    lateEvents,
-    upcomingEvents: upcoming,
+    editingAverageByType: computeTurnaroundByFormat(workProjects),
     managerLoad: managerLoadData,
-  };
-};
-
-/**
- * Calcula métricas avanzadas de eficiencia basadas en el historial de eventos (Problema 3).
- * Requiere los datos de la vista efficiency_metrics_view.
- */
-export const calculateEfficiencyMetrics = (efficiencyData) => {
-  if (!Array.isArray(efficiencyData) || efficiencyData.length === 0) {
-    return {
-      avgTimeByStage: {},
-      bottlenecks: [],
-      totalLeadTime: 0,
-    };
-  }
-
-  const stageTimes = new Map(); // stage -> [durations]
-  
-  efficiencyData.forEach(event => {
-    if (event.time_in_stage) {
-      // time_in_stage viene como intervalo o segundos dependiendo de la DB
-      // Aquí asumimos que lo parseamos a horas o días
-      const durationHours = typeof event.time_in_stage === 'number' 
-        ? event.time_in_stage / 3600 
-        : parseFloat(event.time_in_stage) || 0;
-        
-      const stage = event.to_status || 'desconocido';
-      const current = stageTimes.get(stage) || [];
-      current.push(durationHours);
-      stageTimes.set(stage, current);
-    }
-  });
-
-  const avgTimeByStage = {};
-  const bottlenecks = [];
-
-  stageTimes.forEach((durations, stage) => {
-    const avg = durations.reduce((a, b) => a + b, 0) / durations.length;
-    avgTimeByStage[stage] = Number(avg.toFixed(1));
-    if (avg > 72) { // Más de 3 días es un cuello de botella potencial
-      bottlenecks.push({ stage, avgHours: avg });
-    }
-  });
-
-  return {
-    avgTimeByStage,
-    bottlenecks: bottlenecks.sort((a, b) => b.avgHours - a.avgHours),
   };
 };

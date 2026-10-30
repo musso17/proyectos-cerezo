@@ -14,7 +14,7 @@ import {
   useTracks,
   VideoTrack,
 } from '@livekit/components-react';
-import { Track } from 'livekit-client';
+import { DisconnectReason, Track } from 'livekit-client';
 import '@livekit/components-styles';
 import {
   ChevronDown,
@@ -35,7 +35,8 @@ import {
   Volume2,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { TEAM_STYLES } from '../../constants/team';
+import { DEFAULT_MEMBER_COLOR, MEMBER_COLORS, ensureMemberName, getTeamMemberByEmail } from '../../constants/team';
+import { authFetch, getDeviceId } from '../../utils/authFetch';
 const MIC_KEY = 'cerezo-default-mic';
 const getDefaultMic = () => {
   if (typeof window === 'undefined') return true;
@@ -63,11 +64,20 @@ const describeMicError = (e) => {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// Use participant.name (set from LiveKit token) when available, else parse identity
+// participant.name y metadata los pone el servidor en el token; sin
+// canUpdateOwnMetadata nadie puede cambiarlos, así que identifican de verdad.
 const getDisplayName = (identity = '', participantName = '') => {
   if (participantName && !participantName.includes('@')) return participantName;
-  const base = identity.includes('@') ? identity.split('@')[0] : identity;
+  const base = identity.includes('@') ? identity.split('@')[0] : identity.split(':')[0];
   return base.charAt(0).toUpperCase() + base.slice(1);
+};
+
+const parseMetadata = (participant) => {
+  try {
+    return JSON.parse(participant?.metadata || '{}') || {};
+  } catch {
+    return {};
+  }
 };
 
 const getInitials = (identity = '', participantName = '') => {
@@ -80,17 +90,12 @@ const getInitials = (identity = '', participantName = '') => {
     .join('');
 };
 
-// Returns { bgClass?, bgHex? } — hex takes priority when set (user preference)
-const getTeamStyle = (identity = '', index = 0, avatarColorHex = null) => {
-  if (avatarColorHex) return { bgHex: avatarColorHex, bgClass: null };
-  const FALLBACK_COLORS = [
-    'bg-indigo-500','bg-pink-500','bg-teal-500',
-    'bg-orange-500','bg-cyan-500','bg-rose-500',
-  ];
-  const first = getDisplayName(identity).split(/[\s._-]+/)[0];
-  const match = TEAM_STYLES[first];
-  if (match) return { bgClass: match.bg, bgHex: null };
-  return { bgClass: FALLBACK_COLORS[index % FALLBACK_COLORS.length], bgHex: null };
+// Color del avatar: el elegido en Ajustes (viene en los metadatos del token)
+// o el color fijo del integrante. Igual para todos, sin depender del orden.
+const getTeamStyle = (participant) => {
+  const meta = parseMetadata(participant);
+  const member = ensureMemberName(meta.member || participant?.name);
+  return { bgHex: meta.avatarColor || MEMBER_COLORS[member] || DEFAULT_MEMBER_COLOR, bgClass: null };
 };
 
 // Helper to apply color as class or inline style
@@ -100,15 +105,14 @@ const colorProps = (style) => style.bgHex
 
 // ─── Participant card ──────────────────────────────────────────────────────────
 
-const ParticipantCard = ({ participant, isLocal = false, index = 0, localAvatarColor = null }) => {
+const ParticipantCard = ({ participant, isLocal = false }) => {
   // Volumen continuo real (0..1) vía Web Audio — se actualiza por frame, sin el
   // debounce de useIsSpeaking (que causaba el lag, sobre todo al dejar de hablar).
   const micPub = participant.getTrackPublication?.(Track.Source.Microphone);
   const audioTrack = micPub?.audioTrack;
   const rawVolume = useTrackVolume(audioTrack);
 
-  const avatarHex = isLocal ? localAvatarColor : null;
-  const style = getTeamStyle(participant.identity, index, avatarHex);
+  const style = getTeamStyle(participant);
   const initials = getInitials(participant.identity, participant.name);
   const displayName = getDisplayName(participant.identity, participant.name);
   const isMuted = !participant.isMicrophoneEnabled;
@@ -249,9 +253,10 @@ const MessageBubble = ({ msg, isOwn }) => {
   const parts = msg.text.split(URL_REGEX);
   const urls = msg.text.match(URL_REGEX) || [];
   const sender = msg.sender_identity || msg.from || '';
-  const { bgClass } = getTeamStyle(sender, 0);
-  const initials = getInitials(sender);
-  const name = getDisplayName(sender);
+  const member = getTeamMemberByEmail(sender);
+  const bgHex = MEMBER_COLORS[member] || DEFAULT_MEMBER_COLOR;
+  const initials = getInitials(sender, member || '');
+  const name = member || getDisplayName(sender);
   const time = new Date(msg.created_at || msg.timestamp).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
 
   const content = parts.reduce((acc, part, i) => {
@@ -275,7 +280,7 @@ const MessageBubble = ({ msg, isOwn }) => {
   return (
     <div className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
       {/* Avatar */}
-      <div className={`w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold text-white ${bgClass}`}>
+      <div className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold text-white" style={{ backgroundColor: bgHex }}>
         {initials}
       </div>
       {/* Bubble */}
@@ -363,7 +368,7 @@ const ChatPanel = ({ messages, onSend, localIdentity }) => {
 
 // ─── Room interior (requires LiveKitRoom context) ──────────────────────────────
 
-const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimized, localAvatarColor }) => {
+const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimized, chatIdentity }) => {
   const allRaw = useParticipants();
   const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
   const room = useRoomContext();
@@ -408,10 +413,10 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
       if (!showChat) setUnread((n) => n + added);
     }
     prevCountRef.current = messages.length;
-  }, [messages.length]);
+  }, [messages.length, showChat]);
 
   const handleSend = (text) => {
-    sendMessage(text, localParticipant?.identity ?? 'unknown');
+    sendMessage(text, chatIdentity || 'unknown');
   };
 
   const handleToggleChat = () => {
@@ -452,14 +457,15 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
           )}
           <div className="flex -space-x-2">
             {allParticipants.slice(0, 3).map(({ participant }, i) => {
-              const { bgClass } = getTeamStyle(participant.identity, i);
+              const { bgHex } = getTeamStyle(participant);
               return (
                 <div
                   key={participant.identity}
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-slate-900 ${bgClass}`}
-                  title={getDisplayName(participant.identity)}
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-slate-900"
+                  style={{ backgroundColor: bgHex }}
+                  title={getDisplayName(participant.identity, participant.name)}
                 >
-                  {getInitials(participant.identity)}
+                  {getInitials(participant.identity, participant.name)}
                 </div>
               );
             })}
@@ -546,7 +552,7 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
               {activeScreen && (
                 <span className="ml-2 flex items-center gap-1 text-indigo-400">
                   <Monitor size={10} />
-                  {getDisplayName(activeScreen.participant.identity)} compartiendo
+                  {getDisplayName(activeScreen.participant.identity, activeScreen.participant.name)} compartiendo
                 </span>
               )}
             </p>
@@ -567,7 +573,7 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
                 <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-black/60 backdrop-blur-sm px-2.5 py-1.5 rounded-lg border border-white/10">
                   <Monitor size={12} className="text-indigo-400" />
                   <span className="text-xs text-white font-medium">
-                    {getDisplayName(activeScreen.participant.identity)}
+                    {getDisplayName(activeScreen.participant.identity, activeScreen.participant.name)}
                   </span>
                 </div>
               </div>
@@ -575,14 +581,14 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
             {/* Participant strip (right side) */}
             <div className="w-28 shrink-0 flex flex-col gap-3 items-center py-4 px-2 border-l border-slate-800/60 overflow-y-auto soft-scroll">
               {allParticipants.map(({ participant, isLocal }, i) => {
-                const { bgClass } = getTeamStyle(participant.identity, i);
-                const initials = getInitials(participant.identity);
-                const name = getDisplayName(participant.identity);
+                const { bgHex } = getTeamStyle(participant);
+                const initials = getInitials(participant.identity, participant.name);
+                const name = getDisplayName(participant.identity, participant.name);
                 const isMuted = !participant.isMicrophoneEnabled;
                 return (
                   <div key={participant.identity} className="flex flex-col items-center gap-1.5">
                     <div className="relative">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-md ${bgClass}`}>
+                      <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-md" style={{ backgroundColor: bgHex }}>
                         {initials}
                         <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/20 to-transparent" />
                       </div>
@@ -624,7 +630,6 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
                     participant={participant}
                     isLocal={isLocal}
                     index={i}
-                    localAvatarColor={isLocal ? localAvatarColor : null}
                   />
                 ))}
               </div>
@@ -697,7 +702,7 @@ const AudioRoomInterior = ({ roomName, onLeave, onExpand, onMinimize, isMinimize
         <ChatPanel
           messages={messages}
           onSend={handleSend}
-          localIdentity={localParticipant?.identity}
+          localIdentity={chatIdentity}
         />
       )}
           </div>
@@ -891,9 +896,11 @@ export default function VistaVoiceRoom() {
   const [token, setToken] = useState('');
   const [connError, setConnError] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
-  const username = currentUser?.email || 'Guest';
-  const displayName = currentUser?.user_metadata?.display_name || username.split('@')[0];
-  const avatarColor = currentUser?.user_metadata?.avatar_color || null;
+  // La sala se abrió con la misma sesión en otra pestaña: no reconectar solo
+  // (las dos pestañas se expulsarían en bucle), preguntar.
+  const [replacedElsewhere, setReplacedElsewhere] = useState(false);
+  const chatIdentity = currentUser?.email || null;
+  const userId = currentUser?.id || null;
 
   const handleRoomError = (e) => {
     console.error('LiveKit error:', e);
@@ -906,24 +913,40 @@ export default function VistaVoiceRoom() {
     if (!roomName) return;
     setToken('');
     setConnError(null);
+    setReplacedElsewhere(false);
+    let cancelled = false;
     (async () => {
       try {
-        const resp = await fetch(
-          `/api/livekit?room=${encodeURIComponent(roomName)}&username=${encodeURIComponent(username)}&displayName=${encodeURIComponent(displayName)}`
-        );
-        const data = await resp.json();
-        if (data.token) {
+        // El servidor decide identidad y nombre a partir de la sesión.
+        const resp = await authFetch('/api/livekit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ room: roomName, deviceId: getDeviceId() }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (cancelled) return;
+        if (resp.ok && data.token) {
           setToken(data.token);
         } else {
           console.error('No token from LiveKit API', data.error);
-          toast.error('No se pudo conectar a la sala');
+          setConnError(data.error || 'No se pudo conectar a la sala');
         }
       } catch (e) {
         console.error(e);
-        toast.error('Error de conexión');
+        if (!cancelled) setConnError('Error de conexión');
       }
     })();
-  }, [roomName, username, displayName, retryKey]);
+    return () => { cancelled = true; };
+  }, [roomName, userId, retryKey]);
+
+  const handleDisconnected = (reason) => {
+    if (reason === DisconnectReason.DUPLICATE_IDENTITY) {
+      setToken('');
+      setReplacedElsewhere(true);
+      return;
+    }
+    setActiveVoiceRoom(null);
+  };
 
   if (!roomName) return null;
 
@@ -951,6 +974,36 @@ export default function VistaVoiceRoom() {
       </div>
     );
   }
+
+  const useHere = () => { setReplacedElsewhere(false); setRetryKey((k) => k + 1); };
+
+  const renderReplaced = () =>
+    isVoiceRoomMinimized ? (
+      <div className="flex items-center justify-between w-full h-full px-3 gap-2 bg-slate-900/95 backdrop-blur-md border border-slate-700/60 rounded-lg shadow-2xl overflow-hidden">
+        <span className="text-xs text-slate-300 truncate">Abierta en otra pestaña</span>
+        <div className="flex items-center gap-1 shrink-0">
+          <button onClick={useHere} className="px-2 py-1 rounded-full bg-slate-700 hover:bg-slate-600 text-white text-[11px] transition-all">
+            Usar aquí
+          </button>
+          <button onClick={() => setActiveVoiceRoom(null)} title="Cerrar" aria-label="Cerrar" className="p-1.5 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-all">
+            <LogOut size={13} />
+          </button>
+        </div>
+      </div>
+    ) : (
+      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 p-6 text-center bg-black/80 backdrop-blur-md">
+        <p className="text-sm font-medium text-white">Abriste esta sala en otra pestaña o dispositivo.</p>
+        <p className="text-xs text-slate-400 max-w-xs">Solo una puede estar conectada a la vez.</p>
+        <div className="flex gap-2">
+          <button onClick={useHere} className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium transition-all">
+            Usar aquí
+          </button>
+          <button onClick={() => setActiveVoiceRoom(null)} className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium transition-all">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    );
 
   // Vistas previas a la conexión (aún sin contexto de sala).
   const renderConnecting = () =>
@@ -1017,7 +1070,9 @@ export default function VistaVoiceRoom() {
   // Así, minimizar/expandir ya NO desconecta ni reconecta → el screen share no se corta.
   return (
     <div className="w-full h-full">
-      {connError ? (
+      {replacedElsewhere ? (
+        renderReplaced()
+      ) : connError ? (
         renderError()
       ) : !token ? (
         renderConnecting()
@@ -1033,7 +1088,7 @@ export default function VistaVoiceRoom() {
           connect={true}
           style={{ height: '100%', width: '100%' }}
           onError={handleRoomError}
-          onDisconnected={() => setActiveVoiceRoom(null)}
+          onDisconnected={handleDisconnected}
         >
           <AudioRoomInterior
             roomName={roomName}
@@ -1041,7 +1096,7 @@ export default function VistaVoiceRoom() {
             onExpand={() => setIsVoiceRoomMinimized(false)}
             onMinimize={() => setIsVoiceRoomMinimized(true)}
             isMinimized={isVoiceRoomMinimized}
-            localAvatarColor={avatarColor}
+            chatIdentity={chatIdentity}
           />
         </LiveKitRoom>
       )}

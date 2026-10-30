@@ -5,6 +5,7 @@ import { X, User, Mic, MicOff, Check, Loader2 } from 'lucide-react';
 import useStore from '../hooks/useStore';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
+import { AVAILABILITY_OPTIONS } from '../utils/availability';
 
 // ─── Color palette ─────────────────────────────────────────────────────────────
 export const AVATAR_COLORS = [
@@ -104,10 +105,11 @@ export default function UserSettingsPanel({ onClose }) {
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-white/5 shrink-0">
           <div>
             <h2 className="text-base font-semibold text-slate-900 dark:text-white">Ajustes de perfil</h2>
-            <p className="text-xs text-slate-400 mt-0.5">{currentUser?.email}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{currentUser?.email}</p>
           </div>
           <button
             onClick={onClose}
+            aria-label="Cerrar ajustes"
             className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-white/5 dark:hover:text-white transition-all"
           >
             <X size={18} />
@@ -129,13 +131,13 @@ export default function UserSettingsPanel({ onClose }) {
               <p className="font-semibold text-slate-900 dark:text-white">
                 {displayName || currentUser?.email?.split('@')[0] || 'Sin nombre'}
               </p>
-              <p className="text-xs text-slate-400 mt-0.5">{userAvailability}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{userAvailability}</p>
             </div>
           </div>
 
           {/* ── Nombre ── */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 flex items-center gap-2">
+            <label className="text-xs font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-400 flex items-center gap-2">
               <User size={12} />
               Nombre para mostrar
             </label>
@@ -147,14 +149,14 @@ export default function UserSettingsPanel({ onClose }) {
               maxLength={40}
               className="w-full rounded-lg border border-slate-200 dark:border-white/8 bg-white dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
             />
-            <p className="text-[11px] text-slate-400">
-              Aparece en la sala de voz y en el chat. Si lo dejas vacío se usará tu email.
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              Aparece en la sala de voz y en el chat. Si lo dejas vacío se usará tu email. El color se usa en tu avatar en toda la app.
             </p>
           </div>
 
           {/* ── Color de avatar ── */}
           <div className="space-y-3">
-            <label className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-400">
               Color de avatar
             </label>
             <div className="grid grid-cols-6 gap-2">
@@ -163,6 +165,8 @@ export default function UserSettingsPanel({ onClose }) {
                   key={c.id}
                   onClick={() => setAvatarColor(c.hex)}
                   title={c.label}
+                  aria-label={`Color ${c.label}`}
+                  aria-pressed={avatarColor === c.hex}
                   className="relative w-full aspect-square rounded-xl transition-transform hover:scale-110 active:scale-95 focus:outline-none"
                   style={{ backgroundColor: c.hex }}
                 >
@@ -178,16 +182,14 @@ export default function UserSettingsPanel({ onClose }) {
 
           {/* ── Disponibilidad ── */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-400">
               Estado
             </label>
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              Se ajusta solo con tu agenda (rodaje hoy → En grabación, ausencia → Fuera). Si eliges uno, se respeta hasta que recargues.
+            </p>
             <div className="flex flex-col gap-2">
-              {[
-                { value: 'Activo - Editando',    emoji: '🟢' },
-                { value: 'En grabación',          emoji: '🎬' },
-                { value: 'Ocupado',               emoji: '🟡' },
-                { value: 'Fuera de la oficina',   emoji: '⚪' },
-              ].map((opt) => (
+              {AVAILABILITY_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   onClick={() => setUserAvailability(opt.value)}
@@ -197,7 +199,7 @@ export default function UserSettingsPanel({ onClose }) {
                       : 'border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8'
                   }`}
                 >
-                  <span>{opt.emoji}</span>
+                  <span className={`h-2.5 w-2.5 rounded-full ${opt.dot}`} />
                   <span>{opt.value}</span>
                   {userAvailability === opt.value && (
                     <Check size={14} className="ml-auto shrink-0" strokeWidth={3} />
@@ -209,7 +211,7 @@ export default function UserSettingsPanel({ onClose }) {
 
           {/* ── Sala de voz ── */}
           <div className="space-y-3">
-            <label className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-400">
               Sala de voz
             </label>
             <button
@@ -229,7 +231,7 @@ export default function UserSettingsPanel({ onClose }) {
                 <p className={`text-sm font-medium ${defaultMic ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-600 dark:text-red-400'}`}>
                   {defaultMic ? 'Micrófono activado al entrar' : 'Entrar silenciado'}
                 </p>
-                <p className="text-xs text-slate-400 mt-0.5">Click para cambiar</p>
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">Click para cambiar</p>
               </div>
               {/* Toggle pill */}
               <div className={`ml-auto w-11 h-6 rounded-full transition-all shrink-0 ${defaultMic ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}>

@@ -1,64 +1,45 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { isSameMonth, parseISO } from 'date-fns';
 import useStore from './useStore';
-import { buildDashboardData, calculateEfficiencyMetrics, extractProjectInfo } from '../utils/dashboardHelpers';
+import { isSameMonth } from 'date-fns';
+import { buildDashboardData, extractProjectInfo } from '../utils/dashboardHelpers';
+import { isAbsenceProject } from '../utils/absences';
 
 const selectDashboardState = (state) => ({
   projects: state.projects,
   selectedDashboardDate: state.selectedDashboardDate,
-  reportingData: state.reportingData,
-  fetchReportingData: state.fetchReportingData,
+  isOnline: state.reportingData.isOnline,
 });
 
-export const useDashboardData = () => {
-  const {
-    projects,
-    selectedDashboardDate,
-    reportingData,
-    fetchReportingData
-  } = useStore(useShallow(selectDashboardState));
+const isCarbonoProject = (p) =>
+  p.client?.toLowerCase() === 'carbono' || p.cliente?.toLowerCase() === 'carbono' || p.properties?.tag === 'carbono';
 
-  useEffect(() => {
-    fetchReportingData();
-  }, [fetchReportingData]);
+export const useDashboardData = () => {
+  const { projects, selectedDashboardDate, isOnline } = useStore(useShallow(selectDashboardState));
 
   const dashboardMetrics = useMemo(
     () => buildDashboardData(projects || [], selectedDashboardDate),
     [projects, selectedDashboardDate]
   );
 
-  const { carbonoProjectsThisMonth, variableProjectsCount } = useMemo(() => {
-    const now = selectedDashboardDate;
-    const carbonoProjects = (projects || []).filter(p => {
-      const info = extractProjectInfo(p);
-      return (p.client?.toLowerCase() === 'carbono' || p.cliente?.toLowerCase() === 'carbono' || p.properties?.tag === 'carbono') &&
-      info.startDate && isSameMonth(info.startDate, now);
-    });
-
-    const variableProjects = (projects || []).filter(p => 
-      !(p.client?.toLowerCase() === 'carbono' || p.cliente?.toLowerCase() === 'carbono' || p.properties?.tag === 'carbono')
-    );
-    return {
-      carbonoProjectsThisMonth: carbonoProjects.length,
-      variableProjectsCount: variableProjects.length,
-    };
-  }, [projects, selectedDashboardDate]);
-
-  const efficiencyMetrics = useMemo(
-    () => calculateEfficiencyMetrics(reportingData?.efficiency || []),
-    [reportingData?.efficiency]
+  // Cuota de Carbono: proyectos de Carbono que arrancan (inicio o primer
+  // rodaje) en el mes elegido.
+  const carbonoProjectsThisMonth = useMemo(
+    () =>
+      (projects || []).filter((p) => {
+        if (!isCarbonoProject(p) || isAbsenceProject(p)) return false;
+        const { workStart } = extractProjectInfo(p);
+        return Boolean(workStart && isSameMonth(workStart, selectedDashboardDate));
+      }).length,
+    [projects, selectedDashboardDate]
   );
 
   return {
     ...dashboardMetrics,
     carbonoProjectsThisMonth,
-    variableProjectsCount,
     projects,
     selectedDashboardDate,
-    reportingData,
-    isOnline: reportingData.isOnline,
-    efficiencyMetrics,
+    isOnline,
   };
 };
 

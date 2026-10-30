@@ -12,7 +12,10 @@ assert.strictEqual(normalizeStatus('revision'), 'En revisión');
 assert.strictEqual(normalizeStatus('EN REVISIÓN'), 'En revisión');
 assert.strictEqual(normalizeStatus('cancelado'), 'Programado');
 assert.strictEqual(normalizeStatus(undefined), 'Programado');
-assert.deepStrictEqual(ALLOWED_STATUSES, ['Programado', 'En progreso', 'En revisión', 'Completado']);
+assert.strictEqual(normalizeStatus('Stuck'), 'Stuck');
+assert.strictEqual(normalizeStatus('stuck'), 'Stuck');
+assert.strictEqual(normalizeStatus('atascado'), 'Stuck');
+assert.deepStrictEqual(ALLOWED_STATUSES, ['Programado', 'En progreso', 'En revisión', 'Completado', 'Stuck']);
 
 // buildStatusUpdatePayload tests
 const project = { id: 'p1', name: 'Test', status: 'Programado' };

@@ -14,6 +14,11 @@
   --color-scroll-thumb: rgba(95, 100, 104, 0.4);
   --color-surface-elevated: #FFFFFF;
   --color-accent: #FF4B2A;
+  /* Gráficos: un azul para los datos; el rojo queda reservado a alertas. */
+  --chart-series-1: #2a78d6;
+  --chart-axis: #52514e;
+  --chart-grid: rgba(15, 23, 42, 0.08);
+  --chart-cursor: rgba(42, 120, 214, 0.08);
 }
 
 :root {
@@ -26,7 +31,8 @@
   --color-background: #000000;
   --color-surface: #0F0F0F;
   --color-text-primary: #FFFFFF;
-  --color-text-secondary: #5F6468;
+  /* #5F6468 sobre negro daba ~3,4:1; este gris pasa 4,5:1 holgado. */
+  --color-text-secondary: #A3A3A3;
   --color-border: rgba(255, 255, 255, 0.1);
   --color-card-shadow: 0 40px 80px rgba(0, 0, 0, 0.9);
   --color-card-strong-shadow: 0 48px 96px rgba(0, 0, 0, 1);
@@ -34,6 +40,10 @@
   --color-surface-elevated: #141414;
   --color-accent: #FF4B2A;
   --color-accent-purple: #7C3AED;
+  --chart-series-1: #3987e5;
+  --chart-axis: #c3c2b7;
+  --chart-grid: rgba(255, 255, 255, 0.08);
+  --chart-cursor: rgba(57, 135, 229, 0.12);
 }
 
 body {
