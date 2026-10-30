@@ -19,18 +19,23 @@ import {
   Radio,
   ChevronDown,
   ExternalLink,
+  Coffee,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../supabaseclient';
 import useStore from '../hooks/useStore';
 import UserSettingsPanel from './UserSettingsPanel';
-import { AVAILABILITY_OPTIONS } from '../utils/availability';
 import { useMemberColor } from './ui/MemberAvatar';
 import { getMemberNameForUser, isTeamUser } from '../constants/team';
+import { MANUAL_STATUS_OPTIONS, STATUS_KINDS } from '../lib/office/status';
+import { OFFICE_ROOMS, parseCallRoom } from '../lib/office/rooms';
+import { groupByRoom } from '../lib/office/presence';
+import { useMyStatus } from '../hooks/useOffice';
 
 const NAV_ITEMS = [
   { id: 'Dashboard', icon: Activity, label: 'Inicio' },
+  { id: 'Office', icon: Coffee, label: 'Oficina' },
   { id: 'Table', icon: FolderOpen, label: 'Proyectos' },
   { id: 'Calendar', icon: CalendarIcon, label: 'Calendario' },
   { id: 'Gallery', icon: Images, label: 'Galería' },
@@ -46,19 +51,14 @@ const SEARCH_SCOPE = {
   Edition: 'Cola de edición',
 };
 
-const VOICE_ROOMS = [
-  { id: 'General', emoji: '🎙️' },
-  { id: 'Carbono', emoji: '🚗' },
-];
-
 const isFranciscoUser = (user) =>
   user?.email?.toString().trim().toLowerCase() === 'francisco@carbonomkt.com';
 
 // ─── Presencia / disponibilidad del usuario (avatar + popover) ─────────────────
 const PresenceButton = () => {
   const currentUser = useStore((state) => state.currentUser);
-  const userAvailability = useStore((state) => state.userAvailability);
-  const setUserAvailability = useStore((state) => state.setUserAvailability);
+  const setManualStatus = useStore((state) => state.setManualStatus);
+  const myStatus = useMyStatus();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -68,7 +68,7 @@ const PresenceButton = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const current = AVAILABILITY_OPTIONS.find((a) => a.value === userAvailability) || AVAILABILITY_OPTIONS[0];
+  const current = { ...STATUS_KINDS[myStatus.kind], line: myStatus.line };
   // Preferir el nombre de usuario (display_name) sobre el email para el avatar/inicial.
   const meta = currentUser?.user_metadata || {};
   const emailLocal = currentUser?.email ? currentUser.email.toString().trim().split('@')[0] : '';
@@ -88,8 +88,8 @@ const PresenceButton = () => {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white pl-1.5 pr-2 text-sm font-medium text-secondary transition-all hover:bg-slate-50 dark:border-white/5 dark:bg-[#1E1F23] dark:text-white/70 dark:hover:bg-white/10"
-        title={`Tu estado: ${current.label}`}
-        aria-label={`Tu estado: ${current.label}`}
+        title={`Tu estado: ${current.line}`}
+        aria-label={`Tu estado: ${current.line}`}
       >
         <span className="relative inline-flex">
           <span className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: avatarColor }}>
@@ -102,22 +102,25 @@ const PresenceButton = () => {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-white/10 dark:bg-[#16171D]">
+        <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-white/10 dark:bg-[#16171D]">
           <div className="flex items-center gap-2 px-2 pb-2 pt-1">
             <span className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: avatarColor }}>{initial}</span>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-primary dark:text-white">{name}</p>
-              <p className="text-xs text-secondary dark:text-white/60">Tu disponibilidad</p>
+              <p className="truncate text-xs text-secondary dark:text-white/60" title={current.line}>{current.line}</p>
             </div>
           </div>
           <div className="h-px bg-slate-100 dark:bg-white/5" />
-          {AVAILABILITY_OPTIONS.map(({ value, label, dot }) => {
-            const isActive = userAvailability === value;
+          {/* Automático = según la agenda. Lo elegido a mano dura hasta el fin del día. */}
+          {[null, ...MANUAL_STATUS_OPTIONS].map((value) => {
+            const isActive = value === null ? !myStatus.manual : myStatus.manual && myStatus.kind === value;
+            const label = value === null ? 'Automático (agenda)' : STATUS_KINDS[value].label;
+            const dot = value === null ? 'bg-gradient-to-br from-green-400 to-sky-500' : STATUS_KINDS[value].dot;
             return (
               <button
-                key={value}
+                key={value || 'auto'}
                 type="button"
-                onClick={() => { setUserAvailability(value); setOpen(false); }}
+                onClick={() => { setManualStatus(value); setOpen(false); }}
                 className={clsx(
                   'mt-1 flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm transition-all',
                   isActive
@@ -131,6 +134,9 @@ const PresenceButton = () => {
               </button>
             );
           })}
+          <p className="px-2 pt-2 text-[11px] text-secondary dark:text-white/40">
+            Lo que elijas a mano vale hasta el final del día. «Ocupado» y «En grabación» te silencian en las salas.
+          </p>
         </div>
       )}
     </div>
@@ -141,6 +147,10 @@ const PresenceButton = () => {
 const VoiceRoomsButton = () => {
   const activeVoiceRoom = useStore((state) => state.activeVoiceRoom);
   const setActiveVoiceRoom = useStore((state) => state.setActiveVoiceRoom);
+  const setCurrentView = useStore((state) => state.setCurrentView);
+  const presence = useStore((state) => state.officePresence);
+  const occupants = groupByRoom(presence);
+  const activeLabel = parseCallRoom(activeVoiceRoom) ? 'Llamada' : activeVoiceRoom;
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -165,16 +175,17 @@ const VoiceRoomsButton = () => {
         aria-label="Salas de voz"
       >
         <Radio size={16} className={activeVoiceRoom ? 'animate-pulse' : ''} />
-        <span className="hidden lg:inline">{activeVoiceRoom || 'Salas de voz'}</span>
+        <span className="hidden lg:inline">{activeLabel || 'Salas'}</span>
         <ChevronDown size={13} className="opacity-60" />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-52 rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-white/10 dark:bg-[#16171D]">
+        <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-white/10 dark:bg-[#16171D]">
           <p className="px-2 pb-2 pt-1 text-xs font-semibold text-secondary dark:text-white/60">
-            Salas de voz
+            Salas de voz · entras silenciado
           </p>
-          {VOICE_ROOMS.map(({ id, emoji }) => {
+          {OFFICE_ROOMS.map(({ id, emoji }) => {
+            const inRoom = occupants[id] || [];
             const isActive = activeVoiceRoom === id;
             return (
               <button
@@ -189,11 +200,23 @@ const VoiceRoomsButton = () => {
                 )}
               >
                 <span className="text-base leading-none">{emoji}</span>
-                <span className="flex-1 text-left">{id}</span>
+                <span className="min-w-0 flex-1 text-left">
+                  <span className="block">{id}</span>
+                  {inRoom.length > 0 && (
+                    <span className="block truncate text-[11px] text-secondary dark:text-white/45">{inRoom.join(', ')}</span>
+                  )}
+                </span>
                 {isActive && <span className="text-[10px] font-semibold uppercase text-green-500">En vivo</span>}
               </button>
             );
           })}
+          <button
+            type="button"
+            onClick={() => { setCurrentView('Office'); setOpen(false); }}
+            className="mt-1 flex w-full items-center gap-2 rounded-lg border-t border-slate-100 px-2 pb-1 pt-2 text-xs font-medium text-accent hover:underline dark:border-white/5"
+          >
+            <Coffee size={13} /> Abrir la oficina
+          </button>
         </div>
       )}
     </div>

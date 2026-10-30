@@ -57,7 +57,7 @@ assert.ok(isTeamUser({ email: 'Luis.Matallana.30@gmail.com' }));
 assert.ok(!isTeamUser({ email: 'francisco@carbonomkt.com' }));
 
 // ─── Política del token ───────────────────────────────────────────────────────
-assert.deepStrictEqual(ALLOWED_ROOMS, ['General', 'Carbono']);
+assert.deepStrictEqual(ALLOWED_ROOMS, ['Mesa común', 'General', 'Carbono'], 'fase 1: se suma la Mesa común');
 assert.ok(!isAllowedRoom('cualquier-sala'));
 assert.strictEqual(buildIdentity('u1', 'abc123def'), 'u1:abc123def');
 assert.strictEqual(buildIdentity('u1', '../malo'), 'u1:web', 'deviceId inválido');

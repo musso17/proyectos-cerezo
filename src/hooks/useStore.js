@@ -15,10 +15,31 @@ import {
 } from '../utils/dashboardHelpers';
 import { canonicalizeProjectClients } from '../utils/clients';
 import { ABSENCE_STAGE, getAbsenceMembersFromName, isAbsenceProject } from '../utils/absences';
-import { deriveAvailability } from '../utils/availability';
-import { getMemberNameForUser } from '../constants/team';
+import { dayKey } from '../lib/office/status';
+import { isTeamUser } from '../constants/team';
 
 const LOCAL_STORAGE_KEY = 'cerezo-projects';
+const MANUAL_STATUS_KEY = 'cerezo-manual-status';
+
+const loadManualStatus = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(MANUAL_STATUS_KEY) || 'null');
+    return stored?.value && stored?.date ? stored : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveManualStatus = (value) => {
+  if (typeof window === 'undefined') return;
+  try {
+    if (value) window.localStorage.setItem(MANUAL_STATUS_KEY, JSON.stringify(value));
+    else window.localStorage.removeItem(MANUAL_STATUS_KEY);
+  } catch {
+    // sin almacenamiento: el estado vale hasta recargar
+  }
+};
 const RETAINERS_KEY = 'cerezo-retainers';
 const DEFAULT_ALLOWED_VIEWS = ['Table', 'Calendar', 'Timeline', 'Gallery', 'Edition'];
 const FRANCISCO_EMAIL = 'francisco@carbonomkt.com';
@@ -177,6 +198,7 @@ const normalizeProject = (project) => {
   }
   const fechaGrabacion = recordingDates[0] || fechaGrabacionSingle || null;
   const recordingTime = project.recordingTime || properties.recordingTime || '';
+  const recordingEndTime = project.recordingEndTime || properties.recordingEndTime || '';
   const recordingLocation = project.recordingLocation || properties.recordingLocation || '';
   const recordingDescription =
     project.recordingDescription || properties.recordingDescription || project.detalle || project.description || '';
@@ -222,6 +244,7 @@ const normalizeProject = (project) => {
     registrationType,
     stage: resolvedStage,
     recordingTime,
+    recordingEndTime,
     recordingLocation,
     recordingDescription,
     deliverableLink,
@@ -235,6 +258,7 @@ const normalizeProject = (project) => {
       registrationType,
       stage: resolvedStage || properties.stage,
       recordingTime,
+      recordingEndTime,
       recordingLocation,
       recordingDescription,
       fechaGrabacion,
@@ -707,16 +731,21 @@ const useStore = create((set, get) => ({
   isVoiceRoomMinimized: false,
   setActiveVoiceRoom: (room) => set({ activeVoiceRoom: room, isVoiceRoomMinimized: false }),
   setIsVoiceRoomMinimized: (minimized) => set({ isVoiceRoomMinimized: minimized }),
-  userAvailability: 'Activo - Editando',
-  // 'auto' = se calcula con la agenda de hoy; 'manual' = la persona lo eligió.
-  availabilitySource: 'auto',
-  setUserAvailability: (status) => set({ userAvailability: status, availabilitySource: 'manual' }),
-  syncAvailabilityFromSchedule: () => {
-    const { availabilitySource, currentUser, projects } = get();
-    if (availabilitySource === 'manual') return;
-    const derived = deriveAvailability(projects, getMemberNameForUser(currentUser));
-    if (derived) set({ userAvailability: derived });
+  // Estado elegido a mano ({ value, date }); vale solo ese día. Sin él, el
+  // estado sale de la agenda (src/lib/office/status.js).
+  manualStatus: loadManualStatus(),
+  setManualStatus: (value) => {
+    const next = value ? { value, date: dayKey(new Date()) } : null;
+    saveManualStatus(next);
+    set({ manualStatus: next });
   },
+  // Presencia en vivo del equipo (canal "oficina") y estado de la sala propia.
+  officePresence: {},
+  officePresenceStatus: 'idle',
+  setOfficePresence: (officePresence) => set({ officePresence }),
+  setOfficePresenceStatus: (officePresenceStatus) => set({ officePresenceStatus }),
+  voiceState: { room: null, mic: false, sharing: false },
+  setVoiceState: (patch) => set((state) => ({ voiceState: { ...state.voiceState, ...patch } })),
   theme: getInitialTheme(),
   selectedDashboardDate: startOfMonth(new Date()),
   reportingData: {
@@ -1151,6 +1180,8 @@ const useStore = create((set, get) => ({
       } else {
         allowedViews = ['Dashboard', ...DEFAULT_ALLOWED_VIEWS.filter(v => v !== 'Dashboard')];
       }
+      // La oficina es solo del equipo (Francisco no entra).
+      if (isTeamUser(user)) allowedViews = [allowedViews[0], 'Office', ...allowedViews.slice(1)];
 
       const nextView = allowedViews.includes(state.currentView) ? state.currentView : allowedViews[0];
       return {

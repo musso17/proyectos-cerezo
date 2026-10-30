@@ -49,7 +49,7 @@ const STAGE_BUTTONS = [
 
 // Metadata interna del sistema: NO debe exponerse como "propiedad personalizada".
 const INTERNAL_PROPERTY_KEYS = new Set([
-  'resources', 'registrationType', 'stage', 'recordingTime', 'recordingLocation',
+  'resources', 'registrationType', 'stage', 'recordingTime', 'recordingEndTime', 'recordingLocation',
   'recordingDescription', 'fechaGrabacion', 'fecha_grabacion', 'recordingDates',
   'linkedRecordingId', 'state', 'status', 'managers', 'manager', 'tasks',
   'client', 'cliente', 'currentCycle', 'current_cycle', 'deadline', 'fecha_entrega',
@@ -143,6 +143,7 @@ const buildInitialDraft = (selectedProject, intent, enforceFranciscoClient) => {
   );
   const recordingDate = recordingDates[0] || '';
   const recordingTime = selectedProject.recordingTime || properties.recordingTime || '';
+  const recordingEndTime = selectedProject.recordingEndTime || properties.recordingEndTime || '';
   const recordingLocation = selectedProject.recordingLocation || properties.recordingLocation || '';
   const recordingDescription = selectedProject.recordingDescription || properties.recordingDescription || '';
   const deliverableLink = (selectedProject.deliverableLink || properties.deliverableLink || properties.deliverable_link || '')
@@ -161,6 +162,7 @@ const buildInitialDraft = (selectedProject, intent, enforceFranciscoClient) => {
     recordingDate,
     recordingDates,
     recordingTime,
+    recordingEndTime,
     recordingLocation,
     recordingDescription,
     deliverableLink,
@@ -174,6 +176,7 @@ const buildInitialDraft = (selectedProject, intent, enforceFranciscoClient) => {
       registrationType,
       stage,
       recordingTime,
+      recordingEndTime,
       recordingLocation,
       recordingDescription,
       fechaGrabacion: recordingDate || properties.fechaGrabacion || '',
@@ -572,7 +575,7 @@ const ModalDetalles = () => {
   };
 
   const handleOpenRecordingCalendar = () => {
-    const { name, client, recordingTime, recordingLocation, recordingDescription, team, managers } = editedProject;
+    const { name, client, recordingTime, recordingEndTime, recordingLocation, recordingDescription, team, managers } = editedProject;
     const dates = sanitizeRecordingDates(editedProject.recordingDates || editedProject.recordingDate);
     if (dates.length === 0) return;
     const managerNames = Array.isArray(managers) && managers.length > 0 ? managers.join(', ') : editedProject.manager;
@@ -584,7 +587,7 @@ const ModalDetalles = () => {
       fechaInicio: dates[0],
       fechaFin: dates[dates.length - 1],
       horaInicio: recordingTime,
-      horaFin: calculateEndTime(recordingTime),
+      horaFin: recordingEndTime || calculateEndTime(recordingTime),
       lugar: recordingLocation,
       team,
     });
@@ -699,6 +702,7 @@ const ModalDetalles = () => {
     );
     const recordingDate = recordingDates[0] || '';
     const recordingTime = editedProject.recordingTime || '';
+    const recordingEndTime = editedProject.recordingEndTime || '';
     const recordingLocation = editedProject.recordingLocation || '';
     const recordingDescription = editedProject.recordingDescription || '';
     const managers = Array.isArray(editedProject.managers)
@@ -729,6 +733,7 @@ const ModalDetalles = () => {
       stage,
       client,
       recordingTime,
+      recordingEndTime,
       recordingLocation,
       recordingDescription,
     };
@@ -767,6 +772,7 @@ const ModalDetalles = () => {
 
     if (!registrationType) delete updatedProperties.registrationType;
     if (!recordingTime) delete updatedProperties.recordingTime;
+    if (!recordingEndTime) delete updatedProperties.recordingEndTime;
     if (!recordingLocation) delete updatedProperties.recordingLocation;
     if (!recordingDescription) delete updatedProperties.recordingDescription;
 
@@ -795,6 +801,7 @@ const ModalDetalles = () => {
       recordingDate,
       recordingDates,
       recordingTime,
+      recordingEndTime,
       recordingLocation,
       recordingDescription,
       properties: updatedProperties,
@@ -845,8 +852,8 @@ const ModalDetalles = () => {
             origin: { y: 0.6 },
             colors: ['#FF4B2A', '#10B981', '#3B82F6']
           });
-          toast.success('¡Has completado todas tus tareas de hoy! Modo Fuera de la oficina activado.', { duration: 5000 });
-          useStore.getState().setUserAvailability('Fuera de la oficina');
+          // Ya no cambia el estado a "Fuera": el estado sale de la agenda.
+          toast.success('¡Completaste todas tus tareas activas!', { duration: 5000 });
         }
       }
     }
@@ -1272,15 +1279,28 @@ const ModalDetalles = () => {
 
                     {isRecordingStage && (
                       <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <label htmlFor="recording-time" className={labelClass}>Hora</label>
-                          <input
-                            id="recording-time"
-                            type="time"
-                            value={editedProject?.recordingTime || ''}
-                            onChange={handleRecordingFieldChange('recordingTime')}
-                            className={`${inputClass} ${inputOk}`}
-                          />
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label htmlFor="recording-time" className={labelClass}>Hora</label>
+                            <input
+                              id="recording-time"
+                              type="time"
+                              value={editedProject?.recordingTime || ''}
+                              onChange={handleRecordingFieldChange('recordingTime')}
+                              className={`${inputClass} ${inputOk}`}
+                            />
+                          </div>
+                          <div>
+                            {/* La oficina muestra "En rodaje" solo hasta esta hora (sin ella, 4 h). */}
+                            <label htmlFor="recording-end-time" className={labelClass}>Hora de fin</label>
+                            <input
+                              id="recording-end-time"
+                              type="time"
+                              value={editedProject?.recordingEndTime || ''}
+                              onChange={handleRecordingFieldChange('recordingEndTime')}
+                              className={`${inputClass} ${inputOk}`}
+                            />
+                          </div>
                         </div>
                         <div>
                           <label htmlFor="recording-location" className={labelClass}>Lugar</label>
