@@ -1190,8 +1190,8 @@ const useStore = create((set, get) => ({
       } else {
         allowedViews = ['Dashboard', ...DEFAULT_ALLOWED_VIEWS.filter(v => v !== 'Dashboard')];
       }
-      // La oficina es solo del equipo (Francisco no entra).
-      if (isTeamUser(user)) allowedViews = [allowedViews[0], 'Office', ...allowedViews.slice(1)];
+      // La oficina y las cotizaciones son solo del equipo (Francisco no entra).
+      if (isTeamUser(user)) allowedViews = [allowedViews[0], 'Office', ...allowedViews.slice(1), 'Quotes'];
 
       const nextView = allowedViews.includes(state.currentView) ? state.currentView : allowedViews[0];
       return {
