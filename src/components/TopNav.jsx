@@ -18,7 +18,7 @@ import {
   Layers,
   Radio,
   ChevronDown,
-  ExternalLink,
+  FileText,
   Coffee,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -40,6 +40,7 @@ const NAV_ITEMS = [
   { id: 'Calendar', icon: CalendarIcon, label: 'Calendario' },
   { id: 'Gallery', icon: Images, label: 'Galería' },
   { id: 'Edition', icon: Layers, label: 'Cola de edición' },
+  { id: 'Quotes', icon: FileText, label: 'Cotizaciones' },
 ];
 
 // La búsqueda filtra la vista abierta. En Inicio no hay lista que filtrar:
@@ -50,9 +51,6 @@ const SEARCH_SCOPE = {
   Gallery: 'Galería',
   Edition: 'Cola de edición',
 };
-
-const isFranciscoUser = (user) =>
-  user?.email?.toString().trim().toLowerCase() === 'francisco@carbonomkt.com';
 
 // ─── Presencia / disponibilidad del usuario (avatar + popover) ─────────────────
 const PresenceButton = () => {
@@ -438,20 +436,8 @@ const TopNav = () => {
             })}
           </div>
 
-          {/* Cotización (secundario, discreto) + Nuevo (CTA primario) */}
+          {/* Nuevo (CTA primario). Las cotizaciones ahora son una vista más del planner. */}
           <div className="ml-auto flex items-center gap-1">
-            {!isFranciscoUser(currentUser) && (
-              <a
-                href="https://cotizacionescr.netlify.app/"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Abre Cotizaciones en una nueva pestaña (app externa)"
-                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-secondary transition-all hover:bg-slate-100 dark:text-white/60 dark:hover:bg-white/5"
-              >
-                Cotización
-                <ExternalLink size={13} className="opacity-60" />
-              </a>
-            )}
             <button
               onClick={handleAddNew}
               type="button"
@@ -485,8 +471,8 @@ const TopNav = () => {
               <button onClick={toggleTheme} className={iconBtn} title="Cambiar tema" aria-label="Cambiar tema">{theme === 'dark' ? <Sun size={18} className="text-accent" /> : <Moon size={18} />}</button>
               <button onClick={() => { setShowSettings(true); setMobileOpen(false); }} className={iconBtn} title="Ajustes" aria-label="Ajustes"><Settings size={18} /></button>
               <button onClick={handleSignOut} disabled={signingOut} className={clsx(iconBtn, 'disabled:opacity-60')} title="Cerrar sesión" aria-label="Cerrar sesión"><LogOut size={18} /></button>
-              {!isFranciscoUser(currentUser) && (
-                <a href="https://cotizacionescr.netlify.app/" target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2.5 text-xs font-semibold uppercase text-secondary dark:border-white/10 dark:text-white/70">Cotización <ExternalLink size={12} className="opacity-60" /></a>
+              {allowedViews.includes('Quotes') && (
+                <button type="button" onClick={() => handleNavigate('Quotes')} className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2.5 text-xs font-semibold uppercase text-secondary dark:border-white/10 dark:text-white/70"><FileText size={13} className="opacity-60" /> Cotizaciones</button>
               )}
             </div>
           </div>

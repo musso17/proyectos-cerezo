@@ -11,6 +11,7 @@ import VistaGaleria from './views/VistaGaleria';
 import VistaCalendario from './views/VistaCalendario';
 import VistaEdicion from './views/VistaEdicion';
 import VistaOficina from './views/VistaOficina';
+import VistaCotizaciones from './views/VistaCotizaciones';
 
 // Helpers para identificar roles de usuario por email
 const isCeo = (user) => {
@@ -70,6 +71,8 @@ const ViewRenderer = () => {
         return <VistaEdicion />;
       case 'Office':
         return <VistaOficina />;
+      case 'Quotes':
+        return <VistaCotizaciones />;
       default:
         return <VistaTabla projects={isFranciscoUser ? carbonoProjects : undefined} />;
     }
